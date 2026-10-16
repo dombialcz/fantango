@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Fantango is a dark-fantasy daily logic game of thieves, coins, and perfectly planned heists."
+    />
+    <meta name="theme-color" content="#07101c" />
+    <title>Fantango — A Daily Logic Heist</title>
+    <link rel="preload" href="assets/vault-bg.jpg" as="image" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main>
+      <canvas
+        id="game"
+        width="1080"
+        height="810"
+        tabindex="0"
+        aria-label="Fantango daily logic puzzle. Use arrow keys to select a cell and Space to cycle coin, thief, and empty. Press H for a hint."
+      ></canvas>
+      <p class="screen-reader-copy">
+        Fill every row and column with three coins and three thieves. Never place three matching
+        symbols in a row. An equals mark means neighboring cells match; a multiplication mark means
+        they differ. Press 1, 2, or 3 to switch daily difficulty.
+      </p>
+      <noscript>Fantango needs JavaScript enabled to generate and play today's heists.</noscript>
+    </main>
+    <script type="module" src="src/game.js"></script>
+  </body>
+</html>
+
