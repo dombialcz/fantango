@@ -14,9 +14,17 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Added generator regression tests and a GitHub Pages deployment workflow.
 - Generator test covers determinism plus 730 consecutive dates: 2,190 independently generated daily puzzles across the three difficulties.
 
-## Remaining for this implementation turn
+## Completed implementation
 
 - Browser-tested and visually inspected the initial board, invalid-move highlighting, correct cell cycling, contextual hints, undo, reset, all three difficulty views, the full win flow, and progression to the next unfinished heist.
 - Confirmed the browser runs produced no console or page errors.
 - Final generator suite passes across 730 consecutive dates (2,190 puzzles), including uniqueness, logical completion, valid answers, deterministic replay, and distinct daily boards.
-- Remaining: create and push the GitHub repository, then verify the Pages deployment.
+- Created and pushed the public GitHub repository at `https://github.com/dombialcz/fantango`.
+- Enabled GitHub Pages through the workflow deployment and verified a successful HTTP 200 response.
+- Loaded and visually inspected the deployed build at `https://dombialcz.github.io/fantango/`; generated puzzle state and all artwork loaded with no console errors.
+
+## Future ideas
+
+- Tune difficulty scoring with anonymized playtest data.
+- Add optional sound and reduced-motion settings.
+- Add a shareable, spoiler-free daily result card.

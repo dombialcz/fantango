@@ -2,6 +2,8 @@
 
 A dark-fantasy daily logic game about a thief, a treasury, and a perfectly balanced plan. Fantango generates three deterministic puzzles every day—Easy, Medium, and Hard—using the player's local browser date.
 
+**Play online:** [dombialcz.github.io/fantango](https://dombialcz.github.io/fantango/)
+
 Play by filling the 6×6 vault with coins and thieves:
 
 - every row and column contains three of each;
@@ -37,4 +39,3 @@ The game is plain HTML, CSS, and JavaScript with no runtime dependencies. Genera
 - `F` toggles fullscreen.
 
 Fantango is an original implementation inspired by binary logic puzzles. It is not affiliated with LinkedIn.
-
