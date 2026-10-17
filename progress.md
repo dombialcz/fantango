@@ -35,3 +35,6 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Removed the yellow top-left predefined-cell marker; the stone material alone now distinguishes fixed clues.
 - Added a close button and `Esc` shortcut to the completion popup so the solved board can be reviewed.
 - Revisiting a previously completed level now opens directly in review mode instead of covering it again.
+- Added independent four-second grace timers for wrong marks, so quick mouse cycling does not count as a misstep.
+- A wrong mark now counts once only after it remains unchanged for the full grace period; correcting, clearing, undoing, or resetting it cancels that pending misstep.
+- Verified the grace period, correction cancellation, one-time counting, and concurrent timers in browser playtests with no console errors.

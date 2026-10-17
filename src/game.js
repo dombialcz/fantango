@@ -6,6 +6,7 @@ const context = canvas.getContext("2d");
 
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
+const MISSTEP_GRACE_MS = 4000;
 const BOARD = { x: 130, y: 232, size: 432, cell: 72 };
 const PANEL = { x: 92, y: 194, width: 896, height: 530 };
 const TABS = DIFFICULTIES.map((_, index) => ({ x: 92 + index * 299, y: 105, width: 280, height: 66 }));
@@ -66,6 +67,14 @@ function storageKey(puzzle) {
   return `fantango:${GENERATOR_VERSION}:${puzzle.dateKey}:${puzzle.difficulty}`;
 }
 
+function isWrongMark(puzzle, entries, cell) {
+  return (
+    puzzle.initial[cell] === EMPTY &&
+    entries[cell] !== EMPTY &&
+    entries[cell] !== puzzle.solution[cell]
+  );
+}
+
 function restoreLevel(puzzle) {
   const fallback = {
     entries: [...puzzle.initial],
@@ -73,6 +82,8 @@ function restoreLevel(puzzle) {
     elapsedMs: 0,
     hints: 0,
     mistakes: 0,
+    mistakeTimers: Array(SIZE * SIZE).fill(0),
+    mistakeCounted: Array(SIZE * SIZE).fill(false),
     won: false,
   };
   try {
@@ -82,12 +93,19 @@ function restoreLevel(puzzle) {
       (value, cell) => value === EMPTY || saved.entries[cell] === value,
     );
     if (!givensMatch) return fallback;
+    const entries = saved.entries.map((value) => ([-1, 0, 1].includes(value) ? value : EMPTY));
     return {
       ...fallback,
-      entries: saved.entries.map((value) => ([-1, 0, 1].includes(value) ? value : EMPTY)),
+      entries,
       elapsedMs: Number.isFinite(saved.elapsedMs) ? saved.elapsedMs : 0,
       hints: Number.isInteger(saved.hints) ? saved.hints : 0,
       mistakes: Number.isInteger(saved.mistakes) ? saved.mistakes : 0,
+      mistakeCounted:
+        Array.isArray(saved.mistakeCounted) && saved.mistakeCounted.length === SIZE * SIZE
+          ? saved.mistakeCounted.map(
+              (counted, cell) => Boolean(counted) && isWrongMark(puzzle, entries, cell),
+            )
+          : entries.map((_, cell) => isWrongMark(puzzle, entries, cell)),
       won: Boolean(saved.won),
     };
   } catch {
@@ -105,6 +123,7 @@ function saveLevel() {
       elapsedMs: level.elapsedMs,
       hints: level.hints,
       mistakes: level.mistakes,
+      mistakeCounted: level.mistakeCounted,
       won: level.won,
     }),
   );
@@ -116,6 +135,11 @@ function currentPuzzle() {
 
 function currentLevel() {
   return state.levels[state.levelIndex];
+}
+
+function resetMistakeTimer(level, cell) {
+  level.mistakeTimers[cell] = 0;
+  level.mistakeCounted[cell] = false;
 }
 
 function switchLevel(index) {
@@ -139,7 +163,7 @@ function cycleCell(cell) {
   const next = previous === EMPTY ? 0 : previous === 0 ? 1 : EMPTY;
   level.entries[cell] = next;
   level.history.push({ cell, previous, next });
-  if (next !== EMPTY && next !== puzzle.solution[cell]) level.mistakes += 1;
+  resetMistakeTimer(level, cell);
   state.selectedCell = cell;
   state.hintCells = [];
   state.message = next === EMPTY ? "The mark fades back into shadow." : "The plan changes.";
@@ -158,6 +182,7 @@ function undo() {
     return;
   }
   level.entries[action.cell] = action.previous;
+  resetMistakeTimer(level, action.cell);
   state.selectedCell = action.cell;
   state.hintCells = [];
   state.message = "One step quietly retraced.";
@@ -172,6 +197,8 @@ function reset() {
   level.elapsedMs = 0;
   level.hints = 0;
   level.mistakes = 0;
+  level.mistakeTimers = Array(SIZE * SIZE).fill(0);
+  level.mistakeCounted = Array(SIZE * SIZE).fill(false);
   level.won = false;
   state.mode = "playing";
   state.selectedCell = firstEditable(currentPuzzle());
@@ -214,6 +241,7 @@ function useHint() {
   const previous = level.entries[step.cell];
   level.entries[step.cell] = step.value;
   level.history.push({ cell: step.cell, previous, next: step.value, hint: true });
+  resetMistakeTimer(level, step.cell);
   state.selectedCell = step.cell;
   state.hintCells = step.source ?? [step.cell];
   state.message = describeStep(step);
@@ -260,11 +288,35 @@ function moveSelection(dx, dy) {
 
 function update(milliseconds) {
   state.shimmer = (state.shimmer + milliseconds * 0.00035) % (Math.PI * 2);
+  const puzzle = currentPuzzle();
   const level = currentLevel();
   if (!level.won) {
     level.elapsedMs += milliseconds;
     state.elapsedAccumulator += milliseconds;
-    if (state.elapsedAccumulator >= 5000) {
+    let newlyCounted = 0;
+
+    for (let cell = 0; cell < level.entries.length; cell += 1) {
+      if (!isWrongMark(puzzle, level.entries, cell)) {
+        resetMistakeTimer(level, cell);
+      } else if (!level.mistakeCounted[cell]) {
+        level.mistakeTimers[cell] += milliseconds;
+        if (level.mistakeTimers[cell] >= MISSTEP_GRACE_MS) {
+          level.mistakeTimers[cell] = MISSTEP_GRACE_MS;
+          level.mistakeCounted[cell] = true;
+          level.mistakes += 1;
+          newlyCounted += 1;
+        }
+      }
+    }
+
+    if (newlyCounted > 0) {
+      state.message =
+        newlyCounted === 1
+          ? "A false mark lingered too long — misstep counted."
+          : "False marks lingered too long — missteps counted.";
+    }
+
+    if (newlyCounted > 0 || state.elapsedAccumulator >= 5000) {
       state.elapsedAccumulator = 0;
       saveLevel();
     }
@@ -798,6 +850,17 @@ window.render_game_to_text = () => {
     elapsed: formatTime(level.elapsedMs),
     hints: level.hints,
     mistakes: level.mistakes,
+    misstepGraceMs: MISSTEP_GRACE_MS,
+    pendingMissteps: level.entries
+      .map((_, cell) => {
+        if (!isWrongMark(puzzle, level.entries, cell) || level.mistakeCounted[cell]) return null;
+        return {
+          row: Math.floor(cell / SIZE),
+          column: cell % SIZE,
+          remainingMs: Math.max(0, Math.ceil(MISSTEP_GRACE_MS - level.mistakeTimers[cell])),
+        };
+      })
+      .filter(Boolean),
     message: state.message,
     controls: "click a cell or use arrows + Space; H hint; Z undo; R reset; 1/2/3 level; F fullscreen; Esc closes results",
   });
