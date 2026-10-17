@@ -25,6 +25,8 @@
     { "buttons": ["left_mouse_button"], "frames": 1, "mouse_x": 700, "mouse_y": 562 },
     { "buttons": ["left_mouse_button"], "frames": 1, "mouse_x": 700, "mouse_y": 562 },
     { "buttons": ["left_mouse_button"], "frames": 1, "mouse_x": 700, "mouse_y": 562 },
-    { "buttons": ["left_mouse_button"], "frames": 1, "mouse_x": 480, "mouse_y": 494 }
+    { "buttons": ["left_mouse_button"], "frames": 1, "mouse_x": 649, "mouse_y": 249 },
+    { "buttons": ["left_mouse_button"], "frames": 1, "mouse_x": 472, "mouse_y": 123 },
+    { "buttons": ["left_mouse_button"], "frames": 1, "mouse_x": 206, "mouse_y": 123 }
   ]
 }

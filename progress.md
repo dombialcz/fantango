@@ -33,3 +33,5 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 
 - Reworked predefined cells as solid warm golden-brown stone slabs with subtle bevels and fixed paving cracks.
 - Removed the yellow top-left predefined-cell marker; the stone material alone now distinguishes fixed clues.
+- Added a close button and `Esc` shortcut to the completion popup so the solved board can be reviewed.
+- Revisiting a previously completed level now opens directly in review mode instead of covering it again.

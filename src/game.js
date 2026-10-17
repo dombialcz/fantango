@@ -14,6 +14,7 @@ const BUTTONS = {
   hint: { x: 734, y: 608, width: 106, height: 48 },
   reset: { x: 851, y: 608, width: 106, height: 48 },
   next: { x: 413, y: 526, width: 254, height: 60 },
+  closeResult: { x: 716, y: 265, width: 30, height: 30 },
 };
 
 const COLORS = {
@@ -44,10 +45,11 @@ function loadImage(source) {
 
 const dateKey = localDateKey();
 const puzzles = generateDailyPuzzles(dateKey);
+const levels = puzzles.map((puzzle) => restoreLevel(puzzle));
 const state = {
-  mode: "playing",
+  mode: levels[0].won ? "reviewing" : "playing",
   levelIndex: 0,
-  levels: puzzles.map((puzzle) => restoreLevel(puzzle)),
+  levels,
   selectedCell: firstEditable(puzzles[0]),
   hintCells: [],
   message: "Choose a mark. Leave no pattern unplanned.",
@@ -120,7 +122,7 @@ function switchLevel(index) {
   if (index < 0 || index >= puzzles.length) return;
   saveLevel();
   state.levelIndex = index;
-  state.mode = currentLevel().won ? "won" : "playing";
+  state.mode = currentLevel().won ? "reviewing" : "playing";
   state.selectedCell = firstEditable(currentPuzzle());
   state.hintCells = [];
   state.message = currentLevel().won
@@ -601,6 +603,29 @@ function drawWinOverlay() {
   context.strokeStyle = COLORS.gold;
   context.stroke();
 
+  roundedRect(
+    BUTTONS.closeResult.x,
+    BUTTONS.closeResult.y,
+    BUTTONS.closeResult.width,
+    BUTTONS.closeResult.height,
+    7,
+  );
+  context.fillStyle = "rgba(24, 39, 52, 0.96)";
+  context.fill();
+  context.lineWidth = 1;
+  context.strokeStyle = "rgba(215, 174, 93, 0.72)";
+  context.stroke();
+  context.fillStyle = COLORS.goldBright;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.font = "22px Georgia";
+  context.fillText(
+    "×",
+    BUTTONS.closeResult.x + BUTTONS.closeResult.width / 2,
+    BUTTONS.closeResult.y + BUTTONS.closeResult.height / 2 - 1,
+  );
+  context.textBaseline = "alphabetic";
+
   drawToken(0, 486, 280, 108);
   context.textAlign = "center";
   context.fillStyle = COLORS.goldBright;
@@ -621,6 +646,14 @@ function drawWinOverlay() {
   context.fillStyle = COLORS.goldBright;
   context.font = "700 18px Georgia";
   context.fillText("Choose the next heist", WIDTH / 2, 563);
+}
+
+function dismissWinOverlay() {
+  if (!currentLevel().won) return;
+  state.mode = "reviewing";
+  state.hintCells = [];
+  state.message = "Completed heist — reviewing the solved vault.";
+  render();
 }
 
 function render() {
@@ -673,7 +706,9 @@ canvas.addEventListener("pointerdown", (event) => {
   }
 
   if (currentLevel().won && state.mode === "won") {
-    if (pointInRect(x, y, BUTTONS.next)) {
+    if (pointInRect(x, y, BUTTONS.closeResult)) {
+      dismissWinOverlay();
+    } else if (pointInRect(x, y, BUTTONS.next)) {
       const next = state.levels.findIndex((level, index) => !level.won && index !== state.levelIndex);
       state.mode = "playing";
       switchLevel(next === -1 ? (state.levelIndex + 1) % puzzles.length : next);
@@ -702,7 +737,8 @@ window.addEventListener("keydown", (event) => {
   if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(event.key)) {
     event.preventDefault();
   }
-  if (event.key === "1" || event.key === "2" || event.key === "3") switchLevel(Number(event.key) - 1);
+  if (event.key === "Escape" && state.mode === "won") dismissWinOverlay();
+  else if (event.key === "1" || event.key === "2" || event.key === "3") switchLevel(Number(event.key) - 1);
   else if (event.key === "ArrowUp") moveSelection(0, -1);
   else if (event.key === "ArrowDown") moveSelection(0, 1);
   else if (event.key === "ArrowLeft") moveSelection(-1, 0);
@@ -737,7 +773,9 @@ window.render_game_to_text = () => {
   const symbol = (value) => (value === EMPTY ? "." : value === 0 ? "C" : "T");
   return JSON.stringify({
     coordinateSystem: "6x6 grid; row and column are zero-based from the top-left",
-    mode: level.won ? "won" : state.mode,
+    mode: state.mode,
+    completed: level.won,
+    resultOverlayOpen: level.won && state.mode === "won",
     date: dateKey,
     level: puzzle.difficulty,
     levelName: puzzle.profile.name,
@@ -761,7 +799,7 @@ window.render_game_to_text = () => {
     hints: level.hints,
     mistakes: level.mistakes,
     message: state.message,
-    controls: "click a cell or use arrows + Space; H hint; Z undo; R reset; 1/2/3 level; F fullscreen",
+    controls: "click a cell or use arrows + Space; H hint; Z undo; R reset; 1/2/3 level; F fullscreen; Esc closes results",
   });
 };
 
