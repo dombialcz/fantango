@@ -28,3 +28,8 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Tune difficulty scoring with anonymized playtest data.
 - Add optional sound and reduced-motion settings.
 - Add a shareable, spoiler-free daily result card.
+
+## 2026-10-17
+
+- Reworked predefined cells as solid warm golden-brown stone slabs with subtle bevels and fixed paving cracks.
+- Removed the yellow top-left predefined-cell marker; the stone material alone now distinguishes fixed clues.

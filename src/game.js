@@ -364,6 +364,49 @@ function drawPanel() {
   context.fill();
 }
 
+function drawGivenStone(x, y, row, column) {
+  const alternate = (row + column) % 2 === 0;
+  context.fillStyle = alternate ? "#6b5133" : "#62482e";
+  context.fillRect(x, y, BOARD.cell, BOARD.cell);
+
+  const stoneLight = context.createLinearGradient(x, y, x, y + BOARD.cell);
+  stoneLight.addColorStop(0, "rgba(224, 190, 125, 0.18)");
+  stoneLight.addColorStop(0.48, "rgba(132, 96, 57, 0.04)");
+  stoneLight.addColorStop(1, "rgba(36, 24, 15, 0.24)");
+  context.fillStyle = stoneLight;
+  context.fillRect(x + 2, y + 2, BOARD.cell - 4, BOARD.cell - 4);
+
+  context.lineWidth = 2;
+  context.strokeStyle = "rgba(226, 193, 132, 0.24)";
+  context.beginPath();
+  context.moveTo(x + 3, y + BOARD.cell - 3);
+  context.lineTo(x + 3, y + 3);
+  context.lineTo(x + BOARD.cell - 3, y + 3);
+  context.stroke();
+
+  context.strokeStyle = "rgba(38, 25, 15, 0.5)";
+  context.beginPath();
+  context.moveTo(x + 4, y + BOARD.cell - 3);
+  context.lineTo(x + BOARD.cell - 3, y + BOARD.cell - 3);
+  context.lineTo(x + BOARD.cell - 3, y + 4);
+  context.stroke();
+
+  const cell = row * SIZE + column;
+  context.strokeStyle = "rgba(47, 30, 18, 0.32)";
+  context.lineWidth = 1;
+  context.beginPath();
+  if (cell % 2 === 0) {
+    context.moveTo(x + 8, y + BOARD.cell - 18);
+    context.lineTo(x + 16, y + BOARD.cell - 24);
+    context.lineTo(x + 21, y + BOARD.cell - 21);
+  } else {
+    context.moveTo(x + BOARD.cell - 10, y + 16);
+    context.lineTo(x + BOARD.cell - 18, y + 21);
+    context.lineTo(x + BOARD.cell - 15, y + 28);
+  }
+  context.stroke();
+}
+
 function drawBoard() {
   const puzzle = currentPuzzle();
   const level = currentLevel();
@@ -382,12 +425,13 @@ function drawBoard() {
       const hinted = state.hintCells.includes(cell);
       const invalid = violations.has(cell);
 
-      context.fillStyle = given
-        ? "rgba(34, 41, 46, 0.98)"
-        : (row + column) % 2 === 0
-          ? "rgba(16, 31, 46, 0.96)"
-          : "rgba(12, 25, 39, 0.96)";
-      context.fillRect(x, y, BOARD.cell, BOARD.cell);
+      if (given) {
+        drawGivenStone(x, y, row, column);
+      } else {
+        context.fillStyle =
+          (row + column) % 2 === 0 ? "rgba(16, 31, 46, 0.96)" : "rgba(12, 25, 39, 0.96)";
+        context.fillRect(x, y, BOARD.cell, BOARD.cell);
+      }
 
       if (invalid) {
         context.fillStyle = "rgba(170, 43, 46, 0.3)";
@@ -399,17 +443,6 @@ function drawBoard() {
       }
 
       drawToken(level.entries[cell], x + 9, y + 9, BOARD.cell - 18);
-
-      if (given && level.entries[cell] !== EMPTY) {
-        context.fillStyle = COLORS.gold;
-        context.beginPath();
-        context.moveTo(x + 7, y + 4);
-        context.lineTo(x + 16, y + 4);
-        context.lineTo(x + 4, y + 16);
-        context.lineTo(x + 4, y + 7);
-        context.closePath();
-        context.fill();
-      }
 
       if (selected) {
         context.lineWidth = 3;
