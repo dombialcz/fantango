@@ -70,3 +70,11 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Pausing freezes battle time, attack timers, health changes, targeting effects, and the current combat frame until resumed.
 - Added a clear in-canvas paused-state banner without obscuring the party rows and moved the Fantango link away from the battle controls.
 - Verified button and keyboard pause/resume flows, including a ten-second deterministic paused advance with unchanged time and HP, on desktop and portrait mobile with no browser errors.
+
+## Vaultbound retreat and gold pacing
+
+- Added a red Flee button during active battles on desktop, compact, and portrait layouts. It preserves living heroes, ends the day, and removes half of the player's current gold, rounded up.
+- Mid-battle fleeing remains available while paused, and its live gold cost is displayed directly on the button.
+- Automatic retreat at two survivors now opens a distinct `Party Defeated` info panel with the message: “The party is defeated, remaining heroes flee.”
+- Flattened dungeon income to exactly 1 gold for every completed floor.
+- Browser-tested paused mid-battle retreat, survivor preservation, gold payment, the two-survivor auto-retreat, one-gold floor rewards, and desktop/portrait/compact layouts with no console or page errors.

@@ -600,7 +600,7 @@ function updateBattle(milliseconds) {
   else if (heroesLeft === 0) finishDay("The company was lost below. Tomorrow begins with fresh contracts.");
   else {
     const retreatAt = state.expeditionStartCount > 2 ? 2 : Math.max(0, state.expeditionStartCount - 1);
-    if (heroesLeft <= retreatAt) finishDay(`Only ${heroesLeft} hero${heroesLeft === 1 ? " remains" : "es remain"}. The company retreats automatically.`);
+    if (heroesLeft <= retreatAt) finishDay("The party is defeated, remaining heroes flee.", "Party Defeated");
     else if (state.battleTime >= 90000) finishDay("The fight becomes a hopeless stalemate. The company retreats.");
   }
 }
@@ -608,7 +608,7 @@ function updateBattle(milliseconds) {
 function finishFloor() {
   clearCombatFeedback();
   state.view = "floor_result";
-  state.floorReward = 1 + Math.floor(state.floor / 3);
+  state.floorReward = 1;
   state.gold += state.floorReward;
   state.deepestFloor = Math.max(state.deepestFloor, state.floor);
   state.resultTitle = `Floor ${state.floor} Cleared`;
@@ -622,10 +622,10 @@ function continueExpedition() {
   prepareFloor();
 }
 
-function finishDay(reason = "The company returns to the surface with its survivors.") {
+function finishDay(reason = "The company returns to the surface with its survivors.", title = null) {
   clearCombatFeedback();
   state.party = livingParty();
-  state.resultTitle = state.party.length ? "Expedition Ended" : "No One Returned";
+  state.resultTitle = title ?? (state.party.length ? "Expedition Ended" : "No One Returned");
   state.resultCopy = reason;
   state.message = reason;
   state.view = state.day >= 10 ? "campaign_end" : "day_result";
@@ -643,6 +643,22 @@ function clearCombatFeedback() {
 function fleeExpedition() {
   if (state.view !== "floor_result") return;
   finishDay("The company flees with its gold and surviving heroes.");
+}
+
+function midBattleFleeCost() {
+  return Math.ceil(state.gold / 2);
+}
+
+function fleeMidBattle() {
+  if (state.view !== "battle") return;
+  const cost = midBattleFleeCost();
+  state.gold -= cost;
+  finishDay(
+    cost > 0
+      ? `The party abandons the fight and pays ${cost} gold to escape.`
+      : "The party abandons the fight and escapes with nothing left to lose.",
+    "Battle Abandoned",
+  );
 }
 
 function advanceDay() {
@@ -1148,12 +1164,20 @@ function drawBattle() {
   else drawBattleLandscape();
   drawCombatEffects();
   if (state.view !== "battle") return;
+  const fleeRect = layoutMode === "portrait"
+    ? { x: 166, y: 1190, width: 166, height: 62 }
+    : { x: WIDTH - 520, y: HEIGHT - 74, width: 154, height: 48 };
   const pauseRect = layoutMode === "portrait"
     ? { x: 348, y: 1190, width: 166, height: 62 }
     : { x: WIDTH - 354, y: HEIGHT - 74, width: 154, height: 48 };
   const speedRect = layoutMode === "portrait"
     ? { x: 530, y: 1190, width: 166, height: 62 }
     : { x: WIDTH - 188, y: HEIGHT - 74, width: 154, height: 48 };
+  drawButton(fleeRect, "FLEE", {
+    danger: true,
+    sublabel: `lose ${midBattleFleeCost()} gold`,
+    action: fleeMidBattle,
+  });
   drawButton(pauseRect, state.battlePaused ? "RESUME" : "PAUSE", {
     accent: state.battlePaused,
     action: toggleBattlePause,
@@ -1470,6 +1494,7 @@ window.render_game_to_text = () => {
     deepestFloor: state.deepestFloor,
     battleSpeed: state.battleSpeed,
     battlePaused: state.battlePaused,
+    midBattleFleeCost: state.view === "battle" ? midBattleFleeCost() : null,
     battleTimeMs: Math.round(state.battleTime),
     combatEffects: state.combatEffects.map((effect) => ({
       sourceId: effect.sourceId,
@@ -1497,7 +1522,7 @@ window.render_game_to_text = () => {
       ? { title: state.resultTitle, copy: state.resultCopy, floorReward: state.floorReward }
       : null,
     message: state.message,
-    controls: "Tap/click cards and buttons. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
+    controls: "Tap/click cards and buttons. Mid-battle Flee costs half your current gold, rounded up. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
   });
 };
 

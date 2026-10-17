@@ -48,4 +48,4 @@ Vaultbound is a second dark-fantasy game in this repository: a ten-day auto-batt
 
 The active party grows from four to eight slots over the campaign. Surviving heroes heal and gain a level after each day, while defeated heroes are lost. Each campaign rolls one of three enemy flavors: Undead Uprising, Demonic Invasion, or Assassins' Guild.
 
-Vaultbound supports mouse, touch, portrait phones, and short landscape screens. Press `R` to reroll, `Enter` to begin or continue an expedition, `P` to pause or resume, `Space` to toggle battle speed, and `F` for fullscreen.
+Vaultbound supports mouse, touch, portrait phones, and short landscape screens. Every cleared floor awards 1 gold. You can flee safely between floors, or flee during a battle by sacrificing half your current gold (rounded up). Press `R` to reroll, `Enter` to begin or continue an expedition, `P` to pause or resume, `Space` to toggle battle speed, and `F` for fullscreen.
