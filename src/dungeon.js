@@ -8,6 +8,11 @@ let hitRegions = [];
 let previousFrame = performance.now();
 let nextHeroId = 1;
 let nextEnemyId = 1;
+let combatRects = new Map();
+
+const COMBAT_DAMAGE_SCALE = 0.25;
+const COMBAT_INTERVAL_SCALE = 1.5;
+const COMBAT_EFFECT_DURATION = 700;
 
 const COLORS = {
   ink: "#06101b",
@@ -41,7 +46,7 @@ const HERO_TYPES = {
     damage: 0.4,
     interval: 900,
     color: "#7594c8",
-    image: "assets/thief-token.png",
+    image: "assets/heroes/thief.png",
     summary: "Finishes the weakest enemy in the front row.",
   },
   bard: {
@@ -127,7 +132,7 @@ const FLAVORS = {
 };
 
 const ENEMY_TYPES = {
-  goblin: { label: "Goblin", row: "front", hp: 45, damage: 18, interval: 900, color: "#78934f", glyph: "G" },
+  goblin: { label: "Goblin", row: "front", hp: 60, damage: 18, interval: 900, color: "#78934f", glyph: "G" },
   orc: { label: "Orc", row: "front", hp: 150, damage: 35, interval: 1750, color: "#687849", glyph: "O" },
   enemyMage: { label: "Hexer", row: "back", hp: 65, damage: 40, interval: 1450, color: "#845f9e", glyph: "M" },
   skeleton: { label: "Skeleton", row: "front", hp: 36, damage: 15, interval: 1100, color: "#bbb5a5", glyph: "S" },
@@ -211,6 +216,7 @@ function createCampaign() {
     battleTime: 0,
     battleSpeed: 1,
     battleLog: [],
+    combatEffects: [],
     expeditionStartCount: 0,
     expeditionStartIds: [],
     floorReward: 0,
@@ -365,6 +371,7 @@ function buildParty(heroes) {
       hp: maxHp,
       timer: Math.random() * 450,
       flash: 0,
+      actionFlash: 0,
     };
   });
 }
@@ -386,9 +393,10 @@ function makeEnemy(type, floor = state.floor) {
     maxHp,
     hp: maxHp,
     damage: Math.round(definition.damage * scale),
-    timer: 400 + Math.random() * 500,
+    timer: 950 + Math.random() * 650,
     returnAt: null,
     flash: 0,
+    actionFlash: 0,
   };
 }
 
@@ -412,7 +420,10 @@ function prepareFloor() {
   state.view = "battle";
   state.enemies = generateEnemies(state.floor);
   state.battleTime = 0;
-  for (const hero of state.party) hero.timer = Math.random() * 400;
+  state.combatEffects = [];
+  state.party.forEach((hero, index) => {
+    hero.timer = 650 + index * 420 + Math.random() * 220;
+  });
   state.battleLog = [`Floor ${state.floor}: ${state.enemies.length} enemies close in.`];
   state.message = "The battle runs on its own. Watch the rows and health bars.";
 }
@@ -439,12 +450,28 @@ function targetBackFirst(units) {
   return randomLiving(back.length ? back : unitsInRow(units, "front"));
 }
 
-function dealDamage(target, amount, sourceLabel) {
+function addCombatEffect(source, target, kind = "attack") {
+  if (!source || !target) return;
+  source.actionFlash = 420;
+  state.combatEffects.push({
+    sourceId: source.id,
+    sourceSide: source.side,
+    targetId: target.id,
+    kind,
+    remaining: COMBAT_EFFECT_DURATION,
+  });
+  state.combatEffects = state.combatEffects.slice(-8);
+}
+
+function dealDamage(target, amount, source) {
   if (!target || target.hp <= 0) return;
-  const damage = Math.max(1, Math.round(amount));
+  const sourceLabel = typeof source === "string" ? source : source.label;
+  const damage = Math.max(1, Math.round(amount * COMBAT_DAMAGE_SCALE));
   target.hp = Math.max(0, target.hp - damage);
-  target.flash = 180;
+  target.flash = 420;
+  if (typeof source === "object") addCombatEffect(source, target);
   if (target.hp === 0) logBattle(`${sourceLabel} defeats ${target.label}.`);
+  return damage;
 }
 
 function logBattle(copy) {
@@ -455,8 +482,8 @@ function logBattle(copy) {
 function heroInterval(unit) {
   const definition = HERO_TYPES[unit.type];
   if (!Number.isFinite(definition.interval)) return Infinity;
-  if (unit.type === "mage") return definition.interval;
-  return definition.interval / speedMultiplier(unit.hero.level);
+  if (unit.type === "mage") return definition.interval * COMBAT_INTERVAL_SCALE;
+  return (definition.interval * COMBAT_INTERVAL_SCALE) / speedMultiplier(unit.hero.level);
 }
 
 function actHero(unit) {
@@ -468,7 +495,7 @@ function actHero(unit) {
   if (unit.type === "mage") {
     const ordered = [...unitsInRow(enemies, "back"), ...unitsInRow(enemies, "front")];
     const targets = ordered.slice(0, unit.hero.level);
-    for (const target of targets) dealDamage(target, unit.power * definition.damage, unit.label);
+    for (const target of targets) dealDamage(target, unit.power * definition.damage, unit);
     logBattle(`${unit.label} arcs magic through ${targets.length} foe${targets.length === 1 ? "" : "s"}.`);
     return;
   }
@@ -486,14 +513,16 @@ function actHero(unit) {
     target = targetFrontFirst(enemies);
   }
 
-  dealDamage(target, unit.power * definition.damage, unit.label);
+  dealDamage(target, unit.power * definition.damage, unit);
+  if (target.hp > 0) logBattle(`${unit.label} strikes ${target.label}.`);
 
   if (unit.type === "cleric") {
     const damaged = livingParty().filter((ally) => ally.id !== unit.id && ally.hp < ally.maxHp);
     if (damaged.length) {
       const ally = randomItem(damaged);
-      const amount = Math.max(1, Math.round(unit.power * definition.heal));
+      const amount = Math.max(1, Math.round(unit.power * definition.heal * COMBAT_DAMAGE_SCALE));
       ally.hp = Math.min(ally.maxHp, ally.hp + amount);
+      addCombatEffect(unit, ally, "heal");
       logBattle(`${unit.label} restores ${amount} health to ${ally.label}.`);
     }
   }
@@ -523,16 +552,23 @@ function actEnemy(unit) {
   } else {
     target = targetFrontFirst(heroes);
   }
-  dealDamage(target, unit.damage, unit.label);
+  dealDamage(target, unit.damage, unit);
+  if (target.hp > 0) logBattle(`${unit.label} strikes ${target.label}.`);
 }
 
 function updateBattle(milliseconds) {
   if (state.view !== "battle") return;
   const delta = milliseconds * state.battleSpeed;
   state.battleTime += delta;
+  state.combatEffects = state.combatEffects
+    .map((effect) => ({ ...effect, remaining: effect.remaining - delta }))
+    .filter((effect) => effect.remaining > 0);
+  for (const unit of [...state.party, ...state.enemies]) {
+    unit.flash = Math.max(0, unit.flash - delta);
+    unit.actionFlash = Math.max(0, unit.actionFlash - delta);
+  }
 
   for (const unit of [...livingParty()]) {
-    unit.flash = Math.max(0, unit.flash - delta);
     const interval = heroInterval(unit);
     if (!Number.isFinite(interval)) continue;
     unit.timer -= delta;
@@ -544,7 +580,6 @@ function updateBattle(milliseconds) {
 
   if (livingEnemies().length) {
     for (const unit of [...livingEnemies()]) {
-      unit.flash = Math.max(0, unit.flash - delta);
       if (unit.type === "assassin" && unit.returnAt !== null && state.battleTime >= unit.returnAt) {
         unit.row = "back";
         unit.returnAt = null;
@@ -552,7 +587,7 @@ function updateBattle(milliseconds) {
       unit.timer -= delta;
       while (unit.timer <= 0 && unit.hp > 0 && livingParty().length) {
         actEnemy(unit);
-        unit.timer += ENEMY_TYPES[unit.type].interval;
+        unit.timer += ENEMY_TYPES[unit.type].interval * COMBAT_INTERVAL_SCALE;
       }
     }
   }
@@ -569,6 +604,7 @@ function updateBattle(milliseconds) {
 }
 
 function finishFloor() {
+  clearCombatFeedback();
   state.view = "floor_result";
   state.floorReward = 1 + Math.floor(state.floor / 3);
   state.gold += state.floorReward;
@@ -585,11 +621,20 @@ function continueExpedition() {
 }
 
 function finishDay(reason = "The company returns to the surface with its survivors.") {
+  clearCombatFeedback();
   state.party = livingParty();
   state.resultTitle = state.party.length ? "Expedition Ended" : "No One Returned";
   state.resultCopy = reason;
   state.message = reason;
   state.view = state.day >= 10 ? "campaign_end" : "day_result";
+}
+
+function clearCombatFeedback() {
+  state.combatEffects = [];
+  for (const unit of [...state.party, ...state.enemies]) {
+    unit.flash = 0;
+    unit.actionFlash = 0;
+  }
 }
 
 function fleeExpedition() {
@@ -761,6 +806,29 @@ function fitText(text, x, y, maxWidth) {
   let output = text;
   while (context.measureText(output).width > maxWidth && output.length > 8) output = `${output.slice(0, -2)}…`;
   context.fillText(output, x, y);
+}
+
+function drawWrappedText(text, x, y, maxWidth, lineHeight, maxLines = 2) {
+  const words = text.split(/\s+/);
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (context.measureText(candidate).width <= maxWidth || !line) {
+      line = candidate;
+    } else {
+      lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+  const visible = lines.slice(0, maxLines);
+  if (lines.length > maxLines) {
+    let last = `${visible[maxLines - 1]}…`;
+    while (context.measureText(last).width > maxWidth && last.length > 8) last = `${last.slice(0, -2)}…`;
+    visible[maxLines - 1] = last;
+  }
+  visible.forEach((copy, index) => context.fillText(copy, x, y + index * lineHeight));
 }
 
 function drawHeroImage(hero, x, y, size) {
@@ -1037,11 +1105,21 @@ function drawEnemyPortrait(unit, x, y, size) {
 }
 
 function drawCombatUnit(unit, rect) {
+  combatRects.set(unit.id, {
+    x: rect.x + rect.width / 2,
+    y: rect.y + rect.height / 2,
+  });
   roundedRect(rect.x, rect.y, rect.width, rect.height, 10);
   context.fillStyle = unit.hp > 0 ? "rgba(10, 22, 34, 0.94)" : "rgba(24, 18, 20, 0.8)";
   context.fill();
-  context.lineWidth = unit.flash > 0 ? 3 : 1;
-  context.strokeStyle = unit.flash > 0 ? COLORS.danger : "rgba(155, 173, 185, 0.3)";
+  const isHit = unit.flash > 0;
+  const isActing = unit.actionFlash > 0;
+  context.lineWidth = isHit || isActing ? 3 : 1;
+  context.strokeStyle = isHit
+    ? COLORS.danger
+    : isActing
+      ? COLORS.goldBright
+      : "rgba(155, 173, 185, 0.3)";
   context.stroke();
   const portraitSize = Math.min(rect.height - 14, rect.width * 0.44);
   if (unit.side === "hero") drawHeroImage(unit.hero, rect.x + 6, rect.y + 5, portraitSize);
@@ -1062,8 +1140,10 @@ function drawCombatUnit(unit, rect) {
 }
 
 function drawBattle() {
+  combatRects = new Map();
   if (layoutMode === "portrait") drawBattlePortrait();
   else drawBattleLandscape();
+  drawCombatEffects();
   const speedRect = layoutMode === "portrait"
     ? { x: 530, y: 1190, width: 166, height: 62 }
     : { x: WIDTH - 188, y: HEIGHT - 74, width: 154, height: 48 };
@@ -1072,6 +1152,36 @@ function drawBattle() {
       state.battleSpeed = state.battleSpeed === 1 ? 2 : 1;
     },
   });
+}
+
+function drawCombatEffects() {
+  context.save();
+  context.lineCap = "round";
+  for (const effect of state.combatEffects) {
+    const source = combatRects.get(effect.sourceId);
+    const target = combatRects.get(effect.targetId);
+    if (!source || !target) continue;
+    const strength = Math.max(0, effect.remaining / COMBAT_EFFECT_DURATION);
+    const color = effect.kind === "heal"
+      ? `rgba(119, 203, 161, ${0.3 + strength * 0.7})`
+      : effect.sourceSide === "hero"
+        ? `rgba(245, 221, 165, ${0.25 + strength * 0.7})`
+        : `rgba(215, 104, 98, ${0.25 + strength * 0.7})`;
+    context.strokeStyle = color;
+    context.fillStyle = color;
+    context.lineWidth = effect.kind === "heal" ? 5 : 4;
+    context.beginPath();
+    context.moveTo(source.x, source.y);
+    context.lineTo(target.x, target.y);
+    context.stroke();
+    const travel = Math.min(1, (1 - strength) * 1.8);
+    const markerX = source.x + (target.x - source.x) * travel;
+    const markerY = source.y + (target.y - source.y) * travel;
+    context.beginPath();
+    context.arc(markerX, markerY, effect.kind === "heal" ? 7 : 6, 0, Math.PI * 2);
+    context.fill();
+  }
+  context.restore();
 }
 
 function drawBattleLandscape() {
@@ -1130,7 +1240,7 @@ function drawBattlePortrait() {
   const heroBack = unitsInRow(state.party, "back");
   drawHorizontalCombatRow(enemyBack, 165, "ENEMY BACK");
   drawHorizontalCombatRow(enemyFront, 390, "ENEMY FRONT");
-  drawHorizontalCombatRow(heroFront, 755, "YOUR FRONT");
+  drawHorizontalCombatRow(heroFront, 775, "YOUR FRONT");
   drawHorizontalCombatRow(heroBack, 980, "YOUR BACK");
 
   context.textAlign = "center";
@@ -1160,46 +1270,65 @@ function drawHorizontalCombatRow(units, y, label) {
 }
 
 function drawOverlay() {
-  context.fillStyle = "rgba(1, 5, 10, 0.8)";
-  context.fillRect(0, 0, WIDTH, HEIGHT);
   const portrait = layoutMode === "portrait";
   const dialog = portrait
-    ? { x: 50, y: 325, width: 620, height: 610 }
-    : { x: WIDTH / 2 - 270, y: 170, width: 540, height: 470 };
+    ? { x: 50, y: 554, width: 620, height: 194 }
+    : {
+        x: WIDTH / 2 - (layoutMode === "compact" ? 210 : 150),
+        y: 180,
+        width: layoutMode === "compact" ? 420 : 300,
+        height: 300,
+      };
+  context.save();
+  context.shadowColor = "rgba(0, 0, 0, 0.9)";
+  context.shadowBlur = 30;
   drawPanel(dialog, 0.99);
+  context.restore();
   context.textAlign = "center";
   context.fillStyle = COLORS.goldBright;
-  context.font = `small-caps 700 ${portrait ? 42 : 38}px Georgia`;
-  context.fillText(state.resultTitle, WIDTH / 2, dialog.y + 85);
+  context.font = `small-caps 700 ${portrait ? 30 : 27}px Georgia`;
+  fitText(state.resultTitle, WIDTH / 2, dialog.y + (portrait ? 39 : 50), dialog.width - 36);
   context.fillStyle = COLORS.text;
-  context.font = `${portrait ? 23 : 17}px Georgia`;
-  fitText(state.resultCopy, WIDTH / 2, dialog.y + 135, dialog.width - 80);
+  context.font = `${portrait ? 17 : 15}px Georgia`;
+  drawWrappedText(
+    state.resultCopy,
+    WIDTH / 2,
+    dialog.y + (portrait ? 70 : 86),
+    dialog.width - (portrait ? 70 : 38),
+    portrait ? 20 : 19,
+    portrait ? 2 : 3,
+  );
   context.fillStyle = COLORS.muted;
-  context.font = `italic ${portrait ? 20 : 15}px Georgia`;
-  context.fillText(`Day ${state.day}/10  •  Deepest floor ${state.deepestFloor}  •  ${state.gold} gold`, WIDTH / 2, dialog.y + 180);
+  context.font = `italic ${portrait ? 15 : 13}px Georgia`;
+  context.fillText(
+    `Day ${state.day}/10  •  Deepest floor ${state.deepestFloor}  •  ${state.gold} gold`,
+    WIDTH / 2,
+    dialog.y + (portrait ? 111 : 159),
+  );
 
   if (state.view === "floor_result") {
-    drawButton({ x: dialog.x + 48, y: dialog.y + dialog.height - 125, width: dialog.width / 2 - 62, height: 76 }, "FLEE", {
+    const buttonY = portrait ? dialog.y + 126 : dialog.y + 214;
+    const inset = portrait ? 28 : 18;
+    const gap = portrait ? 16 : 10;
+    const buttonWidth = (dialog.width - inset * 2 - gap) / 2;
+    drawButton({ x: dialog.x + inset, y: buttonY, width: buttonWidth, height: portrait ? 68 : 58 }, "FLEE", {
       danger: true,
       sublabel: "end the day safely",
       action: fleeExpedition,
     });
-    drawButton({ x: dialog.x + dialog.width / 2 + 14, y: dialog.y + dialog.height - 125, width: dialog.width / 2 - 62, height: 76 }, "CONTINUE", {
+    drawButton({ x: dialog.x + inset + buttonWidth + gap, y: buttonY, width: buttonWidth, height: portrait ? 68 : 58 }, "CONTINUE", {
       accent: true,
       sublabel: `enter floor ${state.floor + 1}`,
       action: continueExpedition,
     });
   } else if (state.view === "day_result") {
-    drawButton({ x: dialog.x + 70, y: dialog.y + dialog.height - 125, width: dialog.width - 140, height: 76 }, "NEXT DAY", {
+    drawButton({ x: dialog.x + 28, y: dialog.y + (portrait ? 126 : 214), width: dialog.width - 56, height: portrait ? 68 : 58 }, "NEXT DAY", {
       accent: true,
       sublabel: `${state.party.length} survivors gain a level`,
       action: advanceDay,
     });
   } else {
-    context.fillStyle = COLORS.gold;
-    context.font = `700 ${portrait ? 28 : 22}px Georgia`;
-    context.fillText("THE TEN-DAY CAMPAIGN IS OVER", WIDTH / 2, dialog.y + 240);
-    drawButton({ x: dialog.x + 70, y: dialog.y + dialog.height - 125, width: dialog.width - 140, height: 76 }, "NEW CAMPAIGN", {
+    drawButton({ x: dialog.x + 28, y: dialog.y + (portrait ? 126 : 214), width: dialog.width - 56, height: portrait ? 68 : 58 }, "NEW CAMPAIGN", {
       accent: true,
       action: resetCampaign,
     });
@@ -1305,6 +1434,13 @@ window.render_game_to_text = () => {
     floor: state.floor,
     deepestFloor: state.deepestFloor,
     battleSpeed: state.battleSpeed,
+    battleTimeMs: Math.round(state.battleTime),
+    combatEffects: state.combatEffects.map((effect) => ({
+      sourceId: effect.sourceId,
+      targetId: effect.targetId,
+      kind: effect.kind,
+      remainingMs: Math.round(effect.remaining),
+    })),
     party: state.party.filter((unit) => unit.hp > 0).map((unit) => ({
       name: unit.label,
       class: unit.type,

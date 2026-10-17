@@ -50,3 +50,16 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Added responsive desktop, portrait-phone, and compact landscape battle/tavern layouts plus deterministic testing hooks (`advanceTime` and `render_game_to_text`).
 - Generated matching transparent dark-fantasy portraits for the knight, bard, cleric, ranger, mage, and barbarian, while reusing the existing thief portrait.
 - Browser-tested recruitment, bench limits, floor combat, floor victory, gold rewards, flee/next-day progression, survivor level-ups, upgrade costs, reroll escalation/reset, portrait touch play, and compact landscape rendering with no console or page errors.
+
+## Vaultbound combat readability pass
+
+- Added a new transparent thief portrait matching the realistic painterly style, visible faces, blue rim lighting, and navy/bronze palette of the other Vaultbound heroes; the original hooded token remains unchanged for Fantango.
+- Slowed battles by staggering opening attacks, increasing attack intervals, applying a shared combat pacing coefficient, and raising goblin health while preserving every class's relative health, damage, targeting, and speed identity.
+- Added animated attacker-to-target strike trails, separate gold attacker and red target highlights, green healing trails, and ordinary strike messages in the battle log so front- and back-row behavior is readable.
+- Replaced the full-screen result modal and blackout with a compact center panel that leaves every surviving hero card and health bar visible on desktop and mobile.
+- Measured eight randomized opening floors at ×1 speed: seven resolved in roughly 6–12 seconds and one weak composition automatically retreated after 27 seconds; ×2 remains available.
+- Browser-tested desktop and portrait combat visuals, the compact result panel, Flee → Next Day interaction, and the new thief artwork with no console or page errors.
+
+### Future tuning
+
+- Revisit the shared pacing coefficient after playtesting later floors and higher-level teams, where attack-speed scaling may shorten battles again.
