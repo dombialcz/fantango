@@ -18,6 +18,7 @@ body {
 body {
   display: grid;
   min-height: 100vh;
+  min-height: 100dvh;
   place-items: center;
   overflow: hidden;
   background:
@@ -29,17 +30,22 @@ main {
   display: grid;
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   place-items: center;
 }
 
 canvas {
+  --game-ratio: 1.333333;
   display: block;
-  width: min(100vw, calc(100vh * 1.3333));
-  height: min(100vh, calc(100vw * 0.75));
+  width: min(100vw, calc(100dvh * var(--game-ratio)));
+  height: min(100dvh, calc(100vw / var(--game-ratio)));
   outline: none;
   background: #07101c;
   box-shadow: 0 0 70px rgba(0, 0, 0, 0.9);
-  touch-action: manipulation;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 canvas:focus-visible {
@@ -69,4 +75,3 @@ noscript {
   background: #111a27;
   border: 1px solid #9b7840;
 }
-

@@ -38,3 +38,5 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Added independent four-second grace timers for wrong marks, so quick mouse cycling does not count as a misstep.
 - A wrong mark now counts once only after it remains unchanged for the full grace period; correcting, clearing, undoing, or resetting it cancels that pending misstep.
 - Verified the grace period, correction cancellation, one-time counting, and concurrent timers in browser playtests with no console errors.
+- Added dedicated desktop, portrait-phone, and compact landscape-phone canvas layouts with touch-sized puzzle cells and controls.
+- Browser-tested touch marking, difficulty tabs, hints, rotation with state preservation, the solved-puzzle overlay, closing it for review, and advancing to the next heist at 390×844 and 844×390 viewports.

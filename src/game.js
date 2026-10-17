@@ -4,19 +4,88 @@ import { EMPTY, findViolations, isCompleteAndValid, logicalSolve, SIZE } from ".
 const canvas = document.querySelector("#game");
 const context = canvas.getContext("2d");
 
-const WIDTH = canvas.width;
-const HEIGHT = canvas.height;
+let WIDTH = canvas.width;
+let HEIGHT = canvas.height;
+let layoutMode = "desktop";
 const MISSTEP_GRACE_MS = 4000;
-const BOARD = { x: 130, y: 232, size: 432, cell: 72 };
-const PANEL = { x: 92, y: 194, width: 896, height: 530 };
-const TABS = DIFFICULTIES.map((_, index) => ({ x: 92 + index * 299, y: 105, width: 280, height: 66 }));
-const BUTTONS = {
+let BOARD = { x: 130, y: 232, size: 432, cell: 72 };
+let PANEL = { x: 92, y: 194, width: 896, height: 530 };
+let TABS = DIFFICULTIES.map((_, index) => ({ x: 92 + index * 299, y: 105, width: 280, height: 66 }));
+let BUTTONS = {
   undo: { x: 617, y: 608, width: 106, height: 48 },
   hint: { x: 734, y: 608, width: 106, height: 48 },
   reset: { x: 851, y: 608, width: 106, height: 48 },
   next: { x: 413, y: 526, width: 254, height: 60 },
   closeResult: { x: 716, y: 265, width: 30, height: 30 },
 };
+
+function configureLayout(force = false) {
+  const portrait = window.innerWidth <= 900 && window.innerHeight >= window.innerWidth;
+  const compactLandscape = window.innerHeight <= 600 && window.innerWidth > window.innerHeight;
+  const nextMode = portrait ? "portrait" : compactLandscape ? "compact" : "desktop";
+  if (!force && nextMode === layoutMode) return;
+
+  layoutMode = nextMode;
+  if (layoutMode === "portrait") {
+    WIDTH = 720;
+    HEIGHT = 1280;
+    BOARD = { x: 48, y: 226, size: 624, cell: 104 };
+    PANEL = { x: 24, y: 202, width: 672, height: 1054 };
+    TABS = DIFFICULTIES.map((_, index) => ({
+      x: 24 + index * 224,
+      y: 100,
+      width: 216,
+      height: 84,
+    }));
+    BUTTONS = {
+      undo: { x: 48, y: 1162, width: 196, height: 80 },
+      hint: { x: 262, y: 1162, width: 196, height: 80 },
+      reset: { x: 476, y: 1162, width: 196, height: 80 },
+      next: { x: 120, y: 720, width: 480, height: 90 },
+      closeResult: { x: 592, y: 292, width: 80, height: 80 },
+    };
+  } else if (layoutMode === "compact") {
+    WIDTH = 1500;
+    HEIGHT = 720;
+    BOARD = { x: 48, y: 178, size: 510, cell: 85 };
+    PANEL = { x: 24, y: 158, width: 1452, height: 550 };
+    TABS = DIFFICULTIES.map((_, index) => ({
+      x: 24 + index * 484,
+      y: 66,
+      width: 476,
+      height: 82,
+    }));
+    BUTTONS = {
+      undo: { x: 610, y: 592, width: 250, height: 78 },
+      hint: { x: 880, y: 592, width: 250, height: 78 },
+      reset: { x: 1150, y: 592, width: 250, height: 78 },
+      next: { x: 555, y: 492, width: 390, height: 78 },
+      closeResult: { x: 970, y: 146, width: 80, height: 80 },
+    };
+  } else {
+    WIDTH = 1080;
+    HEIGHT = 810;
+    BOARD = { x: 130, y: 232, size: 432, cell: 72 };
+    PANEL = { x: 92, y: 194, width: 896, height: 530 };
+    TABS = DIFFICULTIES.map((_, index) => ({
+      x: 92 + index * 299,
+      y: 105,
+      width: 280,
+      height: 66,
+    }));
+    BUTTONS = {
+      undo: { x: 617, y: 608, width: 106, height: 48 },
+      hint: { x: 734, y: 608, width: 106, height: 48 },
+      reset: { x: 851, y: 608, width: 106, height: 48 },
+      next: { x: 413, y: 526, width: 254, height: 60 },
+      closeResult: { x: 716, y: 265, width: 30, height: 30 },
+    };
+  }
+
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
+  canvas.style.setProperty("--game-ratio", String(WIDTH / HEIGHT));
+}
 
 const COLORS = {
   ink: "#07101c",
@@ -358,7 +427,15 @@ function drawBackground() {
     context.fillStyle = COLORS.ink;
     context.fillRect(0, 0, WIDTH, HEIGHT);
   }
-  const vignette = context.createRadialGradient(WIDTH / 2, 330, 100, WIDTH / 2, 360, 690);
+  const focusY = layoutMode === "portrait" ? 510 : HEIGHT * 0.42;
+  const vignette = context.createRadialGradient(
+    WIDTH / 2,
+    focusY,
+    90,
+    WIDTH / 2,
+    focusY,
+    Math.max(WIDTH, HEIGHT) * 0.78,
+  );
   vignette.addColorStop(0, "rgba(2, 8, 16, 0.2)");
   vignette.addColorStop(1, "rgba(1, 4, 9, 0.86)");
   context.fillStyle = vignette;
@@ -366,6 +443,40 @@ function drawBackground() {
 }
 
 function drawHeader() {
+  if (layoutMode === "portrait") {
+    context.textAlign = "left";
+    context.fillStyle = COLORS.goldBright;
+    context.font = "small-caps 700 52px Georgia";
+    context.fillText("FANTANGO", 24, 58);
+    context.fillStyle = COLORS.muted;
+    context.font = "italic 24px Georgia";
+    context.fillText("A daily logic heist", 27, 84);
+
+    context.textAlign = "right";
+    context.fillStyle = COLORS.text;
+    context.font = "600 22px Georgia";
+    context.fillText(formatDate(dateKey), 696, 48);
+    context.fillStyle = COLORS.muted;
+    context.font = "19px Georgia";
+    context.fillText("New job at local midnight", 696, 77);
+    return;
+  }
+
+  if (layoutMode === "compact") {
+    context.textAlign = "left";
+    context.fillStyle = COLORS.goldBright;
+    context.font = "small-caps 700 44px Georgia";
+    context.fillText("FANTANGO", 32, 51);
+    context.fillStyle = COLORS.muted;
+    context.font = "italic 22px Georgia";
+    context.fillText("A daily logic heist", 310, 48);
+    context.textAlign = "right";
+    context.fillStyle = COLORS.text;
+    context.font = "600 22px Georgia";
+    context.fillText(formatDate(dateKey), 1468, 48);
+    return;
+  }
+
   context.textAlign = "left";
   context.fillStyle = COLORS.goldBright;
   context.font = "small-caps 700 42px Georgia";
@@ -396,12 +507,17 @@ function drawTabs() {
 
     context.textAlign = "left";
     context.fillStyle = active ? COLORS.goldBright : COLORS.text;
-    context.font = "700 18px Georgia";
-    context.fillText(`${index + 1}. ${profile.name}`, tab.x + 18, tab.y + 27);
+    const titleSize = layoutMode === "portrait" ? 22 : layoutMode === "compact" ? 24 : 18;
+    const labelSize = layoutMode === "portrait" ? 18 : layoutMode === "compact" ? 18 : 13;
+    const inset = layoutMode === "desktop" ? 18 : 16;
+    const titleY = tab.y + (layoutMode === "desktop" ? 27 : 32);
+    const labelY = tab.y + (layoutMode === "desktop" ? 50 : 61);
+    context.font = `700 ${titleSize}px Georgia`;
+    context.fillText(`${index + 1}. ${profile.name}`, tab.x + inset, titleY);
     context.fillStyle = COLORS.muted;
-    context.font = "13px Georgia";
+    context.font = `${labelSize}px Georgia`;
     const completed = state.levels[index].won ? " • COMPLETE" : "";
-    context.fillText(`${profile.label.toUpperCase()}${completed}`, tab.x + 18, tab.y + 50);
+    context.fillText(`${profile.label.toUpperCase()}${completed}`, tab.x + inset, labelY);
   });
 }
 
@@ -496,7 +612,8 @@ function drawBoard() {
         context.fillRect(x + 4, y + 4, BOARD.cell - 8, BOARD.cell - 8);
       }
 
-      drawToken(level.entries[cell], x + 9, y + 9, BOARD.cell - 18);
+      const tokenInset = BOARD.cell * 0.125;
+      drawToken(level.entries[cell], x + tokenInset, y + tokenInset, BOARD.cell - tokenInset * 2);
 
       if (selected) {
         context.lineWidth = 3;
@@ -537,6 +654,7 @@ function drawToken(value, x, y, size) {
 }
 
 function drawRelations(relations) {
+  const radius = BOARD.cell * 0.167;
   for (const relation of relations) {
     const aRow = Math.floor(relation.a / SIZE);
     const aColumn = relation.a % SIZE;
@@ -550,7 +668,7 @@ function drawRelations(relations) {
       : BOARD.y + (aRow + 1) * BOARD.cell;
     context.fillStyle = "#e8dcc5";
     context.beginPath();
-    context.arc(x, y, 12, 0, Math.PI * 2);
+    context.arc(x, y, radius, 0, Math.PI * 2);
     context.fill();
     context.lineWidth = 2;
     context.strokeStyle = "#65522f";
@@ -558,7 +676,7 @@ function drawRelations(relations) {
     context.fillStyle = "#182433";
     context.textAlign = "center";
     context.textBaseline = "middle";
-    context.font = "bold 17px Arial";
+    context.font = `bold ${BOARD.cell * 0.236}px Arial`;
     context.fillText(relation.same ? "=" : "×", x, y + 0.5);
     context.textBaseline = "alphabetic";
   }
@@ -567,6 +685,117 @@ function drawRelations(relations) {
 function drawSidebar() {
   const puzzle = currentPuzzle();
   const level = currentLevel();
+
+  if (layoutMode === "portrait") {
+    const x = 48;
+    context.textAlign = "left";
+    context.fillStyle = COLORS.goldBright;
+    context.font = "700 34px Georgia";
+    context.fillText(puzzle.profile.name, x, 890);
+    context.fillStyle = COLORS.muted;
+    context.font = "italic 23px Georgia";
+    fitText(puzzle.profile.flavor, x, 921, 624);
+
+    const rules = [
+      ["3 + 3", "Three coins and three thieves per line"],
+      ["NO III", "Never three matching symbols together"],
+      ["= / ×", "Neighbors must match / differ"],
+    ];
+    rules.forEach(([mark, copy], index) => {
+      const y = 961 + index * 34;
+      context.fillStyle = COLORS.gold;
+      context.font = "700 22px Georgia";
+      context.fillText(mark, x, y);
+      context.fillStyle = COLORS.text;
+      context.font = "21px Georgia";
+      context.fillText(copy, x + 92, y);
+    });
+
+    context.strokeStyle = "rgba(185, 158, 104, 0.25)";
+    context.beginPath();
+    context.moveTo(x, 1042);
+    context.lineTo(672, 1042);
+    context.stroke();
+
+    context.fillStyle = COLORS.muted;
+    context.font = "18px Georgia";
+    context.fillText("TIME", x, 1069);
+    context.fillText("HINTS", x + 236, 1069);
+    context.fillText("MISSTEPS", x + 452, 1069);
+    context.fillStyle = COLORS.text;
+    context.font = "700 29px Georgia";
+    context.fillText(formatTime(level.elapsedMs), x, 1102);
+    context.fillText(String(level.hints), x + 236, 1102);
+    context.fillText(String(level.mistakes), x + 452, 1102);
+
+    roundedRect(x, 1117, 624, 34, 8);
+    context.fillStyle = "rgba(4, 10, 18, 0.72)";
+    context.fill();
+    context.fillStyle = COLORS.text;
+    context.font = "italic 21px Georgia";
+    fitText(state.message, x + 13, 1141, 598);
+
+    drawButton(BUTTONS.undo, "Undo", "Z");
+    drawButton(BUTTONS.hint, "Hint", "H", true);
+    drawButton(BUTTONS.reset, "Reset", "R");
+    return;
+  }
+
+  if (layoutMode === "compact") {
+    const x = 610;
+    context.textAlign = "left";
+    context.fillStyle = COLORS.goldBright;
+    context.font = "700 32px Georgia";
+    context.fillText(puzzle.profile.name, x, 205);
+    context.fillStyle = COLORS.muted;
+    context.font = "italic 21px Georgia";
+    fitText(puzzle.profile.flavor, x, 236, 790);
+
+    const rules = [
+      ["3 + 3", "Three coins and three thieves per line"],
+      ["NO III", "Never three matching symbols together"],
+      ["= / ×", "Neighbors must match / differ"],
+    ];
+    rules.forEach(([mark, copy], index) => {
+      const y = 283 + index * 48;
+      context.fillStyle = COLORS.gold;
+      context.font = "700 21px Georgia";
+      context.fillText(mark, x, y);
+      context.fillStyle = COLORS.text;
+      context.font = "21px Georgia";
+      context.fillText(copy, x + 100, y);
+    });
+
+    context.strokeStyle = "rgba(185, 158, 104, 0.25)";
+    context.beginPath();
+    context.moveTo(x, 421);
+    context.lineTo(1400, 421);
+    context.stroke();
+
+    context.fillStyle = COLORS.muted;
+    context.font = "18px Georgia";
+    context.fillText("TIME", x, 452);
+    context.fillText("HINTS", x + 270, 452);
+    context.fillText("MISSTEPS", x + 540, 452);
+    context.fillStyle = COLORS.text;
+    context.font = "700 29px Georgia";
+    context.fillText(formatTime(level.elapsedMs), x, 486);
+    context.fillText(String(level.hints), x + 270, 486);
+    context.fillText(String(level.mistakes), x + 540, 486);
+
+    roundedRect(x, 508, 790, 58, 9);
+    context.fillStyle = "rgba(4, 10, 18, 0.72)";
+    context.fill();
+    context.fillStyle = COLORS.text;
+    context.font = "italic 21px Georgia";
+    fitText(state.message, x + 17, 544, 756);
+
+    drawButton(BUTTONS.undo, "Undo", "Z");
+    drawButton(BUTTONS.hint, "Hint", "H", true);
+    drawButton(BUTTONS.reset, "Reset", "R");
+    return;
+  }
+
   const x = 616;
 
   context.textAlign = "left";
@@ -637,6 +866,13 @@ function drawButton(rect, label, key, accent = false) {
   context.stroke();
   context.textAlign = "center";
   context.fillStyle = COLORS.text;
+  if (layoutMode !== "desktop") {
+    context.textBaseline = "middle";
+    context.font = "700 26px Georgia";
+    context.fillText(label, rect.x + rect.width / 2, rect.y + rect.height / 2);
+    context.textBaseline = "alphabetic";
+    return;
+  }
   context.font = "700 15px Georgia";
   context.fillText(label, rect.x + rect.width / 2, rect.y + 21);
   context.fillStyle = COLORS.muted;
@@ -646,9 +882,22 @@ function drawButton(rect, label, key, accent = false) {
 
 function drawWinOverlay() {
   const level = currentLevel();
+  const portrait = layoutMode === "portrait";
+  const compact = layoutMode === "compact";
+  const dialog = portrait
+    ? { x: 48, y: 270, width: 624, height: 580 }
+    : compact
+      ? { x: 430, y: 125, width: 640, height: 480 }
+      : { x: 320, y: 249, width: 440, height: 372 };
+  const tokenSize = portrait ? 150 : compact ? 120 : 108;
+  const tokenY = portrait ? 320 : compact ? 165 : 280;
+  const titleY = portrait ? 530 : compact ? 340 : 430;
+  const summaryY = portrait ? 580 : compact ? 384 : 468;
+  const copyY = portrait ? 626 : compact ? 425 : 496;
+
   context.fillStyle = "rgba(1, 5, 10, 0.78)";
   context.fillRect(0, 0, WIDTH, HEIGHT);
-  roundedRect(320, 249, 440, 372, 18);
+  roundedRect(dialog.x, dialog.y, dialog.width, dialog.height, 18);
   context.fillStyle = "rgba(9, 20, 32, 0.98)";
   context.fill();
   context.lineWidth = 2;
@@ -670,7 +919,7 @@ function drawWinOverlay() {
   context.fillStyle = COLORS.goldBright;
   context.textAlign = "center";
   context.textBaseline = "middle";
-  context.font = "22px Georgia";
+  context.font = `${layoutMode === "desktop" ? 22 : 36}px Georgia`;
   context.fillText(
     "×",
     BUTTONS.closeResult.x + BUTTONS.closeResult.width / 2,
@@ -678,17 +927,26 @@ function drawWinOverlay() {
   );
   context.textBaseline = "alphabetic";
 
-  drawToken(0, 486, 280, 108);
+  drawToken(0, WIDTH / 2 - tokenSize / 2, tokenY, tokenSize);
   context.textAlign = "center";
   context.fillStyle = COLORS.goldBright;
-  context.font = "small-caps 700 36px Georgia";
-  context.fillText("Vault Breached", WIDTH / 2, 430);
+  context.font = `small-caps 700 ${portrait ? 46 : compact ? 40 : 36}px Georgia`;
+  context.fillText("Vault Breached", WIDTH / 2, titleY);
   context.fillStyle = COLORS.text;
-  context.font = "16px Georgia";
-  context.fillText(`${formatTime(level.elapsedMs)}  •  ${level.hints} hints  •  ${level.mistakes} missteps`, WIDTH / 2, 468);
+  context.font = `${portrait ? 25 : compact ? 22 : 16}px Georgia`;
+  context.fillText(
+    `${formatTime(level.elapsedMs)}  •  ${level.hints} hints  •  ${level.mistakes} missteps`,
+    WIDTH / 2,
+    summaryY,
+  );
   context.fillStyle = COLORS.muted;
-  context.font = "italic 14px Georgia";
-  context.fillText("Tomorrow brings a new mark. Two more wait tonight.", WIDTH / 2, 496);
+  context.font = `italic ${portrait ? 21 : compact ? 20 : 14}px Georgia`;
+  fitText(
+    "Tomorrow brings a new mark. Two more wait tonight.",
+    WIDTH / 2,
+    copyY,
+    dialog.width - 70,
+  );
 
   roundedRect(BUTTONS.next.x, BUTTONS.next.y, BUTTONS.next.width, BUTTONS.next.height, 10);
   context.fillStyle = "rgba(119, 85, 34, 0.82)";
@@ -696,8 +954,14 @@ function drawWinOverlay() {
   context.strokeStyle = COLORS.gold;
   context.stroke();
   context.fillStyle = COLORS.goldBright;
-  context.font = "700 18px Georgia";
-  context.fillText("Choose the next heist", WIDTH / 2, 563);
+  context.font = `700 ${portrait ? 27 : compact ? 25 : 18}px Georgia`;
+  context.textBaseline = "middle";
+  context.fillText(
+    "Choose the next heist",
+    BUTTONS.next.x + BUTTONS.next.width / 2,
+    BUTTONS.next.y + BUTTONS.next.height / 2,
+  );
+  context.textBaseline = "alphabetic";
 }
 
 function dismissWinOverlay() {
@@ -746,6 +1010,7 @@ function pointInRect(x, y, rect) {
 }
 
 canvas.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
   canvas.focus();
   const bounds = canvas.getBoundingClientRect();
   const x = ((event.clientX - bounds.left) / bounds.width) * WIDTH;
@@ -805,6 +1070,16 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
+window.addEventListener("resize", () => {
+  configureLayout();
+  render();
+});
+
+document.addEventListener("fullscreenchange", () => {
+  configureLayout();
+  render();
+});
+
 let previousFrame = performance.now();
 function frame(now) {
   const delta = Math.min(100, now - previousFrame);
@@ -828,6 +1103,7 @@ window.render_game_to_text = () => {
     mode: state.mode,
     completed: level.won,
     resultOverlayOpen: level.won && state.mode === "won",
+    layout: layoutMode,
     date: dateKey,
     level: puzzle.difficulty,
     levelName: puzzle.profile.name,
@@ -862,9 +1138,10 @@ window.render_game_to_text = () => {
       })
       .filter(Boolean),
     message: state.message,
-    controls: "click a cell or use arrows + Space; H hint; Z undo; R reset; 1/2/3 level; F fullscreen; Esc closes results",
+    controls: "tap/click a cell or use arrows + Space; H hint; Z undo; R reset; 1/2/3 level; F fullscreen; Esc closes results",
   });
 };
 
+configureLayout(true);
 render();
 requestAnimationFrame(frame);
