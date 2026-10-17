@@ -4,6 +4,8 @@ A dark-fantasy daily logic game about a thief, a treasury, and a perfectly balan
 
 **Play online:** [dombialcz.github.io/fantango](https://dombialcz.github.io/fantango/)
 
+**Play Vaultbound:** [dombialcz.github.io/fantango/dungeon.html](https://dombialcz.github.io/fantango/dungeon.html)
+
 Play by filling the 6×6 vault with coins and thieves:
 
 - every row and column contains three of each;
@@ -39,3 +41,11 @@ The game is plain HTML, CSS, and JavaScript with no runtime dependencies. Genera
 - `F` toggles fullscreen.
 
 Fantango is an original implementation inspired by binary logic puzzles. It is not affiliated with LinkedIn.
+
+## Vaultbound
+
+Vaultbound is a second dark-fantasy game in this repository: a ten-day auto-battler dungeon campaign. Recruit free heroes from a slot-machine-style contract reel, lock a bench, pay escalating reroll costs, buy level upgrades, and choose after every cleared floor whether to flee with the survivors or continue deeper.
+
+The active party grows from four to eight slots over the campaign. Surviving heroes heal and gain a level after each day, while defeated heroes are lost. Each campaign rolls one of three enemy flavors: Undead Uprising, Demonic Invasion, or Assassins' Guild.
+
+Vaultbound supports mouse, touch, portrait phones, and short landscape screens. Press `R` to reroll, `Enter` to begin or continue an expedition, `Space` to toggle battle speed, and `F` for fullscreen.

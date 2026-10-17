@@ -40,3 +40,13 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Verified the grace period, correction cancellation, one-time counting, and concurrent timers in browser playtests with no console errors.
 - Added dedicated desktop, portrait-phone, and compact landscape-phone canvas layouts with touch-sized puzzle cells and controls.
 - Browser-tested touch marking, difficulty tabs, hints, rotation with state preservation, the solved-puzzle overlay, closing it for review, and advancing to the next heist at 390×844 and 844×390 viewports.
+
+## Vaultbound auto-battler
+
+- Added a second playable game at `dungeon.html` while keeping the original Fantango puzzle at the site root.
+- Implemented the ten-day campaign, daily contract reel, duplicate hero offers, locked bench, active-party caps, escalating reroll costs, persistent gold, square-cost upgrades, five hero levels, permanent deaths, and survivor healing/level-ups.
+- Implemented seven hero classes with class-specific rows, health, damage, targeting, attack-speed scaling, bard buffs, cleric healing, and the mage's level-based multi-target attacks.
+- Implemented unlimited procedurally generated dungeon floors with logarithmic stat scaling, floor gold, Continue/Flee decisions, automatic retreat thresholds, and three campaign flavors: undead necromancers, rear-row demons, and blinking assassins.
+- Added responsive desktop, portrait-phone, and compact landscape battle/tavern layouts plus deterministic testing hooks (`advanceTime` and `render_game_to_text`).
+- Generated matching transparent dark-fantasy portraits for the knight, bard, cleric, ranger, mage, and barbarian, while reusing the existing thief portrait.
+- Browser-tested recruitment, bench limits, floor combat, floor victory, gold rewards, flee/next-day progression, survivor level-ups, upgrade costs, reroll escalation/reset, portrait touch play, and compact landscape rendering with no console or page errors.

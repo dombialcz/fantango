@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Vaultbound is a dark-fantasy ten-day auto-battler about recruiting heroes and delving an endless dungeon."
+    />
+    <meta name="theme-color" content="#07101c" />
+    <title>Vaultbound — Ten Days Below</title>
+    <link rel="preload" href="assets/vault-bg.jpg" as="image" />
+    <link rel="stylesheet" href="dungeon.css" />
+  </head>
+  <body>
+    <a class="back-link" href="index.html">Play Fantango</a>
+    <main>
+      <canvas
+        id="dungeon-game"
+        width="1200"
+        height="800"
+        tabindex="0"
+        aria-label="Vaultbound auto-battler. Recruit heroes in the tavern, upgrade and select a party, then explore dungeon floors."
+      ></canvas>
+      <p class="screen-reader-copy">
+        Vaultbound is a ten-day auto-battler. Recruit heroes from a rerolling offer row, select
+        an active team, spend gold on upgrades, and choose whether to continue or flee after each
+        dungeon floor.
+      </p>
+      <noscript>Vaultbound needs JavaScript enabled.</noscript>
+    </main>
+    <script type="module" src="src/dungeon.js"></script>
+  </body>
+</html>
