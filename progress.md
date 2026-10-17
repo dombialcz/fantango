@@ -78,3 +78,12 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Automatic retreat at two survivors now opens a distinct `Party Defeated` info panel with the message: “The party is defeated, remaining heroes flee.”
 - Flattened dungeon income to exactly 1 gold for every completed floor.
 - Browser-tested paused mid-battle retreat, survivor preservation, gold payment, the two-survivor auto-retreat, one-gold floor rewards, and desktop/portrait/compact layouts with no console or page errors.
+
+## Vaultbound contract inspection and leveled offers
+
+- Changed the contract reel to a two-step interaction: clicking an offered hero now selects and inspects the contract without changing the bench, and a separate free Hire button confirms recruitment.
+- Added selected-contract state, highlighting, class/level/power details, bench-full handling, and responsive Hire controls on desktop and portrait mobile.
+- Added sequential daily bonus-level rolls: the first roll is `(day - 1) × 10%`, each subsequent roll is half the previous chance, rolls below 10% are omitted, and generated contracts stop at level 4.
+- Added an adjacent simplified odds readout such as `L2 40% → L3 20% → L4 10%`; day 1 clearly reports that no bonus rolls are available.
+- Added unit tests for the day 1–5 probability examples, sequential failure behavior, and the level-4 offer cap.
+- Browser-tested selection without recruitment, free hiring, active-bench placement, exact daily odds through day 5, forced level-4 offers, and desktop/portrait layouts with no console or page errors.

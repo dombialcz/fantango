@@ -1,3 +1,5 @@
+import { offerLevelChances, rollOfferLevel } from "./hero-offers.js";
+
 const canvas = document.querySelector("#dungeon-game");
 const context = canvas.getContext("2d");
 
@@ -182,19 +184,26 @@ function upgradeCost(level) {
   return level >= 5 ? null : level * level;
 }
 
-function makeHero(type = randomItem(HERO_KEYS)) {
+function offerLevelOddsText() {
+  const chances = offerLevelChances(state.day);
+  if (!chances.length) return "Bonus rolls: none today";
+  const copy = chances.map(({ level, chance }) => `L${level} ${chance}%`).join("  →  ");
+  return `Bonus rolls: ${copy}`;
+}
+
+function makeHero(type = randomItem(HERO_KEYS), day = 1) {
   const names = HERO_NAMES[type];
   return {
     id: nextHeroId++,
     type,
     name: randomItem(names),
-    level: 1,
+    level: rollOfferLevel(day),
     active: false,
   };
 }
 
-function rollHeroes(count) {
-  return Array.from({ length: count }, () => makeHero());
+function rollHeroes(count, day = 1) {
+  return Array.from({ length: count }, () => makeHero(randomItem(HERO_KEYS), day));
 }
 
 function createCampaign() {
@@ -206,9 +215,10 @@ function createCampaign() {
     deepestFloor: 0,
     floor: 0,
     rerollCost: 1,
-    offers: rollHeroes(5),
+    offers: rollHeroes(5, 1),
     bench: [],
     selectedHeroId: null,
+    selectedOfferId: null,
     offerPage: 0,
     benchPage: 0,
     party: [],
@@ -241,6 +251,10 @@ function selectedHero() {
   return state.bench.find((hero) => hero.id === state.selectedHeroId) ?? null;
 }
 
+function selectedOffer() {
+  return state.offers.find((hero) => hero.id === state.selectedOfferId) ?? null;
+}
+
 function benchLimit() {
   return teamCapacity(state.day) + 2;
 }
@@ -257,8 +271,23 @@ function recruitOffer(index) {
   state.bench.push(hero);
   state.offers.splice(index, 1);
   state.selectedHeroId = hero.id;
+  state.selectedOfferId = null;
   state.message = `${hero.name} the ${HERO_TYPES[hero.type].label} is locked on the bench.`;
   normalizePages();
+}
+
+function selectOffer(index) {
+  if (state.view !== "tavern") return;
+  const hero = state.offers[index];
+  if (!hero) return;
+  state.selectedOfferId = hero.id;
+  state.selectedHeroId = null;
+  state.message = `${hero.name}: ${HERO_TYPES[hero.type].summary}`;
+}
+
+function hireSelectedOffer() {
+  const index = state.offers.findIndex((hero) => hero.id === state.selectedOfferId);
+  if (index >= 0) recruitOffer(index);
 }
 
 function rerollOffers() {
@@ -269,8 +298,9 @@ function rerollOffers() {
   }
   state.gold -= state.rerollCost;
   state.rerollCost += 1;
-  state.offers = rollHeroes(offerCount(state.day));
+  state.offers = rollHeroes(offerCount(state.day), state.day);
   state.offerPage = 0;
+  state.selectedOfferId = null;
   state.message = "The reel rattles. New contracts slide into view.";
 }
 
@@ -337,6 +367,7 @@ function startExpedition() {
     return;
   }
   state.selectedHeroId = null;
+  state.selectedOfferId = null;
   state.floor = 1;
   state.party = buildParty(chosen);
   state.expeditionStartCount = state.party.length;
@@ -672,8 +703,9 @@ function advanceDay() {
   }
   for (const hero of reserves) hero.active = false;
   state.bench = [...survivors, ...reserves];
-  state.offers = rollHeroes(offerCount(state.day));
+  state.offers = rollHeroes(offerCount(state.day), state.day);
   state.selectedHeroId = survivors[0]?.id ?? null;
+  state.selectedOfferId = null;
   state.offerPage = 0;
   state.benchPage = 0;
   state.rerollCost = 1;
@@ -931,8 +963,8 @@ function drawTavernLandscape() {
   offerSlice.forEach((hero, offset) => {
     const index = offerStart + offset;
     const rect = { x: offerAreaX + offset * (offerWidth + offerGap), y: 145, width: offerWidth, height: 210 };
-    drawHeroCard(hero, rect, { offer: true });
-    addHit(rect, () => recruitOffer(index));
+    drawHeroCard(hero, rect, { offer: true, selected: hero.id === state.selectedOfferId });
+    addHit(rect, () => selectOffer(index));
   });
   if (!offerSlice.length) {
     context.fillStyle = COLORS.muted;
@@ -963,6 +995,7 @@ function drawTavernLandscape() {
     drawHeroCard(hero, rect, { selected: hero.id === state.selectedHeroId });
     addHit(rect, () => {
       state.selectedHeroId = hero.id;
+      state.selectedOfferId = null;
       state.message = `${hero.name}: ${HERO_TYPES[hero.type].summary}`;
     });
   });
@@ -985,7 +1018,7 @@ function drawTavernLandscape() {
     enabled: activeBench().length > 0,
     action: startExpedition,
   });
-  drawMessage({ x: 430, y: bottomY, width: WIDTH - 752, height: 56 });
+  drawRecruitmentStatus({ x: 430, y: bottomY, width: WIDTH - 752, height: 56 });
 }
 
 function drawTavernPortrait() {
@@ -1003,8 +1036,8 @@ function drawTavernPortrait() {
   offerSlice.forEach((hero, offset) => {
     const index = offerStart + offset;
     const rect = { x: 51 + offset * (cardWidth + gap), y: 188, width: cardWidth, height: 248 };
-    drawHeroCard(hero, rect, { offer: true });
-    addHit(rect, () => recruitOffer(index));
+    drawHeroCard(hero, rect, { offer: true, selected: hero.id === state.selectedOfferId });
+    addHit(rect, () => selectOffer(index));
   });
   if (state.offers.length > offerVisible) {
     drawButton({ x: 24, y: 280, width: 24, height: 60 }, "‹", { action: () => pageOffers(-1) });
@@ -1017,7 +1050,7 @@ function drawTavernPortrait() {
     enabled: state.gold >= state.rerollCost,
     action: rerollOffers,
   });
-  drawMessage({ x: 308, y: 476, width: 370, height: 68 });
+  drawRecruitmentStatus({ x: 308, y: 476, width: 370, height: 68 });
 
   drawPanel({ x: 22, y: 562, width: 676, height: 278 });
   drawSectionTitle(
@@ -1033,6 +1066,7 @@ function drawTavernPortrait() {
     drawHeroCard(hero, rect, { selected: hero.id === state.selectedHeroId });
     addHit(rect, () => {
       state.selectedHeroId = hero.id;
+      state.selectedOfferId = null;
       state.message = `${hero.name}: ${HERO_TYPES[hero.type].summary}`;
     });
   });
@@ -1053,12 +1087,13 @@ function drawTavernPortrait() {
 
 function drawHeroDetails(rect) {
   drawPanel(rect, 0.88);
-  const hero = selectedHero();
+  const offer = selectedOffer();
+  const hero = offer ?? selectedHero();
   if (!hero) {
     context.textAlign = "center";
     context.fillStyle = COLORS.muted;
     context.font = "italic 16px Georgia";
-    context.fillText("Select a locked hero to manage them.", rect.x + rect.width / 2, rect.y + rect.height / 2);
+    context.fillText("Select a contract or locked hero to inspect them.", rect.x + rect.width / 2, rect.y + rect.height / 2);
     return;
   }
   const definition = HERO_TYPES[hero.type];
@@ -1076,6 +1111,15 @@ function drawHeroDetails(rect) {
   fitText(definition.summary, rect.x + 18, rect.y + 80, rect.width - 36);
 
   const buttonY = rect.y + rect.height - 56;
+  if (offer) {
+    drawButton({ x: rect.x + 12, y: buttonY, width: rect.width - 24, height: 44 }, "HIRE", {
+      accent: true,
+      sublabel: state.bench.length >= benchLimit() ? "bench full" : "free contract",
+      enabled: state.bench.length < benchLimit(),
+      action: hireSelectedOffer,
+    });
+    return;
+  }
   const gap = 8;
   const buttonWidth = (rect.width - 36 - gap * 2) / 3;
   drawButton({ x: rect.x + 12, y: buttonY, width: buttonWidth, height: 44 }, hero.active ? "BENCH" : "ACTIVATE", {
@@ -1091,6 +1135,19 @@ function drawHeroDetails(rect) {
     danger: true,
     action: dismissSelected,
   });
+}
+
+function drawRecruitmentStatus(rect) {
+  roundedRect(rect.x, rect.y, rect.width, rect.height, 8);
+  context.fillStyle = "rgba(2, 8, 15, 0.74)";
+  context.fill();
+  context.textAlign = "left";
+  context.fillStyle = COLORS.gold;
+  context.font = `700 ${layoutMode === "portrait" ? 13 : 11}px Georgia`;
+  fitText(offerLevelOddsText(), rect.x + 14, rect.y + rect.height * 0.38, rect.width - 28);
+  context.fillStyle = COLORS.text;
+  context.font = `italic ${layoutMode === "portrait" ? 13 : 11}px Georgia`;
+  fitText(state.message, rect.x + 14, rect.y + rect.height * 0.76, rect.width - 28);
 }
 
 function drawMessage(rect) {
@@ -1486,10 +1543,12 @@ window.render_game_to_text = () => {
     teamCapacity: teamCapacity(state.day),
     benchCapacity: benchLimit(),
     rerollCost: state.rerollCost,
+    offerLevelChances: offerLevelChances(state.day),
     offerCount: state.offers.length,
     offers: state.offers.map(summarizeHero),
     bench: state.bench.map(summarizeHero),
     selectedHeroId: state.selectedHeroId,
+    selectedOfferId: state.selectedOfferId,
     floor: state.floor,
     deepestFloor: state.deepestFloor,
     battleSpeed: state.battleSpeed,
@@ -1522,7 +1581,7 @@ window.render_game_to_text = () => {
       ? { title: state.resultTitle, copy: state.resultCopy, floorReward: state.floorReward }
       : null,
     message: state.message,
-    controls: "Tap/click cards and buttons. Mid-battle Flee costs half your current gold, rounded up. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
+    controls: "Select an offer to inspect it, then use Hire to recruit it for free. Tap/click cards and buttons. Mid-battle Flee costs half your current gold, rounded up. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
   });
 };
 
