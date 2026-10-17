@@ -55,8 +55,9 @@ canvas:focus-visible {
 .back-link {
   position: fixed;
   z-index: 2;
-  right: max(0.7rem, env(safe-area-inset-right));
-  bottom: max(0.7rem, env(safe-area-inset-bottom));
+  top: max(0.7rem, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
   padding: 0.5rem 0.75rem;
   color: #f2d99c;
   font: 600 0.75rem/1 Georgia, serif;

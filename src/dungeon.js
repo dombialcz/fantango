@@ -215,6 +215,7 @@ function createCampaign() {
     enemies: [],
     battleTime: 0,
     battleSpeed: 1,
+    battlePaused: false,
     battleLog: [],
     combatEffects: [],
     expeditionStartCount: 0,
@@ -418,6 +419,7 @@ function generateEnemies(floor) {
 
 function prepareFloor() {
   state.view = "battle";
+  state.battlePaused = false;
   state.enemies = generateEnemies(state.floor);
   state.battleTime = 0;
   state.combatEffects = [];
@@ -557,7 +559,7 @@ function actEnemy(unit) {
 }
 
 function updateBattle(milliseconds) {
-  if (state.view !== "battle") return;
+  if (state.view !== "battle" || state.battlePaused) return;
   const delta = milliseconds * state.battleSpeed;
   state.battleTime += delta;
   state.combatEffects = state.combatEffects
@@ -630,6 +632,7 @@ function finishDay(reason = "The company returns to the surface with its survivo
 }
 
 function clearCombatFeedback() {
+  state.battlePaused = false;
   state.combatEffects = [];
   for (const unit of [...state.party, ...state.enemies]) {
     unit.flash = 0;
@@ -1144,14 +1147,43 @@ function drawBattle() {
   if (layoutMode === "portrait") drawBattlePortrait();
   else drawBattleLandscape();
   drawCombatEffects();
+  if (state.view !== "battle") return;
+  const pauseRect = layoutMode === "portrait"
+    ? { x: 348, y: 1190, width: 166, height: 62 }
+    : { x: WIDTH - 354, y: HEIGHT - 74, width: 154, height: 48 };
   const speedRect = layoutMode === "portrait"
     ? { x: 530, y: 1190, width: 166, height: 62 }
     : { x: WIDTH - 188, y: HEIGHT - 74, width: 154, height: 48 };
+  drawButton(pauseRect, state.battlePaused ? "RESUME" : "PAUSE", {
+    accent: state.battlePaused,
+    action: toggleBattlePause,
+  });
   drawButton(speedRect, `SPEED ×${state.battleSpeed}`, {
     action: () => {
       state.battleSpeed = state.battleSpeed === 1 ? 2 : 1;
     },
   });
+  if (state.battlePaused) drawPauseBanner();
+}
+
+function toggleBattlePause() {
+  if (state.view !== "battle") return;
+  state.battlePaused = !state.battlePaused;
+}
+
+function drawPauseBanner() {
+  const portrait = layoutMode === "portrait";
+  const rect = portrait
+    ? { x: 140, y: 610, width: 440, height: 145 }
+    : { x: WIDTH / 2 - 155, y: HEIGHT - 220, width: 310, height: 78 };
+  drawPanel(rect, 1);
+  context.textAlign = "center";
+  context.fillStyle = COLORS.goldBright;
+  context.font = `small-caps 700 ${portrait ? 28 : 24}px Georgia`;
+  context.fillText("BATTLE PAUSED", rect.x + rect.width / 2, rect.y + (portrait ? 60 : 32));
+  context.fillStyle = COLORS.muted;
+  context.font = `italic ${portrait ? 15 : 13}px Georgia`;
+  context.fillText("Press P or tap Resume", rect.x + rect.width / 2, rect.y + (portrait ? 94 : 56));
 }
 
 function drawCombatEffects() {
@@ -1369,6 +1401,9 @@ window.addEventListener("keydown", (event) => {
   } else if (event.key.toLowerCase() === "r" && state.view === "tavern") {
     rerollOffers();
     render();
+  } else if (event.key.toLowerCase() === "p" && state.view === "battle") {
+    toggleBattlePause();
+    render();
   } else if (event.key === "Enter") {
     if (state.view === "tavern") startExpedition();
     else if (state.view === "floor_result") continueExpedition();
@@ -1434,6 +1469,7 @@ window.render_game_to_text = () => {
     floor: state.floor,
     deepestFloor: state.deepestFloor,
     battleSpeed: state.battleSpeed,
+    battlePaused: state.battlePaused,
     battleTimeMs: Math.round(state.battleTime),
     combatEffects: state.combatEffects.map((effect) => ({
       sourceId: effect.sourceId,
@@ -1461,7 +1497,7 @@ window.render_game_to_text = () => {
       ? { title: state.resultTitle, copy: state.resultCopy, floorReward: state.floorReward }
       : null,
     message: state.message,
-    controls: "Tap/click cards and buttons. R rerolls in the tavern; Enter starts or continues; Space changes battle speed; F fullscreen.",
+    controls: "Tap/click cards and buttons. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
   });
 };
 
