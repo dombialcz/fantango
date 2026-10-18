@@ -1,0 +1,98 @@
+/* Currency stays recognizable at every purchase, including unaffordable ones. */
+.gold-amount { display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; color: #ffe3a0; vertical-align: middle; }
+.gold-amount .gold-coin { display: block; flex: 0 0 auto; width: 24px; height: 24px; object-fit: contain; filter: drop-shadow(0 1px 3px #0008); }
+.gold-amount .gold-value { font: inherit; font-weight: 700; color: inherit; }
+.gold-amount .gold-unit { display: inline; margin: 0; font: 11px/1.3 Arial, sans-serif; color: #e4c78f; }
+.gold-price { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 8px; min-height: 34px; padding: 5px 9px; border: 1px solid #e4b75d99; border-radius: 5px; background: #100d09a6; color: #ffe7b0; box-shadow: inset 0 1px #fff0bd0f; }
+.gold-price .gold-price__label { display: inline; margin: 0; font: 700 9px/1.2 Arial, sans-serif; letter-spacing: .08em; color: #eac78a; }
+.gold-price .gold-amount { font-size: 20px; }
+.gold-price .gold-coin { width: 25px; height: 25px; }
+.gold-price .gold-unit { font-size: 9px; }
+button.gold-purchase { border: 1px solid #edc16fc9; background: linear-gradient(115deg, #a478324d, #76532438); color: #f5deb1; box-shadow: inset 3px 0 #e3b157, 0 3px 12px #0002; }
+button.gold-purchase:hover:not(:disabled) { border-color: #ffe1a1; background: linear-gradient(115deg, #b184426e, #87612c61); box-shadow: inset 3px 0 #ffda8d, 0 0 16px #e7b65916; }
+button.gold-purchase:disabled { opacity: 1; color: #afada2; background: #534b332b; border-color: #b39c665e; box-shadow: inset 3px 0 #a58f5d7d; }
+button.gold-purchase:disabled .gold-price { border-color: #a58f5d73; background: #151717; }
+button.gold-purchase:disabled .gold-amount { color: #d2bd91; }
+.gold-shortfall { display: block; margin-top: 5px; font: 9px/1.5 Arial, sans-serif; color: #e8aaa0; }
+.gold-purchase-note { font: 10px/1.6 Arial, sans-serif; color: #c9ba9d; }
+.gold-free { display: inline-block; border: 1px solid #9ec39b80; border-radius: 4px; background: #6c9b6a22; color: #c5e6b3; padding: 4px 7px; font: 700 9px/1.2 Arial, sans-serif; letter-spacing: .06em; white-space: nowrap; }
+
+/* Readable prices sit beside the outcome, not buried in supporting copy. */
+.town-upgrade.gold-purchase { gap: 10px; min-height: 76px; padding: 12px; }
+.town-upgrade.gold-purchase > span:first-child { min-width: 0; flex: 1; }
+.town-upgrade.gold-purchase .gold-price { flex-direction: column; gap: 2px; min-width: 92px; padding: 7px; }
+.town-upgrade.gold-purchase .gold-amount { gap: 4px; }
+.town-gold .gold-coin, .roster-gold .gold-coin { width: 29px; height: 29px; }
+.town-district__cost { display: inline-flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 3px; }
+.town-district__cost .gold-coin { width: 15px; height: 15px; }
+.town-district__cost .gold-amount { gap: 3px; font: 11px/1.3 Georgia, serif; }
+.town-district__cost .gold-unit { font-size: 8px; }
+.town-district__cost > small { color: #bdb49e; font: 8px/1.3 Arial, sans-serif; }
+.town-district:not(.can-upgrade) .town-district__cost .gold-amount { color: #bdaf90; }
+.roster-screen .roster-roll-button { min-height: 94px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; }
+.roster-roll-button.gold-purchase { background: linear-gradient(135deg, #d2ab67, #9f7032); color: #241b10; border: 1px solid #f5d18b; box-shadow: inset 0 1px #ffe6b0, 0 4px 0 #624724; }
+.roster-roll-button.gold-purchase:hover:not(:disabled) { color: #21180c; background: linear-gradient(135deg, #e8c47f, #b08341); }
+.roster-roll-button .gold-price { margin: 0; gap: 7px; padding: 5px 8px; min-height: 32px; }
+.roster-roll-button .gold-amount { display: inline-flex; margin: 0; font: 700 20px Georgia, serif; letter-spacing: 0; }
+.roster-roll-button .gold-unit { display: inline; margin: 0; font: 9px Arial, sans-serif; }
+.roster-roll-button .gold-price__label { display: inline; margin: 0; font: 700 9px Arial, sans-serif; letter-spacing: .08em; }
+.roster-roll-button .gold-free { font-size: 10px; margin: 0; background: #11261ead; border-color: #a4c7959e; color: #d7eac3; padding: 6px 10px; }
+.roster-roll-button.is-free { background: linear-gradient(135deg, #354e41, #243a30); border-color: #b1c398; color: #e7e9ca; box-shadow: inset 0 1px #d4e7ba30, 0 4px 0 #17271f; }
+.roster-roll-button .roll-caption { margin: 0; font: 10px/1.5 Arial, sans-serif; }
+.reel-cost-note .gold-coin { width: 17px; height: 17px; }
+.reel-cost-note .gold-amount { font-size: 12px; gap: 3px; }
+.reel-cost-note .gold-unit { font-size: 9px; }
+.hero-management .gold-purchase { gap: 12px; min-height: 66px; }
+.hero-management .gold-price { padding: 5px 7px; gap: 6px; }
+.hero-management .gold-price .gold-value { font: 700 20px Georgia, serif; }
+.hero-management .gold-shortfall { font-size: 9px; }
+.roster-screen .contract-hire { color: #d8e4cf; background: #6e916b18; border-color: #9cbb8c43; }
+.contract-hire .gold-free { color: #cae4b6; font-size: 8px; padding: 3px 5px; }
+
+.battle-gold .gold-coin { width: 25px; height: 25px; }
+.battle-controls .battle-flee.gold-purchase { background: linear-gradient(115deg, #713f2a65, #5529266b); color: #f3ccb0; border-color: #dba773bd; box-shadow: inset 3px 0 #d9a060; min-width: 140px; }
+.battle-controls .battle-flee.gold-purchase:hover:not(:disabled) { background: #77462c8c; border-color: #f2d29a; }
+.battle-flee > .gold-price { display: flex; gap: 5px; margin: 4px 0; padding: 2px 6px; min-height: 25px; }
+.battle-flee .gold-price .gold-amount { font-size: 14px; gap: 3px; }
+.battle-flee .gold-price .gold-coin { width: 19px; height: 19px; }
+.battle-flee .gold-price .gold-unit, .battle-flee .gold-price .gold-price__label { font-size: 8px; }
+.battle-flee .flee-penalty-note { color: #d4b694; font: 8px/1.4 Arial, sans-serif; }
+.battle-controls .battle-flee > small { color: #d4c4a9; font-size: 8px; }
+.battle-result-actions .gold-free { margin-left: 5px; font-size: 8px; }
+
+@media (max-width: 760px) {
+  .gold-amount .gold-unit { font-size: 9px; }
+  .town-gold .gold-coin, .roster-gold .gold-coin { width: 23px; height: 23px; }
+  .town-district__cost { justify-content: flex-start; }
+  .town-district__cost .gold-amount { font-size: 11px; }
+  .town-district__cost .gold-unit { font-size: 8px; }
+  .town-upgrade.gold-purchase .gold-price { min-width: 85px; }
+  .roster-screen .roster-roll-button { min-height: 100px; font-size: 18px !important; padding: 10px 5px; }
+  .roster-roll-button .gold-price { gap: 4px; padding: 5px; }
+  .roster-roll-button .gold-price .gold-amount { gap: 3px; font-size: 19px; }
+  .roster-roll-button .gold-price .gold-coin { width: 22px; height: 22px; }
+  .roster-roll-button .gold-price .gold-price__label { font-size: 8px; }
+  .roster-roll-button .gold-price .gold-unit { font-size: 8px; }
+  .reel-cost-note .gold-unit { font-size: 8px; }
+  .battle-gold .gold-coin { width: 20px; height: 20px; }
+  .battle-gold .gold-amount { gap: 3px; }
+  .battle-controls .battle-flee.gold-purchase { min-width: 0; padding: 5px 2px; }
+  .battle-flee > .gold-price { flex-wrap: wrap; gap: 2px; padding: 2px; min-height: 24px; }
+  .battle-flee .gold-price .gold-price__label { font-size: 6px; letter-spacing: 0; }
+  .battle-flee .gold-price .gold-amount { font-size: 11px; gap: 2px; }
+  .battle-flee .gold-price .gold-coin { width: 15px; height: 15px; }
+  .battle-flee .gold-price .gold-unit { font-size: 6px; }
+  .battle-flee .flee-penalty-note { display: none; }
+  .battle-controls .battle-flee > small { font-size: 7px; line-height: 1.4; }
+}
+@media (max-height: 500px) and (min-width: 761px) {
+  .battle-controls .battle-flee.gold-purchase { display: grid; grid-template-columns: auto auto; gap: 0 8px; min-height: 38px; padding: 4px 8px; }
+  .battle-flee > .gold-price { margin: 0; }
+  .battle-flee .flee-penalty-note { display: none; }
+  .battle-flee > small { grid-column: 1 / 3; }
+}
+@media (max-width: 400px) {
+  .roster-screen .roster-brand { font-size: clamp(17px, 5.3vw, 21px); }
+  .roster-header > div { gap: 6px 8px; }
+  .roster-header > div > button { padding: 0 8px; }
+}

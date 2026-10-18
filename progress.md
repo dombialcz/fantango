@@ -204,3 +204,12 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 ### Follow-up ideas
 
 - Optional sound for the contract reel; reduced-motion support is already included. No known blockers remain for this request.
+
+## 2026-10-18 — Clear coin-marked gold spending
+
+- Reused Fantango's existing assets/coin-token.png throughout Vaultbound's town, roster, and battle balances and all gold-spending actions. No new artwork was needed.
+- Added shared gold-ui.js markup and gold.css treatments: high-contrast PAY price badges, warm gold purchase borders/backgrounds, readable disabled prices, and explicit shortfall explanations. District cards show coin-marked upgrade previews while remaining free to inspect.
+- Hero training, building upgrades (both choices and utilities), and paid rerolls all show exact prices on their buttons. Hiring and the first daily roll use contrasting green FREE badges. Rerolls explicitly warn that gold is spent immediately.
+- Mid-battle Flee shows LOSE with the exact coin-marked half-gold penalty, its rounding rule in the accessible label/tooltip, and separate survivor level-up odds. Safe retreat between floors is labeled FREE. Command-point costs remain clearly separate and never use the currency icon.
+- Added scripts/check-gold-ui.mjs to verify icon identity, price containment/visibility, free/paid distinction, exact deductions, escalating prices, shortfalls, disabled actions, and Flee on desktop, 390px/320px phones, and short landscape. Checked a 9,999-gold balance at 320px as well. Fixed a small-phone header overflow from the larger coin display.
+- Roster and all seven battle-command browser regressions pass. Ran the skill's Playwright client and inspected its screenshot/state, plus town purchase, free-roll, paid-roll/training, and battle captures at all four sizes. No application console/page errors; no economy or gameplay balance changes.

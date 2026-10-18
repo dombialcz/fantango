@@ -1,4 +1,5 @@
 import { BUILDING_DEFINITIONS, buildingUpgradeCost } from "./town.js";
+import { goldAmount, goldPrice, updateGoldBalance } from "./gold-ui.js";
 
 const DISTRICT_ORDER = ["knight", "ranger", "mage", "thief", "tavern", "cleric", "barbarian", "bard", "alchemist"];
 const STAGES = ["Humble beginnings", "Established", "Expanded", "Fortified", "Fully restored"];
@@ -29,9 +30,9 @@ function upgradeButton(type, building, gold, path = null) {
   const cost = buildingUpgradeCost(building.level);
   if (cost === null) return "";
   const choice = path ? definition[path] : null;
-  return `<button class="town-upgrade" type="button" data-upgrade="${type}" data-path="${path ?? ""}" ${gold < cost ? "disabled" : ""}>
+  return `<button class="town-upgrade gold-purchase" type="button" data-upgrade="${type}" data-path="${path ?? ""}" data-gold-cost="${cost}" title="Pay ${cost} gold to upgrade ${definition.name} to level ${building.level + 1}" ${gold < cost ? "disabled" : ""}>
     <span><strong>${choice ? choice.label : `UPGRADE TO LEVEL ${building.level + 1}`}</strong><small>${choice ? choice.short : definition.core(building.level + 1)}</small></span>
-    <span class="town-upgrade__price">${cost}<small>gold</small></span>
+    ${goldPrice(cost)}
   </button>`;
 }
 
@@ -54,7 +55,7 @@ function inspectorMarkup(type, snapshot) {
       <div class="town-command-note"><span class="town-eyebrow">${definition.commandLabel ?? (type === "alchemist" ? "HEALING SUPPLIES" : "THE CONTRACT REEL")}</span><p>${district.command}</p></div>
       <div class="town-upgrades"><div class="town-upgrades__heading"><span>${cost === null ? "District complete" : definition.utility ? "Next improvement" : "Choose an improvement"}</span><small>${cost === null ? "LEVEL 5 / 5" : `LEVEL ${building.level + 1}`}</small></div>
         ${cost === null ? `<p class="town-complete">Fully restored. Your company has the best this district can offer.</p>` : definition.utility ? upgradeButton(type, building, snapshot.gold) : upgradeButton(type, building, snapshot.gold, "pathA") + upgradeButton(type, building, snapshot.gold, "pathB")}
-        ${cost !== null ? `<p class="town-upgrades__help">${snapshot.gold < cost ? `Earn ${cost - snapshot.gold} more gold in the dungeon to improve this district.` : definition.utility ? "Applies to future expedition supplies or contracts." : "Adds this bonus to every hero of this class."}</p>` : ""}
+        ${cost !== null ? `<p class="town-upgrades__help gold-purchase-note">${snapshot.gold < cost ? `Need ${cost - snapshot.gold} more gold to purchase this upgrade.` : `Each upgrade spends ${cost} gold immediately. ${definition.utility ? "Applies to future supplies or contracts." : "Choose one bonus for every hero of this class."}`}</p>` : ""}
       </div>
     </div>`;
 }
@@ -68,7 +69,7 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
   root.innerHTML = `<div class="town-shell">
     <header class="town-header">
       <button class="town-brand" type="button" data-town-action="close" aria-label="Return to the contract reel">VAULTBOUND<span>TEN DAYS BELOW</span></button>
-      <div class="town-header__right"><span class="town-day"></span><span class="town-gold"><span aria-hidden="true">◈</span> <b></b> <small>gold</small></span><button class="town-return" type="button" data-town-action="close">Prepare company <span aria-hidden="true">→</span></button></div>
+      <div class="town-header__right"><span class="town-day"></span><span class="town-gold"></span><button class="town-return" type="button" data-town-action="close">Prepare company <span aria-hidden="true">→</span></button></div>
     </header>
     <nav class="campaign-steps" aria-label="Daily expedition"><span aria-current="step"><b>01</b> Town</span><button type="button" data-town-action="close"><b>02</b> Company</button><span><b>03</b> Dungeon</span></nav>
     <div class="town-intro"><div><span class="town-eyebrow">YOUR CITY. THEIR LAST SAFE HAVEN.</span><h1>The Mayor's Quarter</h1><p>Bring gold home. Give your heroes something to come back to.</p></div><span class="town-campaign"></span></div>
@@ -155,7 +156,7 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
       if (nextSignature === signature && wasVisible) return;
       signature = nextSignature;
       root.querySelector(".town-day").textContent = `DAY ${next.day} / 10`;
-      root.querySelector(".town-gold b").textContent = next.gold;
+      updateGoldBalance(root.querySelector(".town-gold"), next.gold);
       root.querySelector(".town-campaign").textContent = next.flavorName;
       root.querySelector(".town-message").textContent = next.message;
       root.querySelector(".town-roll-status").textContent = next.rolledToday ? "Your contracts are waiting at the reel. Town improvements apply to your next roll." : "Your daily roll is still sealed. Improve the Tavern first to give better heroes a chance to appear.";
@@ -166,7 +167,7 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
         const building = next.buildings[type];
         const cost = buildingUpgradeCost(building.level);
         card.setAttribute("aria-pressed", String(type === selectedType));
-        card.setAttribute("aria-label", `${BUILDING_DEFINITIONS[type].name}, level ${building.level} of 5. Inspect district.`);
+        card.setAttribute("aria-label", `${BUILDING_DEFINITIONS[type].name}, level ${building.level} of 5. Inspect district for free.${cost === null ? " Fully upgraded." : ` Upgrades cost ${cost} gold.`}`);
         const art = card.querySelector(".town-art");
         if (art.dataset.stage !== String(building.level)) {
           art.dataset.stage = building.level;
@@ -174,7 +175,7 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
         }
         card.querySelector(".town-district__level").textContent = `LV ${building.level}`;
         card.querySelectorAll(".town-pips i").forEach((pip, index) => pip.classList.toggle("is-built", index < building.level));
-        card.querySelector(".town-district__cost").textContent = cost === null ? "Complete" : `${cost}g to improve`;
+        card.querySelector(".town-district__cost").innerHTML = cost === null ? "Complete" : `${goldAmount(cost)}<small>upgrade</small>`;
         card.classList.toggle("can-upgrade", cost !== null && next.gold >= cost);
       }
       updateInspector();

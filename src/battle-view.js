@@ -1,4 +1,5 @@
 import { BATTLE_COMMANDS, COMMAND_IDS, COMMAND_MAX } from "./battle-commands.js";
+import { goldPrice, updateGoldBalance } from "./gold-ui.js";
 
 const COMMAND_COPY = {
   hold: "The friendly front row gains armor and damage for six seconds. More living Knights strengthen both bonuses.",
@@ -145,7 +146,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       root.querySelector(".battle-header h1").textContent = state.boss ? "The Vault Tyrant" : `Floor ${state.floor}`;
       root.querySelector(".battle-campaign").textContent = state.flavor;
       root.querySelector(".battle-day").textContent = `Day ${state.day} / 10`;
-      root.querySelector(".battle-gold").textContent = `${state.gold} gold`;
+      updateGoldBalance(root.querySelector(".battle-gold"), state.gold);
 
       const visibleUnits = [...state.party, ...state.enemies].filter((unit) => unit.hp > 0);
       const ids = new Set(visibleUnits.map((unit) => unit.id));
@@ -172,7 +173,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       if (resultActions.dataset.signature !== actionSignature) {
         resultActions.dataset.signature = actionSignature;
         resultActions.innerHTML = state.view === "floor_result"
-          ? `<button type="button" data-battle-action="flee-safe">Flee safely<small>${state.levelChance}% level-up chance</small></button><button type="button" data-battle-action="continue">Continue<small>Enter floor ${state.floor + 1}</small></button>`
+          ? `<button type="button" data-battle-action="flee-safe">Flee safely <span class="gold-free">FREE</span><small>${state.levelChance}% level-up chance</small></button><button type="button" data-battle-action="continue">Continue<small>Enter floor ${state.floor + 1}</small></button>`
           : state.view === "day_result" ? `<button type="button" data-battle-action="next-day">Next day<small>${state.levelResult}</small></button>`
           : state.view === "campaign_end" ? `<button type="button" data-battle-action="reset">New campaign</button>` : "";
       }
@@ -200,7 +201,16 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       }
       actionButtons.get("potion").innerHTML = state.targeting === "potion" ? "Cancel potion" : `Potion ×${state.potions}<small>${state.potionHealPercent}% max HP</small>`;
       actionButtons.get("potion").disabled = result || (state.targeting !== "potion" && (state.potions <= 0 || !state.party.some((unit) => unit.hp > 0 && unit.hp < unit.maxHp)));
-      actionButtons.get("flee").innerHTML = `Flee <small>−${state.fleeCost}g · ${state.levelChance}% level-up</small>`;
+      const flee = actionButtons.get("flee");
+      const fleeSignature = `${state.fleeCost}:${state.levelChance}`;
+      if (flee.dataset.priceSignature !== fleeSignature) {
+        flee.dataset.priceSignature = fleeSignature;
+        flee.classList.add("gold-purchase");
+        flee.dataset.goldCost = state.fleeCost;
+        flee.innerHTML = `Flee ${goldPrice(state.fleeCost, "LOSE")}<span class="flee-penalty-note">Half your gold</span><small>${state.levelChance}% level-up chance</small>`;
+        flee.title = `Flee now and lose ${state.fleeCost} gold (half your gold, rounded up). ${state.levelChance}% level-up chance per survivor. Retreat between floors to avoid the gold penalty.`;
+        flee.setAttribute("aria-label", `Flee now. Lose ${state.fleeCost} gold, half your gold rounded up. ${state.levelChance}% level-up chance per survivor.`);
+      }
       actionButtons.get("pause").textContent = state.paused ? "Resume" : "Pause";
       actionButtons.get("speed").textContent = `Speed ×${state.speed}`;
       for (const [id, button] of actionButtons) if (id !== "potion") button.disabled = result;

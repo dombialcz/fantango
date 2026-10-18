@@ -1,3 +1,5 @@
+import { goldAmount, goldPrice, updateGoldBalance } from "./gold-ui.js";
+
 const escape = (value) => String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 
 export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, onHire }) {
@@ -17,7 +19,7 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
 
   function offerCard(hero, snapshot) {
     const type = heroTypes[hero.type];
-    return `<article class="contract-card ${snapshot.selectedOfferId === hero.id ? "is-selected" : ""}" data-contract="${hero.id}" style="--hero-color:${type.color}"><button class="contract-inspect" type="button" data-offer="${hero.id}" aria-label="Inspect ${escape(hero.name)}, ${type.label}, level ${hero.level}" aria-pressed="${snapshot.selectedOfferId === hero.id}"><span class="contract-level">LV ${hero.level}</span><img src="${type.image}" alt=""/><span class="contract-class">${type.label}</span><strong>${escape(hero.name)}</strong><small>${type.row === "front" ? "Front" : "Back"} row · ${hero.power} power</small></button><button class="contract-hire" type="button" data-hire="${hero.id}" ${snapshot.bench.length >= snapshot.benchCapacity ? "disabled" : ""}>Hire <span>FREE +</span></button></article>`;
+    return `<article class="contract-card ${snapshot.selectedOfferId === hero.id ? "is-selected" : ""}" data-contract="${hero.id}" style="--hero-color:${type.color}"><button class="contract-inspect" type="button" data-offer="${hero.id}" aria-label="Inspect ${escape(hero.name)}, ${type.label}, level ${hero.level}" aria-pressed="${snapshot.selectedOfferId === hero.id}"><span class="contract-level">LV ${hero.level}</span><img src="${type.image}" alt=""/><span class="contract-class">${type.label}</span><strong>${escape(hero.name)}</strong><small>${type.row === "front" ? "Front" : "Back"} row · ${hero.power} power</small></button><button class="contract-hire" type="button" data-hire="${hero.id}" ${snapshot.bench.length >= snapshot.benchCapacity ? "disabled" : ""}>Hire <span class="gold-free">FREE +</span></button></article>`;
   }
 
   function lockedCard(hero, reserve = false) {
@@ -32,7 +34,7 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
     if (!hero) return `<div class="hero-inspector-empty"><span aria-hidden="true">◇</span><h2>Know your company.</h2><p>Select a contract or hired hero to inspect their strengths.</p><small>Looking is free. Hiring is a separate choice.</small></div>`;
     const type = heroTypes[hero.type];
     const cost = hero.level >= 5 ? null : hero.level * hero.level;
-    return `<div class="hero-inspector-heading" style="--hero-color:${type.color}"><img src="${type.image}" alt=""/><div><span class="roster-eyebrow">${offered ? "AVAILABLE CONTRACT" : hero.active ? "ACTIVE PARTY" : "LOCKED RESERVE"}</span><h2>${escape(hero.name)}</h2><p>${type.label} · Level ${hero.level} · ${type.row === "front" ? "Front" : "Back"} row</p></div></div><div class="hero-stats"><span><b>${hero.power}</b>Power</span><span><b>${hero.health}</b>Health</span><span><b>${hero.damage}</b>Damage</span></div><p class="hero-behavior">${escape(hero.summary)}</p><p class="hero-town-bonus">Town bonuses included. Bard power buffs are assigned when the expedition begins.</p>${offered ? `<p class="hero-contract-note">Like this hero? The <strong>Hire</strong> button is directly beneath their contract. No gold required.</p>` : `<div class="hero-management"><button type="button" data-roster-action="upgrade" ${cost === null || snapshot.gold < cost ? "disabled" : ""}><span>${cost === null ? "Maximum level reached" : `Train to level ${hero.level + 1}`}</span><b>${cost === null ? "LV 5" : `${cost}g`}</b></button><button type="button" data-roster-action="toggle" ${!hero.active && snapshot.activeCount >= snapshot.teamCapacity ? "disabled" : ""}>${hero.active ? "Move to reserves" : "Add to active party"}</button><button class="hero-dismiss" type="button" data-roster-action="dismiss">Dismiss hero</button></div>`}`;
+    return `<div class="hero-inspector-heading" style="--hero-color:${type.color}"><img src="${type.image}" alt=""/><div><span class="roster-eyebrow">${offered ? "AVAILABLE CONTRACT" : hero.active ? "ACTIVE PARTY" : "LOCKED RESERVE"}</span><h2>${escape(hero.name)}</h2><p>${type.label} · Level ${hero.level} · ${type.row === "front" ? "Front" : "Back"} row</p></div></div><div class="hero-stats"><span><b>${hero.power}</b>Power</span><span><b>${hero.health}</b>Health</span><span><b>${hero.damage}</b>Damage</span></div><p class="hero-behavior">${escape(hero.summary)}</p><p class="hero-town-bonus">Town bonuses included. Bard power buffs are assigned when the expedition begins.</p>${offered ? `<p class="hero-contract-note">Like this hero? The <strong>Hire</strong> button is directly beneath their contract. No gold required.</p>` : `<div class="hero-management"><button type="button" class="${cost === null ? "" : "gold-purchase"}" data-roster-action="upgrade" ${cost === null ? "" : `data-gold-cost="${cost}"`} title="${cost === null ? "Maximum hero level" : `Pay ${cost} gold to train ${escape(hero.name)} to level ${hero.level + 1}`}" ${cost === null || snapshot.gold < cost ? "disabled" : ""}><span>${cost === null ? "Maximum level reached" : `Train to level ${hero.level + 1}`}${cost !== null && snapshot.gold < cost ? `<small class="gold-shortfall">Need ${cost - snapshot.gold} more gold</small>` : ""}</span>${cost === null ? "<b>LV 5</b>" : goldPrice(cost)}</button><button type="button" data-roster-action="toggle" ${!hero.active && snapshot.activeCount >= snapshot.teamCapacity ? "disabled" : ""}>${hero.active ? "Move to reserves" : "Add to active party"}</button><button class="hero-dismiss" type="button" data-roster-action="dismiss">Dismiss hero</button></div>`}`;
   }
 
   root.addEventListener("click", (event) => {
@@ -63,7 +65,7 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
       if (signature === nextSignature && wasVisible) return;
       signature = nextSignature;
       root.querySelector(".roster-day").textContent = `DAY ${snapshot.day} / 10`;
-      root.querySelector(".roster-gold").textContent = `◈ ${snapshot.gold} gold`;
+      updateGoldBalance(root.querySelector(".roster-gold"), snapshot.gold);
       root.querySelector(".roster-flavor").textContent = snapshot.flavor;
       root.querySelector(".roster-offer-count").textContent = !snapshot.rolledToday ? `${snapshot.dailyOffers} to discover` : rolling ? "Rolling…" : `${snapshot.offers.length} available · swipe / scroll to browse`;
       const reel = root.querySelector(".contract-reel");
@@ -85,8 +87,13 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
       const rollButton = root.querySelector(".roster-roll-button");
       const price = snapshot.rolledToday ? snapshot.rerollCost : 0;
       rollButton.disabled = rolling || snapshot.gold < price;
-      rollButton.innerHTML = rolling ? `Rolling<span>The fates are deciding…</span>` : `${snapshot.rolledToday ? "Reroll heroes" : "Roll for heroes"}<span>${price ? `${price} gold · pull the reel ↻` : "First roll · FREE ↻"}</span>`;
-      root.querySelector(".reel-cost-note").textContent = snapshot.rolledToday ? `Next reroll: ${snapshot.rerollCost + 1}g. Hired heroes stay.` : "Then 1g, 2g, 3g… per reroll today.";
+      rollButton.classList.toggle("gold-purchase", price > 0 && !rolling);
+      rollButton.classList.toggle("is-free", price === 0 && !rolling);
+      if (price > 0 && !rolling) rollButton.dataset.goldCost = price;
+      else delete rollButton.dataset.goldCost;
+      rollButton.title = rolling ? "Reel is turning" : price ? `Pay ${price} gold to replace all unhired contracts. Hired heroes stay.` : "First daily roll is free";
+      rollButton.innerHTML = rolling ? `Rolling<span class="roll-caption">The fates are deciding…</span>` : `${snapshot.rolledToday ? "Reroll heroes" : "Roll for heroes"}${price ? goldPrice(price) : '<span class="gold-free">FIRST ROLL · FREE ↻</span>'}`;
+      root.querySelector(".reel-cost-note").innerHTML = snapshot.rolledToday ? `${snapshot.gold < price ? `<span class="gold-shortfall">Need ${price - snapshot.gold} more gold.</span>` : "Spends gold immediately. "}After this: ${goldAmount(snapshot.rerollCost + 1)}<br/>Hired heroes stay.` : `Later rolls cost ${goldAmount(1)}, then 2, 3… today.`;
       root.querySelector(".reel-odds").innerHTML = `<span>TAVERN · LEVEL ${snapshot.tavernLevel}</span><strong>${escape(snapshot.odds)}</strong><small>Bonus levels roll in sequence; each step must succeed.</small>`;
       root.querySelectorAll('[data-roster-action="town"]').forEach((button) => { button.disabled = rolling; });
       root.querySelector(".roster-team-count").textContent = `${snapshot.activeCount} / ${snapshot.teamCapacity} active`;

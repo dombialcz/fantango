@@ -52,7 +52,9 @@ The Mayor’s Quarter is a second screen where expedition gold upgrades nine bui
 
 Each day starts in town, then moves to preparing the company and entering the dungeon. No contracts are generated until the player explicitly rolls, so Tavern upgrades can improve even the first daily offers. The first roll is free; subsequent rerolls cost 1, 2, 3 gold and so on, resetting each day. Visiting town does not refresh offers or reset prices. The responsive recruitment screen separates the animated contract reel, Hire buttons directly under each offer, the locked active party and reserves, and hero inspection/training controls. A painted town landscape adds grass, cobbled paths, crooked trees, ruined walls, and a distant graveyard without tying the interface to fixed map coordinates. See [the landscape prompt](assets/town/TOWN_LANDSCAPE.md).
 
-Browser regression checks: `node scripts/check-roster-ui.mjs` and `node scripts/check-battle-ui.mjs` (run a local server first; an optional first argument changes the base URL).
+Paid actions reuse Fantango's original coin icon and show a prominent PAY price: building upgrades, hero training, and paid rerolls. Mid-battle Flee shows its exact gold loss; safe retreat and free recruitment are labeled FREE. Unaffordable purchases keep readable prices and explain how much more gold is needed. Command points are a separate resource, not gold.
+
+Browser regression checks: `node scripts/check-roster-ui.mjs`, `node scripts/check-battle-ui.mjs`, and `node scripts/check-gold-ui.mjs` (run a local server first; an optional first argument changes the base URL).
 
 The town uses a responsive HTML/CSS interface with nine illustrated districts and a building inspector (a bottom sheet on phones). Every building has five distinct architectural images: upgrades add rooms, wings, towers, and defenses. The 45 building sprites and seven command paintings are delivered as compressed WebP images. See [art direction and packaging notes](assets/town/ART_DIRECTION.md) and [the complete prompt set](assets/ART_PROMPTS.json).
 

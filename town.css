@@ -134,8 +134,6 @@ body.town-open > .sidegame-link { display: none; }
 .town-upgrade:hover { background-color: #9e7c3e30; border-color: #d8b77a; }
 .town-upgrade strong { display: block; font: 10px/1.5 Arial, sans-serif; letter-spacing: 0.08em; }
 .town-upgrade small { display: block; color: #aaad9e; font: 11px/1.6 Georgia, serif; margin-top: 3px; }
-.town-upgrade__price { min-width: 26px; text-align: center; font-size: 21px; }
-.town-upgrade__price small { font: 9px Arial, sans-serif; margin-top: 1px; color: #bda779; }
 .town-upgrade:disabled { background: #7684900a; border-color: #9da7af25; color: #808b93; }
 .town-upgrade:disabled small { color: #737f87; }
 .town-upgrades__help { margin: 12px 0 0; color: #839099; font-size: 11px; line-height: 1.6; }
