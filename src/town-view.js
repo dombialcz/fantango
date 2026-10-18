@@ -1,5 +1,6 @@
 import { BUILDING_DEFINITIONS, buildingUpgradeCost } from "./town.js";
 import { goldAmount, goldPrice, updateGoldBalance } from "./gold-ui.js";
+import { observeTownRestoration } from "./town-art-feedback.js";
 
 const DISTRICT_ORDER = ["knight", "ranger", "mage", "thief", "tavern", "cleric", "barbarian", "bard", "alchemist"];
 const STAGES = ["Humble beginnings", "Established", "Expanded", "Fortified", "Fully restored"];
@@ -95,6 +96,7 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
   const sheet = root.querySelector(".town-sheet");
   const sheetContent = root.querySelector(".town-sheet__content");
   const cards = [...root.querySelectorAll("[data-district]")];
+  observeTownRestoration(root);
 
   function updateInspector() {
     if (!snapshot) return;
