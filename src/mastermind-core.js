@@ -1,4 +1,5 @@
 import { createRng, shuffle } from "./random.js";
+import { PARTY_NAMES } from "./mastermind-names.js";
 
 export const HERO_CLASSES = Object.freeze([
   { id: "knight", label: "Knight", image: "assets/heroes/knight.png" },
@@ -17,33 +18,6 @@ export const CHALLENGES = Object.freeze([
 ]);
 
 const HERO_BY_ID = Object.fromEntries(HERO_CLASSES.map((hero) => [hero.id, hero]));
-const PAIR_NAMES = Object.freeze({
-  barbarian: "Wild",
-  thief: "Secret",
-  cleric: "Holy",
-  knight: "Iron",
-  bard: "Merry",
-  ranger: "Keen",
-  mage: "Arcane",
-});
-const TRIO_NAMES = Object.freeze({
-  cleric: "Clergy",
-  knight: "Order",
-  mage: "Covenant",
-  thief: "Guild",
-  ranger: "Hunt",
-  bard: "Chorus",
-  barbarian: "Warband",
-});
-const SINGLE_NAMES = Object.freeze({
-  ranger: "of Mirkwood",
-  cleric: "of Benevolence",
-  barbarian: "of Vengeance",
-  mage: "of Secrets",
-  thief: "of Coin",
-  knight: "of Oaths",
-  bard: "of Song",
-});
 
 function choose(items, random) {
   return items[Math.floor(random() * items.length)];
@@ -73,6 +47,7 @@ export function generateChallenge(dateKey, difficulty) {
   const singleCount = challenge.size - 3 - (pair ? 2 : 0);
   const singles = shuffled(singlePool, random).slice(0, singleCount);
   const revealedSingle = choose(singles, random);
+  const englishNames = PARTY_NAMES.en;
   const code = shuffled([
     trio,
     trio,
@@ -82,9 +57,9 @@ export function generateChallenge(dateKey, difficulty) {
   ], random);
 
   const titleParts = [
-    ...(pair ? [PAIR_NAMES[pair]] : []),
-    TRIO_NAMES[trio],
-    SINGLE_NAMES[revealedSingle],
+    ...(pair ? [englishNames.pair[pair]] : []),
+    englishNames.trio[trio],
+    englishNames.single[revealedSingle],
   ];
 
   return {
@@ -94,10 +69,10 @@ export function generateChallenge(dateKey, difficulty) {
     title: titleParts.join(" "),
     clues: [
       ...(pair
-        ? [{ kind: "pair", type: pair, text: `${PAIR_NAMES[pair]} means exactly two ${pluralLabel(pair)}.` }]
+        ? [{ kind: "pair", type: pair, text: `${englishNames.pair[pair]} means exactly two ${pluralLabel(pair)}.` }]
         : []),
-      { kind: "trio", type: trio, text: `${TRIO_NAMES[trio]} means exactly three ${pluralLabel(trio)}.` },
-      { kind: "single", type: revealedSingle, text: `${SINGLE_NAMES[revealedSingle]} means exactly one ${HERO_BY_ID[revealedSingle].label}.` },
+      { kind: "trio", type: trio, text: `${englishNames.trio[trio]} means exactly three ${pluralLabel(trio)}.` },
+      { kind: "single", type: revealedSingle, text: `${englishNames.single[revealedSingle]} means exactly one ${HERO_BY_ID[revealedSingle].label}.` },
     ],
     counts: countTypes(code),
     revealedSingle,

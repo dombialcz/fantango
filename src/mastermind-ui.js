@@ -1,5 +1,6 @@
 import { localDateKey } from "./generator.js";
 import { CHALLENGES, HERO_CLASSES, evaluateGuess, generateChallenge } from "./mastermind-core.js";
+import { PARTY_NAMES } from "./mastermind-names.js";
 
 const HERO_BY_ID = Object.fromEntries(HERO_CLASSES.map((hero) => [hero.id, hero]));
 const COPY = {
@@ -121,21 +122,6 @@ const COPY = {
   },
 };
 
-const POLISH_PARTY_NAMES = {
-  pair: {
-    barbarian: "Dziki", thief: "Sekretny", cleric: "Święty", knight: "Żelazny",
-    bard: "Radosny", ranger: "Czujny", mage: "Arkaniczny",
-  },
-  trio: {
-    cleric: "Konwent", knight: "Zakon", mage: "Kabal", thief: "Cech",
-    ranger: "Szlak", bard: "Chór", barbarian: "Klan",
-  },
-  single: {
-    ranger: "Mrocznej Puszczy", cleric: "Miłosierdzia", barbarian: "Zemsty",
-    mage: "Sekretów", thief: "Monet", knight: "Przysiąg", bard: "Pieśni",
-  },
-};
-
 const dateKey = localDateKey();
 const levels = Object.fromEntries(
   CHALLENGES.map((challenge) => [challenge.id, generateChallenge(dateKey, challenge.id)]),
@@ -189,13 +175,14 @@ function localizedPlural(type) {
 
 function localizedPartyName(challenge) {
   if (state.locale === "en") return challenge.title;
+  const names = PARTY_NAMES[state.locale];
   const pair = challenge.clues.find((clue) => clue.kind === "pair");
   const trio = challenge.clues.find((clue) => clue.kind === "trio");
   const single = challenge.clues.find((clue) => clue.kind === "single");
   return [
-    ...(pair ? [POLISH_PARTY_NAMES.pair[pair.type]] : []),
-    POLISH_PARTY_NAMES.trio[trio.type],
-    POLISH_PARTY_NAMES.single[single.type],
+    ...(pair ? [names.pair[pair.type]] : []),
+    names.trio[trio.type],
+    names.single[single.type],
   ].join(" ");
 }
 

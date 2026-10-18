@@ -165,4 +165,5 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Kept feedback count-only, using green exact-position and gold elsewhere markers at the end of submitted rows.
 - Redesigned the page with a Vaultbound-styled header, language toggle, difficulty cards, party-name clue cards, compact class picker, keyboard hints, and responsive desktop/phone layouts.
 - Added persistent English/Polish switching for page copy, class names, clue text, party titles, difficulty labels, date formatting, and screen-reader labels.
+- Moved all English and Polish party-name parts into `src/mastermind-names.js`, imported by both the generator and UI modules.
 - Visually reviewed English and Polish layouts at desktop and 320/390px mobile widths; the seven-slot board fits without horizontal overflow and all hero portraits load.
