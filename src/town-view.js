@@ -68,9 +68,11 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
   root.innerHTML = `<div class="town-shell">
     <header class="town-header">
       <button class="town-brand" type="button" data-town-action="close" aria-label="Return to the contract reel">VAULTBOUND<span>TEN DAYS BELOW</span></button>
-      <div class="town-header__right"><span class="town-day"></span><span class="town-gold"><span aria-hidden="true">◈</span> <b></b> <small>gold</small></span><button class="town-return" type="button" data-town-action="close">Contract reel <span aria-hidden="true">↗</span></button></div>
+      <div class="town-header__right"><span class="town-day"></span><span class="town-gold"><span aria-hidden="true">◈</span> <b></b> <small>gold</small></span><button class="town-return" type="button" data-town-action="close">Prepare company <span aria-hidden="true">→</span></button></div>
     </header>
+    <nav class="campaign-steps" aria-label="Daily expedition"><span aria-current="step"><b>01</b> Town</span><button type="button" data-town-action="close"><b>02</b> Company</button><span><b>03</b> Dungeon</span></nav>
     <div class="town-intro"><div><span class="town-eyebrow">YOUR CITY. THEIR LAST SAFE HAVEN.</span><h1>The Mayor's Quarter</h1><p>Bring gold home. Give your heroes something to come back to.</p></div><span class="town-campaign"></span></div>
+    <div class="town-panorama"><div><span class="town-eyebrow">BEFORE THE GATES OPEN</span><h2>A little hope, on the edge of the dark.</h2><p class="town-roll-status"></p></div><button type="button" data-town-action="close">Prepare your company <span aria-hidden="true">→</span></button></div>
     <div class="town-layout">
       <section class="town-districts" aria-label="Town districts">
         <div class="town-districts__heading"><span>NINE DISTRICTS · ONE COMPANY</span><span class="town-improvements"></span></div>
@@ -149,13 +151,14 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
         return;
       }
       snapshot = next;
-      const nextSignature = JSON.stringify([next.day, next.gold, next.flavorName, next.message, next.buildings]);
+      const nextSignature = JSON.stringify([next.day, next.gold, next.flavorName, next.message, next.buildings, next.rolledToday]);
       if (nextSignature === signature && wasVisible) return;
       signature = nextSignature;
       root.querySelector(".town-day").textContent = `DAY ${next.day} / 10`;
       root.querySelector(".town-gold b").textContent = next.gold;
       root.querySelector(".town-campaign").textContent = next.flavorName;
       root.querySelector(".town-message").textContent = next.message;
+      root.querySelector(".town-roll-status").textContent = next.rolledToday ? "Your contracts are waiting at the reel. Town improvements apply to your next roll." : "Your daily roll is still sealed. Improve the Tavern first to give better heroes a chance to appear.";
       const improvements = Object.values(next.buildings).reduce((total, building) => total + building.level - 1, 0);
       root.querySelector(".town-improvements").textContent = `${improvements} / 36 improvements`;
       for (const card of cards) {

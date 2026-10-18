@@ -4,6 +4,7 @@ import { BOSS_FLOOR, floorGoldReward, isBossFloor } from "./dungeon-progression.
 import { enemyTypeForRoll, FLAVOR_ROSTERS } from "./enemy-rosters.js";
 import { createTownView } from "./town-view.js";
 import { createBattleView } from "./battle-view.js";
+import { createRosterView } from "./roster-view.js";
 import {
   BATTLE_COMMANDS,
   COMMAND_GAIN_PER_DAMAGE,
@@ -21,12 +22,7 @@ import {
 } from "./town.js";
 
 const canvas = document.querySelector("#dungeon-game");
-const context = canvas.getContext("2d");
-
-let WIDTH = 1200;
-let HEIGHT = 800;
 let layoutMode = "desktop";
-let hitRegions = [];
 let previousFrame = performance.now();
 let nextHeroId = 1;
 let nextEnemyId = 1;
@@ -34,20 +30,6 @@ let nextEnemyId = 1;
 const COMBAT_DAMAGE_SCALE = 0.25;
 const COMBAT_INTERVAL_SCALE = 1.5;
 const COMBAT_EFFECT_DURATION = 700;
-
-const COLORS = {
-  ink: "#06101b",
-  panel: "rgba(6, 15, 25, 0.94)",
-  panelSoft: "rgba(15, 29, 43, 0.92)",
-  line: "rgba(188, 157, 96, 0.42)",
-  gold: "#d7ae5d",
-  goldBright: "#f5dda5",
-  text: "#eee5d4",
-  muted: "#9eacb8",
-  danger: "#d76862",
-  heal: "#77cba1",
-  blue: "#6aa8d8",
-};
 
 const HERO_TYPES = {
   knight: {
@@ -166,18 +148,6 @@ const ENEMY_TYPES = {
   vaultTyrant: { label: "Vault Tyrant", row: "front", hp: 750, damage: 65, interval: 1800, color: "#b85c4d", glyph: "V" },
 };
 
-const background = loadImage("assets/vault-bg.jpg");
-const heroImages = Object.fromEntries(
-  Object.entries(HERO_TYPES).map(([key, definition]) => [key, loadImage(definition.image)]),
-);
-
-function loadImage(source) {
-  const image = new Image();
-  image.addEventListener("load", () => render());
-  image.src = source;
-  return image;
-}
-
 function randomItem(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
@@ -233,7 +203,7 @@ function rollHeroes(count, tavernLevel = 1) {
 function createCampaign() {
   const buildings = createTownBuildings();
   return {
-    view: "tavern",
+    view: "town",
     day: 1,
     gold: 10,
     flavorKey: randomItem(Object.keys(FLAVORS)),
@@ -242,12 +212,12 @@ function createCampaign() {
     victoryDay: null,
     floor: 0,
     rerollCost: 1,
-    offers: rollHeroes(5, buildings.tavern.level),
+    offers: [],
+    rolledToday: false,
+    rollRemainingMs: 0,
     bench: [],
     selectedHeroId: null,
     selectedOfferId: null,
-    offerPage: 0,
-    benchPage: 0,
     buildings,
     party: [],
     enemies: [],
@@ -282,7 +252,7 @@ function createCampaign() {
     floorReward: 0,
     resultTitle: "",
     resultCopy: "",
-    message: "Recruit a party. Floor clears pay the current day in gold; floor 10 holds the boss.",
+    message: "Welcome, Mayor. Improve your town, then prepare your company. Upgrade the Tavern before your free first roll for better contracts.",
   };
 }
 
@@ -297,12 +267,33 @@ const townView = createTownView({
   onClose: () => {
     closeTown();
     render();
-    canvas.focus();
+    rosterView.focus();
   },
   onReset: () => {
     resetCampaign();
     render();
-    canvas.focus();
+  },
+});
+
+const rosterView = createRosterView({
+  root: document.querySelector("#roster-screen"),
+  heroTypes: HERO_TYPES,
+  onAction: (action) => {
+    if (action === "roll") rerollOffers();
+    if (action === "town") openTown();
+    if (action === "start") startExpedition();
+    if (action === "upgrade") upgradeSelected();
+    if (action === "toggle") toggleSelectedActive();
+    if (action === "dismiss") dismissSelected();
+    render();
+  },
+  onOffer: (id) => { selectOffer(state.offers.findIndex((hero) => hero.id === id)); render(); },
+  onHire: (id) => { recruitOffer(state.offers.findIndex((hero) => hero.id === id)); render(); },
+  onHero: (id) => {
+    if (state.view !== "tavern" || !state.bench.some((hero) => hero.id === id)) return;
+    state.selectedHeroId = id;
+    state.selectedOfferId = null;
+    render();
   },
 });
 
@@ -345,12 +336,8 @@ function selectedHero() {
   return state.bench.find((hero) => hero.id === state.selectedHeroId) ?? null;
 }
 
-function selectedOffer() {
-  return state.offers.find((hero) => hero.id === state.selectedOfferId) ?? null;
-}
-
 function openTown() {
-  if (state.view !== "tavern") return;
+  if (state.view !== "tavern" || state.rollRemainingMs > 0) return;
   state.view = "town";
   state.message = "Invest expedition gold in the districts that shape your heroes.";
 }
@@ -388,7 +375,7 @@ function benchLimit() {
 }
 
 function recruitOffer(index) {
-  if (state.view !== "tavern") return;
+  if (state.view !== "tavern" || state.rollRemainingMs > 0) return;
   const hero = state.offers[index];
   if (!hero) return;
   if (state.bench.length >= benchLimit()) {
@@ -401,11 +388,10 @@ function recruitOffer(index) {
   state.selectedHeroId = hero.id;
   state.selectedOfferId = null;
   state.message = `${hero.name} the ${HERO_TYPES[hero.type].label} is locked on the bench.`;
-  normalizePages();
 }
 
 function selectOffer(index) {
-  if (state.view !== "tavern") return;
+  if (state.view !== "tavern" || state.rollRemainingMs > 0) return;
   const hero = state.offers[index];
   if (!hero) return;
   state.selectedOfferId = hero.id;
@@ -413,21 +399,18 @@ function selectOffer(index) {
   state.message = `${hero.name}: ${HERO_TYPES[hero.type].summary}`;
 }
 
-function hireSelectedOffer() {
-  const index = state.offers.findIndex((hero) => hero.id === state.selectedOfferId);
-  if (index >= 0) recruitOffer(index);
-}
-
 function rerollOffers() {
-  if (state.view !== "tavern") return;
-  if (state.gold < state.rerollCost) {
-    state.message = `You need ${state.rerollCost} gold for the next spin.`;
+  if (state.view !== "tavern" || state.rollRemainingMs > 0) return;
+  const cost = state.rolledToday ? state.rerollCost : 0;
+  if (state.gold < cost) {
+    state.message = `You need ${cost} gold for the next spin.`;
     return;
   }
-  state.gold -= state.rerollCost;
-  state.rerollCost += 1;
+  state.gold -= cost;
+  if (state.rolledToday) state.rerollCost += 1;
+  state.rolledToday = true;
+  state.rollRemainingMs = 1300;
   state.offers = rollHeroes(offerCount(state.day), state.buildings.tavern.level);
-  state.offerPage = 0;
   state.selectedOfferId = null;
   state.message = "The reel rattles. New contracts slide into view.";
 }
@@ -466,29 +449,10 @@ function dismissSelected() {
   state.bench = state.bench.filter((candidate) => candidate.id !== hero.id);
   state.selectedHeroId = null;
   state.message = `${hero.name} leaves the company.`;
-  normalizePages();
-}
-
-function normalizePages() {
-  const offerVisible = layoutMode === "portrait" ? 3 : layoutMode === "compact" ? 6 : 5;
-  const benchVisible = layoutMode === "portrait" ? 4 : layoutMode === "compact" ? 7 : 6;
-  state.offerPage = Math.max(0, Math.min(state.offerPage, Math.ceil(state.offers.length / offerVisible) - 1));
-  state.benchPage = Math.max(0, Math.min(state.benchPage, Math.ceil(state.bench.length / benchVisible) - 1));
-}
-
-function pageOffers(direction) {
-  const visible = layoutMode === "portrait" ? 3 : layoutMode === "compact" ? 6 : 5;
-  const pages = Math.max(1, Math.ceil(state.offers.length / visible));
-  state.offerPage = (state.offerPage + direction + pages) % pages;
-}
-
-function pageBench(direction) {
-  const visible = layoutMode === "portrait" ? 4 : layoutMode === "compact" ? 7 : 6;
-  const pages = Math.max(1, Math.ceil(state.bench.length / visible));
-  state.benchPage = (state.benchPage + direction + pages) % pages;
 }
 
 function startExpedition() {
+  if (state.view !== "tavern" || state.rollRemainingMs > 0) return;
   const chosen = activeBench();
   if (!chosen.length) {
     state.message = "Choose at least one active hero before entering the dungeon.";
@@ -1119,11 +1083,11 @@ function advanceDay() {
   }
   for (const hero of reserves) hero.active = false;
   state.bench = [...survivors, ...reserves];
-  state.offers = rollHeroes(offerCount(state.day), state.buildings.tavern.level);
+  state.offers = [];
+  state.rolledToday = false;
+  state.rollRemainingMs = 0;
   state.selectedHeroId = survivors[0]?.id ?? null;
   state.selectedOfferId = null;
-  state.offerPage = 0;
-  state.benchPage = 0;
   state.rerollCost = 1;
   state.floor = 0;
   state.party = [];
@@ -1136,7 +1100,7 @@ function advanceDay() {
   state.retreatType = null;
   state.retreatLevelChance = 0;
   state.retreatLevelUpIds = [];
-  state.view = "tavern";
+  state.view = "town";
   state.message = levelUps > 0
     ? `Day ${state.day}. Survivors return healed; ${levelUps} gained a level. Floors now yield ${floorGoldReward(state.day)} gold.`
     : `Day ${state.day}. Survivors return healed; no one gained a level. Floors now yield ${floorGoldReward(state.day)} gold.`;
@@ -1150,6 +1114,10 @@ function resetCampaign() {
 
 function update(milliseconds) {
   const step = Math.min(100, milliseconds);
+  if (state.rollRemainingMs > 0) {
+    state.rollRemainingMs = Math.max(0, state.rollRemainingMs - step);
+    if (state.rollRemainingMs === 0) state.message = `${state.offers.length} contracts revealed. Inspect a hero, then use Hire beneath the portrait. Your company is safe from rerolls.`;
+  }
   updateBattle(step);
 }
 
@@ -1159,449 +1127,9 @@ function configureLayout(force = false) {
   const nextMode = portrait ? "portrait" : compact ? "compact" : "desktop";
   if (!force && nextMode === layoutMode) return;
   layoutMode = nextMode;
-  if (portrait) {
-    WIDTH = 720;
-    HEIGHT = 1280;
-  } else if (compact) {
-    WIDTH = 1400;
-    HEIGHT = 720;
-  } else {
-    WIDTH = 1200;
-    HEIGHT = 800;
-  }
-  canvas.width = WIDTH;
-  canvas.height = HEIGHT;
-  canvas.style.setProperty("--game-ratio", String(WIDTH / HEIGHT));
-  normalizePages();
 }
-
-function roundedRect(x, y, width, height, radius) {
-  context.beginPath();
-  context.roundRect(x, y, width, height, radius);
-}
-
-function drawBackground() {
-  if (background.complete && background.naturalWidth) {
-    const imageRatio = background.naturalWidth / background.naturalHeight;
-    const canvasRatio = WIDTH / HEIGHT;
-    let sourceWidth = background.naturalWidth;
-    let sourceHeight = background.naturalHeight;
-    let sourceX = 0;
-    let sourceY = 0;
-    if (imageRatio > canvasRatio) {
-      sourceWidth = sourceHeight * canvasRatio;
-      sourceX = (background.naturalWidth - sourceWidth) / 2;
-    } else {
-      sourceHeight = sourceWidth / canvasRatio;
-      sourceY = (background.naturalHeight - sourceHeight) / 2;
-    }
-    context.drawImage(background, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, WIDTH, HEIGHT);
-  } else {
-    context.fillStyle = COLORS.ink;
-    context.fillRect(0, 0, WIDTH, HEIGHT);
-  }
-  context.fillStyle = "rgba(1, 5, 10, 0.74)";
-  context.fillRect(0, 0, WIDTH, HEIGHT);
-  const glow = context.createRadialGradient(WIDTH / 2, HEIGHT * 0.44, 50, WIDTH / 2, HEIGHT * 0.44, Math.max(WIDTH, HEIGHT) * 0.7);
-  glow.addColorStop(0, "rgba(31, 56, 76, 0.3)");
-  glow.addColorStop(1, "rgba(0, 0, 0, 0.55)");
-  context.fillStyle = glow;
-  context.fillRect(0, 0, WIDTH, HEIGHT);
-}
-
-function drawPanel(rect, alpha = 0.94) {
-  roundedRect(rect.x, rect.y, rect.width, rect.height, 15);
-  context.fillStyle = `rgba(6, 15, 25, ${alpha})`;
-  context.fill();
-  context.lineWidth = 1.5;
-  context.strokeStyle = COLORS.line;
-  context.stroke();
-}
-
-function drawHeader() {
-  const portrait = layoutMode === "portrait";
-  const compact = layoutMode === "compact";
-  context.textAlign = "left";
-  context.fillStyle = COLORS.goldBright;
-  context.font = `small-caps 700 ${portrait ? 48 : compact ? 38 : 42}px Georgia`;
-  context.fillText("VAULTBOUND", portrait ? 26 : 34, portrait ? 56 : 51);
-  context.fillStyle = COLORS.muted;
-  context.font = `italic ${portrait ? 20 : 16}px Georgia`;
-  context.fillText("Ten days below", portrait ? 28 : 35, portrait ? 82 : compact ? 72 : 75);
-
-  const statsY = portrait ? 111 : 45;
-  context.textAlign = "right";
-  context.fillStyle = COLORS.text;
-  context.font = `700 ${portrait ? 19 : 17}px Georgia`;
-  const floorCopy = state.floor ? `  •  Floor ${state.floor}` : "";
-  context.fillText(`Day ${state.day}/10  •  ${state.gold} gold${floorCopy}`, WIDTH - 28, statsY);
-  const bossActive = state.view === "battle" && isBossFloor(state.floor);
-  context.fillStyle = state.victoryAchieved ? COLORS.heal : bossActive ? COLORS.danger : COLORS.gold;
-  context.font = `${portrait ? 17 : 14}px Georgia`;
-  const campaignStatus = state.victoryAchieved
-    ? `${currentFlavor().name} • VICTORY`
-    : bossActive ? "BOSS FLOOR • VAULT TYRANT" : currentFlavor().name;
-  fitText(campaignStatus, WIDTH - 28, statsY + (portrait ? 27 : 24), portrait ? 400 : 360);
-}
-
-function addHit(rect, action, enabled = true) {
-  if (enabled) hitRegions.push({ rect, action });
-}
-
-function drawButton(rect, label, options = {}) {
-  const { accent = false, danger = false, enabled = true, sublabel = "", action = null } = options;
-  roundedRect(rect.x, rect.y, rect.width, rect.height, 9);
-  context.fillStyle = !enabled
-    ? "rgba(25, 31, 38, 0.68)"
-    : danger
-      ? "rgba(99, 38, 38, 0.86)"
-      : accent
-        ? "rgba(119, 85, 34, 0.88)"
-        : "rgba(22, 38, 52, 0.96)";
-  context.fill();
-  context.lineWidth = 1.5;
-  context.strokeStyle = !enabled
-    ? "rgba(130, 140, 147, 0.2)"
-    : danger
-      ? COLORS.danger
-      : accent
-        ? COLORS.gold
-        : "rgba(155, 176, 190, 0.4)";
-  context.stroke();
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  context.fillStyle = enabled ? COLORS.text : "rgba(158, 172, 184, 0.55)";
-  context.font = `700 ${Math.min(22, rect.height * 0.32)}px Georgia`;
-  context.fillText(label, rect.x + rect.width / 2, rect.y + rect.height / 2 - (sublabel ? 7 : 0));
-  if (sublabel) {
-    context.fillStyle = enabled ? COLORS.muted : "rgba(158, 172, 184, 0.45)";
-    context.font = `${Math.min(14, rect.height * 0.2)}px Georgia`;
-    context.fillText(sublabel, rect.x + rect.width / 2, rect.y + rect.height / 2 + 14);
-  }
-  context.textBaseline = "alphabetic";
-  if (action) addHit(rect, action, enabled);
-}
-
-function fitText(text, x, y, maxWidth) {
-  let output = text;
-  while (context.measureText(output).width > maxWidth && output.length > 8) output = `${output.slice(0, -2)}…`;
-  context.fillText(output, x, y);
-}
-
-function drawWrappedText(text, x, y, maxWidth, lineHeight, maxLines = 2) {
-  const words = text.split(/\s+/);
-  const lines = [];
-  let line = "";
-  for (const word of words) {
-    const candidate = line ? `${line} ${word}` : word;
-    if (context.measureText(candidate).width <= maxWidth || !line) {
-      line = candidate;
-    } else {
-      lines.push(line);
-      line = word;
-    }
-  }
-  if (line) lines.push(line);
-  const visible = lines.slice(0, maxLines);
-  if (lines.length > maxLines) {
-    let last = `${visible[maxLines - 1]}…`;
-    while (context.measureText(last).width > maxWidth && last.length > 8) last = `${last.slice(0, -2)}…`;
-    visible[maxLines - 1] = last;
-  }
-  visible.forEach((copy, index) => context.fillText(copy, x, y + index * lineHeight));
-}
-
-function drawHeroImage(hero, x, y, size) {
-  const image = heroImages[hero.type];
-  if (image?.complete && image.naturalWidth) {
-    context.drawImage(image, x, y, size, size);
-    return;
-  }
-  context.fillStyle = HERO_TYPES[hero.type].color;
-  context.beginPath();
-  context.arc(x + size / 2, y + size / 2, size * 0.42, 0, Math.PI * 2);
-  context.fill();
-  context.fillStyle = COLORS.ink;
-  context.textAlign = "center";
-  context.font = `700 ${size * 0.3}px Georgia`;
-  context.fillText(HERO_TYPES[hero.type].label[0], x + size / 2, y + size * 0.63);
-}
-
-function drawHeroCard(hero, rect, options = {}) {
-  const { selected = false, offer = false } = options;
-  const definition = HERO_TYPES[hero.type];
-  roundedRect(rect.x, rect.y, rect.width, rect.height, 12);
-  context.fillStyle = selected ? "rgba(31, 52, 69, 0.98)" : "rgba(10, 22, 34, 0.96)";
-  context.fill();
-  context.lineWidth = selected ? 3 : 1.5;
-  context.strokeStyle = selected ? COLORS.goldBright : hero.active ? COLORS.gold : "rgba(157, 174, 185, 0.34)";
-  context.stroke();
-
-  const imageSize = Math.min(rect.width - 14, rect.height - 58);
-  drawHeroImage(hero, rect.x + (rect.width - imageSize) / 2, rect.y + 5, imageSize);
-  if (hero.active && !offer) {
-    roundedRect(rect.x + 7, rect.y + 7, 55, 22, 7);
-    context.fillStyle = "rgba(111, 77, 28, 0.94)";
-    context.fill();
-    context.fillStyle = COLORS.goldBright;
-    context.font = "700 11px Georgia";
-    context.textAlign = "center";
-    context.fillText("ACTIVE", rect.x + 34.5, rect.y + 22);
-  }
-  context.textAlign = "center";
-  context.fillStyle = COLORS.text;
-  context.font = `700 ${rect.width < 150 ? 14 : 16}px Georgia`;
-  fitText(hero.name, rect.x + rect.width / 2, rect.y + rect.height - 30, rect.width - 16);
-  context.fillStyle = definition.color;
-  context.font = `${rect.width < 150 ? 11 : 12}px Georgia`;
-  context.fillText(`${definition.label.toUpperCase()}  •  LV ${hero.level}`, rect.x + rect.width / 2, rect.y + rect.height - 11);
-}
-
-function drawSectionTitle(title, copy, x, y, maxWidth) {
-  context.textAlign = "left";
-  context.fillStyle = COLORS.goldBright;
-  context.font = "700 22px Georgia";
-  context.fillText(title, x, y);
-  const copyX = x + context.measureText(title).width + 18;
-  context.fillStyle = COLORS.muted;
-  context.font = "italic 14px Georgia";
-  fitText(copy, copyX, y, Math.max(80, maxWidth - (copyX - x)));
-}
-
-function drawTavern() {
-  if (layoutMode === "portrait") drawTavernPortrait();
-  else drawTavernLandscape();
-}
-
-function drawTavernLandscape() {
-  const compact = layoutMode === "compact";
-  const offerVisible = compact ? 6 : 5;
-  const benchVisible = compact ? 7 : 6;
-  const offerStart = state.offerPage * offerVisible;
-  const offerSlice = state.offers.slice(offerStart, offerStart + offerVisible);
-  const benchStart = state.benchPage * benchVisible;
-  const benchSlice = state.bench.slice(benchStart, benchStart + benchVisible);
-  const bottomY = HEIGHT - 78;
-
-  drawPanel({ x: 28, y: 94, width: WIDTH - 56, height: 282 });
-  drawSectionTitle("THE CONTRACT REEL", `${offerCount(state.day)} offers today • duplicates allowed`, 48, 128, WIDTH - 96);
-  const offerAreaX = 74;
-  const offerAreaWidth = WIDTH - 148;
-  const offerGap = 12;
-  const offerWidth = (offerAreaWidth - offerGap * (offerVisible - 1)) / offerVisible;
-  offerSlice.forEach((hero, offset) => {
-    const index = offerStart + offset;
-    const rect = { x: offerAreaX + offset * (offerWidth + offerGap), y: 145, width: offerWidth, height: 210 };
-    drawHeroCard(hero, rect, { offer: true, selected: hero.id === state.selectedOfferId });
-    addHit(rect, () => selectOffer(index));
-  });
-  if (!offerSlice.length) {
-    context.fillStyle = COLORS.muted;
-    context.font = "italic 18px Georgia";
-    context.fillText("The reel is empty. Spin again for new contracts.", 76, 240);
-  }
-  if (state.offers.length > offerVisible) {
-    drawButton({ x: 34, y: 222, width: 32, height: 58 }, "‹", { action: () => pageOffers(-1) });
-    drawButton({ x: WIDTH - 66, y: 222, width: 32, height: 58 }, "›", { action: () => pageOffers(1) });
-  }
-
-  drawPanel({ x: 28, y: 390, width: WIDTH - 56, height: HEIGHT - 488 });
-  drawSectionTitle(
-    `LOCKED BENCH  ${state.bench.length}/${benchLimit()}`,
-    `${activeBench().length}/${teamCapacity(state.day)} active slots`,
-    48,
-    424,
-    WIDTH - 400,
-  );
-  const detailsWidth = 292;
-  const benchAreaX = 62;
-  const benchAreaWidth = WIDTH - detailsWidth - 120;
-  const benchGap = 9;
-  const benchWidth = (benchAreaWidth - benchGap * (benchVisible - 1)) / benchVisible;
-  const benchHeight = Math.min(205, HEIGHT - 505);
-  benchSlice.forEach((hero, offset) => {
-    const rect = { x: benchAreaX + offset * (benchWidth + benchGap), y: 440, width: benchWidth, height: benchHeight };
-    drawHeroCard(hero, rect, { selected: hero.id === state.selectedHeroId });
-    addHit(rect, () => {
-      state.selectedHeroId = hero.id;
-      state.selectedOfferId = null;
-      state.message = `${hero.name}: ${HERO_TYPES[hero.type].summary}`;
-    });
-  });
-  if (state.bench.length > benchVisible) {
-    drawButton({ x: 32, y: 493, width: 25, height: 52 }, "‹", { action: () => pageBench(-1) });
-    drawButton({ x: WIDTH - detailsWidth - 51, y: 493, width: 25, height: 52 }, "›", { action: () => pageBench(1) });
-  }
-
-  drawHeroDetails({ x: WIDTH - detailsWidth - 32, y: 412, width: detailsWidth - 20, height: HEIGHT - 504 });
-  drawButton({ x: 34, y: bottomY, width: 208, height: 56 }, "REROLL", {
-    accent: true,
-    sublabel: `${state.rerollCost} gold • next costs ${state.rerollCost + 1}`,
-    enabled: state.gold >= state.rerollCost,
-    action: rerollOffers,
-  });
-  drawButton({ x: 254, y: bottomY, width: 77, height: 56 }, "NEW", {
-    danger: true,
-    sublabel: "campaign",
-    action: resetCampaign,
-  });
-  drawButton({ x: 337, y: bottomY, width: 77, height: 56 }, "TOWN", { action: openTown });
-  drawButton({ x: WIDTH - 306, y: bottomY, width: 272, height: 56 }, "BEGIN EXPEDITION", {
-    accent: true,
-    sublabel: `${activeBench().length} heroes selected`,
-    enabled: activeBench().length > 0,
-    action: startExpedition,
-  });
-  drawRecruitmentStatus({ x: 430, y: bottomY, width: WIDTH - 752, height: 56 });
-}
-
-function drawTavernPortrait() {
-  const offerVisible = 3;
-  const benchVisible = 4;
-  const offerStart = state.offerPage * offerVisible;
-  const offerSlice = state.offers.slice(offerStart, offerStart + offerVisible);
-  const benchStart = state.benchPage * benchVisible;
-  const benchSlice = state.bench.slice(benchStart, benchStart + benchVisible);
-
-  drawPanel({ x: 22, y: 134, width: 676, height: 326 });
-  drawSectionTitle("CONTRACT REEL", `${offerCount(state.day)} offers today`, 42, 169, 630);
-  const gap = 12;
-  const cardWidth = 198;
-  offerSlice.forEach((hero, offset) => {
-    const index = offerStart + offset;
-    const rect = { x: 51 + offset * (cardWidth + gap), y: 188, width: cardWidth, height: 248 };
-    drawHeroCard(hero, rect, { offer: true, selected: hero.id === state.selectedOfferId });
-    addHit(rect, () => selectOffer(index));
-  });
-  if (state.offers.length > offerVisible) {
-    drawButton({ x: 24, y: 280, width: 24, height: 60 }, "‹", { action: () => pageOffers(-1) });
-    drawButton({ x: 672, y: 280, width: 24, height: 60 }, "›", { action: () => pageOffers(1) });
-  }
-
-  drawButton({ x: 42, y: 476, width: 250, height: 68 }, "REROLL", {
-    accent: true,
-    sublabel: `${state.rerollCost} gold • next ${state.rerollCost + 1}`,
-    enabled: state.gold >= state.rerollCost,
-    action: rerollOffers,
-  });
-  drawRecruitmentStatus({ x: 308, y: 476, width: 370, height: 68 });
-
-  drawPanel({ x: 22, y: 562, width: 676, height: 278 });
-  drawSectionTitle(
-    `LOCKED BENCH ${state.bench.length}/${benchLimit()}`,
-    `${activeBench().length}/${teamCapacity(state.day)} active`,
-    42,
-    597,
-    630,
-  );
-  const benchWidth = 147;
-  benchSlice.forEach((hero, offset) => {
-    const rect = { x: 48 + offset * 157, y: 616, width: benchWidth, height: 202 };
-    drawHeroCard(hero, rect, { selected: hero.id === state.selectedHeroId });
-    addHit(rect, () => {
-      state.selectedHeroId = hero.id;
-      state.selectedOfferId = null;
-      state.message = `${hero.name}: ${HERO_TYPES[hero.type].summary}`;
-    });
-  });
-  if (state.bench.length > benchVisible) {
-    drawButton({ x: 24, y: 676, width: 22, height: 55 }, "‹", { action: () => pageBench(-1) });
-    drawButton({ x: 674, y: 676, width: 22, height: 55 }, "›", { action: () => pageBench(1) });
-  }
-
-  drawHeroDetails({ x: 22, y: 858, width: 676, height: 244 });
-  drawButton({ x: 22, y: 1122, width: 86, height: 74 }, "NEW", {
-    danger: true,
-    sublabel: "campaign",
-    action: resetCampaign,
-  });
-  drawButton({ x: 116, y: 1122, width: 86, height: 74 }, "TOWN", { action: openTown });
-  drawButton({ x: 220, y: 1122, width: 478, height: 74 }, "BEGIN EXPEDITION", {
-    accent: true,
-    sublabel: `${activeBench().length} heroes selected`,
-    enabled: activeBench().length > 0,
-    action: startExpedition,
-  });
-}
-
-function drawHeroDetails(rect) {
-  drawPanel(rect, 0.88);
-  const offer = selectedOffer();
-  const hero = offer ?? selectedHero();
-  if (!hero) {
-    context.textAlign = "center";
-    context.fillStyle = COLORS.muted;
-    context.font = "italic 16px Georgia";
-    context.fillText("Select a contract or locked hero to inspect them.", rect.x + rect.width / 2, rect.y + rect.height / 2);
-    return;
-  }
-  const definition = HERO_TYPES[hero.type];
-  const power = heroPower(hero.level);
-  const cost = upgradeCost(hero.level);
-  context.textAlign = "left";
-  context.fillStyle = COLORS.goldBright;
-  context.font = "700 20px Georgia";
-  context.fillText(`${hero.name} • ${definition.label}`, rect.x + 18, rect.y + 30);
-  context.fillStyle = COLORS.text;
-  context.font = "14px Georgia";
-  context.fillText(`Level ${hero.level}  •  Power ${power}  •  ${definition.row} row`, rect.x + 18, rect.y + 55);
-  context.fillStyle = COLORS.muted;
-  context.font = "italic 13px Georgia";
-  fitText(definition.summary, rect.x + 18, rect.y + 80, rect.width - 36);
-
-  const buttonY = rect.y + rect.height - 56;
-  if (offer) {
-    drawButton({ x: rect.x + 12, y: buttonY, width: rect.width - 24, height: 44 }, "HIRE", {
-      accent: true,
-      sublabel: state.bench.length >= benchLimit() ? "bench full" : "free contract",
-      enabled: state.bench.length < benchLimit(),
-      action: hireSelectedOffer,
-    });
-    return;
-  }
-  const gap = 8;
-  const buttonWidth = (rect.width - 36 - gap * 2) / 3;
-  drawButton({ x: rect.x + 12, y: buttonY, width: buttonWidth, height: 44 }, hero.active ? "BENCH" : "ACTIVATE", {
-    accent: !hero.active,
-    action: toggleSelectedActive,
-  });
-  drawButton({ x: rect.x + 12 + buttonWidth + gap, y: buttonY, width: buttonWidth, height: 44 }, cost === null ? "MAX" : "UPGRADE", {
-    sublabel: cost === null ? "level 5" : `${cost} gold`,
-    enabled: cost !== null && state.gold >= cost,
-    action: upgradeSelected,
-  });
-  drawButton({ x: rect.x + 12 + (buttonWidth + gap) * 2, y: buttonY, width: buttonWidth, height: 44 }, "DISMISS", {
-    danger: true,
-    action: dismissSelected,
-  });
-}
-
-function drawRecruitmentStatus(rect) {
-  roundedRect(rect.x, rect.y, rect.width, rect.height, 8);
-  context.fillStyle = "rgba(2, 8, 15, 0.74)";
-  context.fill();
-  context.textAlign = "left";
-  context.fillStyle = COLORS.gold;
-  context.font = `700 ${layoutMode === "portrait" ? 13 : 11}px Georgia`;
-  fitText(offerLevelOddsText(), rect.x + 14, rect.y + rect.height * 0.38, rect.width - 28);
-  context.fillStyle = COLORS.text;
-  context.font = `italic ${layoutMode === "portrait" ? 13 : 11}px Georgia`;
-  fitText(state.message, rect.x + 14, rect.y + rect.height * 0.76, rect.width - 28);
-}
-
-function drawMessage(rect) {
-  roundedRect(rect.x, rect.y, rect.width, rect.height, 8);
-  context.fillStyle = "rgba(2, 8, 15, 0.74)";
-  context.fill();
-  context.textAlign = "left";
-  context.fillStyle = COLORS.text;
-  context.font = `italic ${layoutMode === "portrait" ? 15 : 13}px Georgia`;
-  fitText(state.message, rect.x + 14, rect.y + rect.height / 2 + 5, rect.width - 28);
-}
-
 
 function render() {
-  hitRegions = [];
   const townVisible = state.view === "town";
   townView.render({
     visible: townVisible,
@@ -1610,15 +1138,30 @@ function render() {
     day: state.day,
     flavorName: currentFlavor().name,
     message: state.message,
+    rolledToday: state.rolledToday,
   });
   const battleVisible = ["battle", "floor_result", "day_result", "campaign_end"].includes(state.view);
   battleView.render(battleVisible ? battlePresentation() : { visible: false });
-  canvas.hidden = townVisible || battleVisible;
-  if (townVisible || battleVisible) return;
-  context.clearRect(0, 0, WIDTH, HEIGHT);
-  drawBackground();
-  drawHeader();
-  drawTavern();
+  const presentHero = (hero) => {
+    const definition = HERO_TYPES[hero.type];
+    const effects = buildingEffects(hero.type, state.buildings[hero.type]);
+    const power = heroPower(hero.level);
+    let summary = definition.summary;
+    if (hero.type === "mage") summary = `Strikes up to ${effects.mageTargets} different enemies per attack, starting in the back row. Spell targets come from the Mage Guild.`;
+    if (hero.type === "bard") summary = `Gives ${effects.bardTargets} random non-bard ${effects.bardTargets === 1 ? "ally" : "allies"} +${Math.round(effects.bardBuff * 100)}% power at expedition start.`;
+    return { ...hero, power, health: Math.round(power * definition.hp * effects.healthMultiplier), damage: Math.round(power * definition.damage * effects.damageMultiplier), summary };
+  };
+  rosterView.render(state.view === "tavern" ? {
+    visible: true, day: state.day, gold: state.gold, flavor: currentFlavor().name,
+    rolledToday: state.rolledToday, rollRemainingMs: state.rollRemainingMs,
+    rerollCost: state.rerollCost, dailyOffers: offerCount(state.day),
+    tavernLevel: state.buildings.tavern.level, odds: offerLevelOddsText().replace(/^Tavern L\d+: /, ""),
+    offers: state.rollRemainingMs > 0 ? [] : state.offers.map(presentHero),
+    bench: state.bench.map(presentHero), selectedHeroId: state.selectedHeroId, selectedOfferId: state.selectedOfferId,
+    activeCount: activeBench().length, teamCapacity: teamCapacity(state.day), benchCapacity: benchLimit(),
+    potions: alchemistSupplies(state.buildings.alchemist.level).count, buildings: state.buildings, message: state.message,
+  } : { visible: false });
+  canvas.hidden = true;
 }
 
 function battlePresentation() {
@@ -1666,24 +1209,12 @@ function toggleBattlePause() {
   if (state.view === "battle") state.battlePaused = !state.battlePaused;
 }
 
-function pointInRect(x, y, rect) {
-  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
-}
-
-canvas.addEventListener("pointerdown", (event) => {
-  event.preventDefault();
-  canvas.focus();
-  const bounds = canvas.getBoundingClientRect();
-  const x = ((event.clientX - bounds.left) / bounds.width) * WIDTH;
-  const y = ((event.clientY - bounds.top) / bounds.height) * HEIGHT;
-  const region = [...hitRegions].reverse().find((candidate) => pointInRect(x, y, candidate.rect));
-  if (region) {
-    region.action();
-    render();
-  }
-});
-
 window.addEventListener("keydown", (event) => {
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  // Enter and Space on a focused HTML control must activate that control only.
+  if (event.target.closest?.("button, a, input, select, textarea") && ["Enter", " "].includes(event.key)) return;
+  if (document.querySelector("dialog[open]")) return;
+  if (event.repeat && ["r", "t", "enter"].includes(event.key.toLowerCase())) return;
   if (event.key.toLowerCase() === "f") {
     if (document.fullscreenElement) document.exitFullscreen();
     else document.querySelector("main").requestFullscreen();
@@ -1751,7 +1282,7 @@ window.render_game_to_text = () => {
     active: hero.active,
   });
   return JSON.stringify({
-    coordinateSystem: "Recruitment uses canvas coordinates from the top-left. Town and battle use HTML buttons; all seven battle commands are visible from the start.",
+    coordinateSystem: "Town, recruitment, and battle use responsive HTML controls. Daily flow: town → company → dungeon. All seven battle commands are visible from the start.",
     game: "Vaultbound",
     layout: layoutMode,
     view: state.view,
@@ -1771,10 +1302,14 @@ window.render_game_to_text = () => {
     teamCapacity: teamCapacity(state.day),
     benchCapacity: benchLimit(),
     rerollCost: state.rerollCost,
+    rolledToday: state.rolledToday,
+    rollRemainingMs: Math.ceil(state.rollRemainingMs),
+    nextRollCost: state.rolledToday ? state.rerollCost : 0,
+    dailyOfferCount: offerCount(state.day),
     tavernLevel: state.buildings.tavern.level,
     offerLevelChances: offerLevelChances(state.buildings.tavern.level),
     offerCount: state.offers.length,
-    offers: state.offers.map(summarizeHero),
+    offers: state.rollRemainingMs > 0 ? [] : state.offers.map(summarizeHero),
     bench: state.bench.map(summarizeHero),
     buildings: Object.fromEntries(
       TOWN_TYPES.map((type) => {
@@ -1885,7 +1420,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Inspect a contract, then Hire for free. T toggles Town. R rerolls. Each cleared floor pays the current day in gold. Defeat the Vault Tyrant on floor 10 to win; Continue remains available afterward. All seven battle commands are visible from the start; click one or press 1–7. Damage fills Command, and matching living heroes determine command power. Mark Prey requires selecting an enemy. Potion requires selecting a wounded hero. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day. Mid-battle Flee costs half your gold. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
+    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Defeat the Vault Tyrant on floor 10 to win; Continue remains available afterward. All seven battle commands are visible from the start; click one or press 1–7. Damage fills Command, and matching living heroes determine command power. Mark Prey requires selecting an enemy. Potion requires selecting a wounded hero. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee costs half your gold. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
   });
 };
 

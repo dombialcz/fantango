@@ -10,9 +10,11 @@
     <meta name="theme-color" content="#07101c" />
     <title>Vaultbound — Ten Days Below</title>
     <link rel="preload" href="assets/vault-bg.jpg" as="image" />
+    <link rel="preload" href="assets/town/town-landscape.webp" as="image" />
     <link rel="stylesheet" href="dungeon.css" />
     <link rel="stylesheet" href="town.css" />
     <link rel="stylesheet" href="battle.css" />
+    <link rel="stylesheet" href="roster.css" />
   </head>
   <body>
     <a class="back-link" href="index.html">Play Fantango</a>
@@ -26,6 +28,7 @@
         aria-label="Vaultbound auto-battler. Recruit heroes in the tavern, upgrade and select a party, then explore dungeon floors."
       ></canvas>
       <section id="town-screen" class="town-screen" aria-label="The Mayor's Quarter" hidden></section>
+      <section id="roster-screen" class="roster-screen" aria-label="Recruit and prepare your company" hidden></section>
       <section id="battle-screen" class="battle-screen" aria-label="Dungeon battle" hidden></section>
       <p class="screen-reader-copy">
         Vaultbound is a ten-day auto-battler. Recruit heroes from a rerolling offer row, select

@@ -19,23 +19,14 @@ async function battle(classes, viewport = { width: 1440, height: 1000 }) {
   await page.goto(`${baseURL}/dungeon.html`);
   await page.waitForFunction(() => typeof window.render_game_to_text === "function");
   const state = async () => JSON.parse(await page.evaluate(() => window.render_game_to_text()));
-  const portrait = viewport.width <= 900 && viewport.height >= viewport.width;
-  const compact = viewport.height <= 600 && viewport.width > viewport.height;
-  async function canvasClick(x, y) {
-    const canvas = page.locator("#dungeon-game");
-    const box = await canvas.boundingBox();
-    const dimensions = await canvas.evaluate((element) => [element.width, element.height]);
-    await page.mouse.click(box.x + x * box.width / dimensions[0], box.y + y * box.height / dimensions[1]);
-  }
+  assert.equal((await state()).view, "town");
+  await page.locator('.town-panorama [data-town-action="close"]').click();
+  await page.locator('[data-roster-action="roll"]').click();
+  await page.evaluate(() => window.advanceTime(1500));
   for (let index = 0; index < 4; index += 1) {
-    await canvasClick(174, 250);
-    if (portrait) {
-      // Portrait offers and the hire control occupy their own canvas positions.
-      await canvasClick(140, 280);
-      await canvasClick(360, 1070);
-    } else await canvasClick(compact ? 1212 : 1012, compact ? 594 : 674);
+    await page.locator('[data-hire]').first().click();
   }
-  await page.keyboard.press("Enter");
+  await page.locator('[data-roster-action="start"]').click();
   await page.locator("#battle-screen").waitFor({ state: "visible" });
   await page.waitForFunction(() => [...document.querySelectorAll("[data-command] img")].every((image) => image.complete && image.naturalWidth > 0));
   assert.equal(await page.locator("[data-command]").count(), 7);

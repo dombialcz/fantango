@@ -1,10 +1,10 @@
-/* The town is ordinary HTML and CSS; combat keeps its existing canvas. */
+/* The painted landscape is decorative; every district remains a fluid HTML control. */
 [hidden] { display: none !important; }
 
 body.town-open {
   display: block;
   overflow: auto;
-  background: #0c1118 url("assets/vault-bg.jpg") center / cover fixed;
+  background: #101b19 url("assets/town/town-landscape.webp") center / cover fixed;
 }
 
 body.town-open::before {
@@ -12,7 +12,7 @@ body.town-open::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(135deg, #0b1118ed, #151b22e8 50%, #0c1118f5);
+  background: linear-gradient(135deg, #0a1419da, #12221dbd 50%, #0b151be8);
 }
 
 body.town-open main { display: block; min-height: 100dvh; }
@@ -57,7 +57,14 @@ body.town-open > .sidegame-link { display: none; }
 .town-return span { margin-left: 14px; }
 .town-return:hover { background: #b48d4538; border-color: var(--town-gold); }
 
-.town-intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 36px 0 28px; }
+.town-intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 25px 0 24px; }
+.town-panorama { min-height: 190px; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; position: relative; isolation: isolate; overflow: hidden; padding: 26px 30px; margin-bottom: 28px; border: 1px solid #b5bf9050; border-radius: 10px; background: #314034 url("assets/town/town-landscape.webp") center 57% / cover; box-shadow: 0 12px 35px #0003; }
+.town-panorama::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, #0d1c20dc, #101c1f20 80%), linear-gradient(0deg, #0a161d90, transparent 80%); }
+.town-panorama h2 { max-width: 420px; margin: 9px 0; font-size: 28px; line-height: 1.2; font-weight: normal; color: #f0e8cf; text-wrap: balance; }
+.town-panorama p { max-width: 440px; margin: 10px 0 0; color: #c3caba; font-size: 12px; line-height: 1.7; }
+.town-panorama button { min-height: 48px; flex-shrink: 0; padding: 10px 18px; color: #f0ddb1; background: #172219e8; border: 1px solid #ddbc79a6; border-radius: 5px; font-size: 14px; }
+.town-panorama button:hover { background: #3d4832; }
+.town-panorama button span { margin-left: 16px; }
 .town-eyebrow { color: var(--town-gold); font: 9px/1.5 Arial, sans-serif; letter-spacing: 0.16em; }
 .town-intro h1 { margin: 9px 0 10px; color: #f0e3c7; font-size: clamp(29px, 3vw, 42px); font-weight: 400; letter-spacing: -0.03em; }
 .town-intro p { color: var(--town-muted); margin: 0; font-size: 14px; line-height: 1.6; }
@@ -76,7 +83,7 @@ body.town-open > .sidegame-link { display: none; }
   min-width: 0;
   padding: 13px 14px 12px;
   color: #d9d4c8;
-  background: radial-gradient(ellipse at 50% 45%, #91a6b111, transparent 70%), #121c249c;
+  background: radial-gradient(ellipse at 50% 60%, #9aaf7317, transparent 70%), #14221bd9;
   border: 1px solid #9fb4c11c;
   border-radius: 8px;
   text-align: left;
@@ -168,9 +175,14 @@ body.town-open > .sidegame-link { display: none; }
   .town-day { font-size: 9px; }
   .town-gold { font-size: 19px; }
   .town-gold small { font-size: 11px; }
-  .town-return { flex-basis: 100%; min-height: 29px; font-size: 11px !important; border: 0; background: transparent; padding: 0; text-align: right; }
+  .town-return { flex-basis: 100%; min-height: 44px; font-size: 11px !important; border: 0; background: transparent; padding: 0; text-align: right; }
   .town-return span { margin-left: 5px; }
   .town-intro { display: block; padding: 27px 0 23px; }
+  .town-panorama { min-height: 230px; padding: 21px 19px; margin-bottom: 24px; display: block; background-position: 65% center; }
+  .town-panorama::before { background: linear-gradient(90deg, #0d1c20d9, #101c1f55), linear-gradient(0deg, #0a161d99, transparent); }
+  .town-panorama h2 { font-size: 25px; max-width: 250px; }
+  .town-panorama p { font-size: 11px; max-width: 260px; }
+  .town-panorama button { min-height: 44px; margin-top: 17px; font-size: 12px; }
   .town-intro h1 { font-size: 31px; margin: 9px 0; }
   .town-intro p { font-size: 12px; max-width: 280px; }
   .town-intro .town-eyebrow { font-size: 8px; letter-spacing: 0.12em; }

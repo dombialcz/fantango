@@ -189,3 +189,18 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Battle results occupy their own center section, freeing the command deck's space so the company and remaining health stay visible.
 - Added `scripts/check-battle-ui.mjs`, covering all seven commands, all-button visibility at desktop/390px/320px/short-landscape sizes, freeze and Aegis timing, paused command use, mark cancellation and ranged targeting, Bloodlust sacrifice, delayed Pilfer payout, and continuing to a new floor.
 - Visually reviewed every building image in five-level contact sheets and all command paintings; verified all 45 building-image swaps, both class upgrade paths, utility upgrades, gold costs, and level caps on desktop and mobile. Verified paused potion targeting, mid-fight retreat cost, and next-day navigation with no page or console errors.
+
+## 2026-10-18 — Town-first daily flow and contract-machine redesign
+
+- Every new campaign and new day now begins in town. The Company view follows town preparation, and its explicit Enter the Dungeon button starts the daily expedition.
+- Daily contracts are not generated or shown until the player rolls. The first daily roll is free; subsequent rerolls cost 1g, 2g, 3g, and so on. Roll quality is sampled from the current Tavern level, so upgrading before the first roll matters. Town visits preserve existing offers and prices.
+- Replaced the last fixed-coordinate recruitment canvas with responsive HTML/CSS: sealed reel, brief staggered slot-machine animation, adjacent roll/odds controls, per-contract inspection and free Hire buttons, locked active-party/reserve cards, and a separate hero inspector with training, deployment, and dismissal controls. Removed obsolete canvas rendering and pagination code; retained the integration canvas and deterministic state/time hooks.
+- Guarded against multiple spins and recruitment/deployment during a spin. Enter and Space on focused HTML buttons activate only those controls, rather than simultaneously launching an expedition. Added keyboard-focus preservation for inspected contracts, hires, and repeated training.
+- Generated a new painterly town landscape with green grass, paved paths, crooked trees, a distant graveyard, ruined walls, and warm lanterns. Optimized it to a 478 KB WebP and used it as a decorative responsive background/panorama; districts remain independent fluid HTML controls. The built-in generation prompt and delivered path are recorded in assets/town/TOWN_LANDSCAPE.md.
+- Added scripts/check-roster-ui.mjs covering hidden initial offers, upgrades before rolling, live Tavern odds, free hiring, paid reroll escalation, insufficient gold, locked-hero persistence, party/reserve management, battle return, next-day free rolls, bench-full handling, reset, reduced motion, and 320/390px/short-landscape/tablet layouts.
+- Updated the battle browser regression script for the town → roll → hire → battle flow. All seven command cases and four battle viewport checks pass; the 19-test unit suite remains green.
+- Ran the provided web-game Playwright client and inspected its revealed-reel screenshot/state; also reviewed full-page desktop, phone, short-landscape, town, sealed/revealed/spinning reel, and locked-company captures. No application console/page errors in the completed checks. A transient timeout on the shared development server did not recur with a fresh quiet server at port 4174.
+
+### Follow-up ideas
+
+- Optional sound for the contract reel; reduced-motion support is already included. No known blockers remain for this request.
