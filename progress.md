@@ -168,3 +168,13 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Moved all English and Polish party-name parts into `src/mastermind-names.js`, imported by both the generator and UI modules.
 - Visually reviewed English and Polish layouts at desktop and 320/390px mobile widths; the seven-slot board fits without horizontal overflow and all hero portraits load.
 - Replaced the generic PAIR/TRIO/SINGLE labels on clue cards with the corresponding thematic party-name terms (for example, “of Coin”), leaving the exact hero-count explanation beneath them. Applied the same behavior to Polish.
+
+## 2026-10-18 — Illustrated town districts
+
+- Generated all nine isometric building illustrations together in a single transparent image: Barracks, Thieves’ Guild, Bard College, Temple, Fighting Pit, Hunter’s Lodge, Mage Guild, Alchemist, and Tavern.
+- Preserved the original master and packaged a padded 1536×1536 WebP atlas (~600 KB). The one-time `scripts/prepare-town-art.mjs` packaging step extracts the sprite cores and preserves their soft alpha edges; no additional game runtime dependencies were added.
+- Replaced the old hand-drawn canvas town cards with a responsive HTML/CSS screen: three-by-three district grid, central Tavern, desktop building inspector, keyboard-accessible controls, and a native mobile detail dialog.
+- Added five reusable art stages: a subdued finished silhouette with a soft reveal from foundations toward roofs and spires; level-five districts display the full artwork. All levels reuse the same nine images.
+- Kept both existing upgrade paths, utility upgrades, 3/6/9/12 gold costs, level caps, class-command descriptions, and campaign reset behavior. Town selection only opens inspection; purchases are explicit.
+- Browser-verified every district, both class upgrade paths, all five art stages, all nine maximum-level buildings, utility purchases, return-to-tavern state preservation, campaign reset, and no horizontal overflow at 320/390px phone, laptop, desktop, and short landscape sizes. Existing 19-test suite passes.
+- Saved the final generation prompt and asset workflow in `assets/town/ART_DIRECTION.md`.

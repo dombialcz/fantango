@@ -2,6 +2,7 @@ import { offerLevelChances, rollOfferLevel } from "./hero-offers.js";
 import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
 import { BOSS_FLOOR, floorGoldReward, isBossFloor } from "./dungeon-progression.js";
 import { enemyTypeForRoll, FLAVOR_ROSTERS } from "./enemy-rosters.js";
+import { createTownView } from "./town-view.js";
 import {
   BATTLE_COMMANDS,
   COMMAND_GAIN_PER_DAMAGE,
@@ -247,7 +248,6 @@ function createCampaign() {
     selectedOfferId: null,
     offerPage: 0,
     benchPage: 0,
-    townPage: 0,
     buildings,
     party: [],
     enemies: [],
@@ -288,6 +288,24 @@ function createCampaign() {
 }
 
 let state = createCampaign();
+
+const townView = createTownView({
+  root: document.querySelector("#town-screen"),
+  onUpgrade: (type, path) => {
+    upgradeTownBuilding(type, path);
+    render();
+  },
+  onClose: () => {
+    closeTown();
+    render();
+    canvas.focus();
+  },
+  onReset: () => {
+    resetCampaign();
+    render();
+    canvas.focus();
+  },
+});
 
 function currentFlavor() {
   return FLAVORS[state.flavorKey];
@@ -1538,179 +1556,6 @@ function drawHeroDetails(rect) {
   });
 }
 
-function drawTown() {
-  if (layoutMode === "portrait") drawTownPortrait();
-  else drawTownLandscape();
-}
-
-function drawTownLandscape() {
-  const bottomY = HEIGHT - 78;
-  const panel = { x: 28, y: 94, width: WIDTH - 56, height: bottomY - 108 };
-  drawPanel(panel);
-  drawSectionTitle(
-    "THE MAYOR’S QUARTER",
-    "Buildings reset when the ten-day campaign ends",
-    48,
-    128,
-    WIDTH - 96,
-  );
-
-  const columns = layoutMode === "compact" ? 5 : 3;
-  const rows = Math.ceil(TOWN_TYPES.length / columns);
-  const gap = 12;
-  const startX = 48;
-  const startY = 145;
-  const cardWidth = (WIDTH - 96 - gap * (columns - 1)) / columns;
-  const cardHeight = (bottomY - 20 - startY - gap * (rows - 1)) / rows;
-  TOWN_TYPES.forEach((type, index) => {
-    const column = index % columns;
-    const row = Math.floor(index / columns);
-    drawTownBuildingCard(type, {
-      x: startX + column * (cardWidth + gap),
-      y: startY + row * (cardHeight + gap),
-      width: cardWidth,
-      height: cardHeight,
-    });
-  });
-
-  drawButton({ x: 34, y: bottomY, width: 208, height: 56 }, "CONTRACT REEL", {
-    accent: true,
-    action: closeTown,
-  });
-  drawButton({ x: 254, y: bottomY, width: 160, height: 56 }, "NEW", {
-    danger: true,
-    sublabel: "reset town",
-    action: resetCampaign,
-  });
-  drawMessage({ x: 430, y: bottomY, width: WIDTH - 464, height: 56 });
-}
-
-function drawTownPortrait() {
-  drawPanel({ x: 22, y: 134, width: 676, height: 968 });
-  drawSectionTitle("MAYOR’S QUARTER", "resets after day 10", 42, 169, 520);
-  const pageSize = 6;
-  const pageCount = Math.ceil(TOWN_TYPES.length / pageSize);
-  state.townPage = Math.max(0, Math.min(state.townPage, pageCount - 1));
-  const visible = TOWN_TYPES.slice(state.townPage * pageSize, (state.townPage + 1) * pageSize);
-  const gap = 14;
-  const cardWidth = 307;
-  const cardHeight = 276;
-  visible.forEach((type, index) => {
-    const column = index % 2;
-    const row = Math.floor(index / 2);
-    drawTownBuildingCard(type, {
-      x: visible.length % 2 === 1 && index === visible.length - 1
-        ? (WIDTH - cardWidth) / 2
-        : 42 + column * (cardWidth + gap),
-      y: 190 + row * (cardHeight + gap),
-      width: cardWidth,
-      height: cardHeight,
-    });
-  });
-  drawButton({ x: 574, y: 144, width: 48, height: 36 }, "‹", {
-    enabled: state.townPage > 0,
-    action: () => { state.townPage -= 1; },
-  });
-  drawButton({ x: 630, y: 144, width: 48, height: 36 }, "›", {
-    enabled: state.townPage < pageCount - 1,
-    action: () => { state.townPage += 1; },
-  });
-  context.textAlign = "right";
-  context.fillStyle = COLORS.muted;
-  context.font = "13px Georgia";
-  context.fillText(`${state.townPage + 1}/${pageCount}`, 562, 168);
-
-  drawButton({ x: 22, y: 1122, width: 330, height: 74 }, "CONTRACT REEL", {
-    accent: true,
-    action: closeTown,
-  });
-  drawButton({ x: 368, y: 1122, width: 330, height: 74 }, "NEW CAMPAIGN", {
-    danger: true,
-    action: resetCampaign,
-  });
-}
-
-function drawTownBuildingCard(type, rect) {
-  const definition = BUILDING_DEFINITIONS[type];
-  const building = state.buildings[type];
-  const cost = buildingUpgradeCost(building.level);
-  const color = definition.color ?? HERO_TYPES[type].color;
-  roundedRect(rect.x, rect.y, rect.width, rect.height, 12);
-  context.fillStyle = "rgba(10, 22, 34, 0.96)";
-  context.fill();
-  context.lineWidth = 1.5;
-  context.strokeStyle = color;
-  context.stroke();
-
-  const portraitSize = Math.min(70, rect.height * 0.28);
-  if (definition.utility) drawTownUtilityIcon(definition, rect.x + 12, rect.y + 12, portraitSize);
-  else drawHeroImage({ type }, rect.x + 12, rect.y + 12, portraitSize);
-  const textX = rect.x + portraitSize + 24;
-  context.textAlign = "left";
-  context.fillStyle = COLORS.goldBright;
-  context.font = `700 ${rect.width < 280 ? 18 : 20}px Georgia`;
-  fitText(definition.name, textX, rect.y + 34, rect.width - portraitSize - 36);
-  context.fillStyle = color;
-  context.font = "700 12px Georgia";
-  fitText(`${definition.classLabel.toUpperCase()} • LEVEL ${building.level}`, textX, rect.y + 56, rect.width - portraitSize - 36);
-
-  context.fillStyle = COLORS.text;
-  context.font = `700 ${rect.width < 280 ? 13 : 14}px Georgia`;
-  fitText(definition.core(building.level), rect.x + 14, rect.y + portraitSize + 30, rect.width - 28);
-  context.fillStyle = COLORS.muted;
-  context.font = `italic ${rect.width < 280 ? 11 : 12}px Georgia`;
-  const detail = definition.utility
-    ? type === "alchemist" ? "RESTOCKS EACH EXPEDITION" : "AFFECTS NEW CONTRACTS"
-    : `${definition.commandLabel}  •  ${definition.pathA.label} ${building.pathA}  •  ${definition.pathB.label} ${building.pathB}`;
-  fitText(detail, rect.x + 14, rect.y + portraitSize + 52, rect.width - 28);
-
-  const buttonY = rect.y + rect.height - 56;
-  const inset = 12;
-  const gap = 8;
-  const buttonWidth = (rect.width - inset * 2 - gap) / 2;
-  const canUpgrade = cost !== null && state.gold >= cost;
-  if (definition.utility) {
-    drawButton({ x: rect.x + inset, y: buttonY, width: rect.width - inset * 2, height: 44 }, "UPGRADE", {
-      accent: canUpgrade,
-      enabled: canUpgrade,
-      sublabel: cost === null ? "LEVEL 5 • MAX" : `${cost}g • improve town service`,
-      action: () => upgradeTownBuilding(type),
-    });
-    return;
-  }
-  drawButton({ x: rect.x + inset, y: buttonY, width: buttonWidth, height: 44 }, definition.pathA.label, {
-    accent: canUpgrade,
-    enabled: canUpgrade,
-    sublabel: cost === null ? "MAX" : `${cost}g • ${definition.pathA.short}`,
-    action: () => upgradeTownBuilding(type, "pathA"),
-  });
-  drawButton({ x: rect.x + inset + buttonWidth + gap, y: buttonY, width: buttonWidth, height: 44 }, definition.pathB.label, {
-    accent: canUpgrade,
-    enabled: canUpgrade,
-    sublabel: cost === null ? "MAX" : `${cost}g • ${definition.pathB.short}`,
-    action: () => upgradeTownBuilding(type, "pathB"),
-  });
-}
-
-function drawTownUtilityIcon(definition, x, y, size) {
-  const gradient = context.createRadialGradient(x + size * 0.42, y + size * 0.35, 2, x + size / 2, y + size / 2, size * 0.55);
-  gradient.addColorStop(0, definition.color);
-  gradient.addColorStop(1, "#17202a");
-  context.fillStyle = gradient;
-  context.beginPath();
-  context.arc(x + size / 2, y + size / 2, size * 0.46, 0, Math.PI * 2);
-  context.fill();
-  context.lineWidth = 2;
-  context.strokeStyle = "rgba(245, 221, 165, 0.72)";
-  context.stroke();
-  context.fillStyle = "#f7e5b8";
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  context.font = `700 ${size * 0.48}px Georgia`;
-  context.fillText(definition.glyph, x + size / 2, y + size / 2 + 1);
-  context.textBaseline = "alphabetic";
-}
-
 function drawRecruitmentStatus(rect) {
   roundedRect(rect.x, rect.y, rect.width, rect.height, 8);
   context.fillStyle = "rgba(2, 8, 15, 0.74)";
@@ -2204,11 +2049,21 @@ function drawOverlay() {
 
 function render() {
   hitRegions = [];
+  const townVisible = state.view === "town";
+  townView.render({
+    visible: townVisible,
+    buildings: state.buildings,
+    gold: state.gold,
+    day: state.day,
+    flavorName: currentFlavor().name,
+    message: state.message,
+  });
+  canvas.hidden = townVisible;
+  if (townVisible) return;
   context.clearRect(0, 0, WIDTH, HEIGHT);
   drawBackground();
   drawHeader();
   if (state.view === "tavern") drawTavern();
-  else if (state.view === "town") drawTown();
   else drawBattle();
   if (["floor_result", "day_result", "campaign_end"].includes(state.view)) drawOverlay();
 }
@@ -2233,7 +2088,7 @@ canvas.addEventListener("pointerdown", (event) => {
 window.addEventListener("keydown", (event) => {
   if (event.key.toLowerCase() === "f") {
     if (document.fullscreenElement) document.exitFullscreen();
-    else canvas.requestFullscreen();
+    else document.querySelector("main").requestFullscreen();
   } else if (event.key.toLowerCase() === "r" && state.view === "tavern") {
     rerollOffers();
     render();
@@ -2295,6 +2150,7 @@ window.render_game_to_text = () => {
     game: "Vaultbound",
     layout: layoutMode,
     view: state.view,
+    townPresentation: state.view === "town" ? townView.snapshot() : null,
     day: state.day,
     daysTotal: 10,
     gold: state.gold,
