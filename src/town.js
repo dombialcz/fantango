@@ -2,6 +2,7 @@ export const BUILDING_DEFINITIONS = {
   knight: {
     name: "Barracks",
     classLabel: "Knight",
+    commandLabel: "HOLD THE LINE",
     core: (level) => `${(level - 1) * 5}% damage reduction`,
     pathA: { label: "FORTIFY", short: "+15% health" },
     pathB: { label: "DRILL", short: "+10% speed" },
@@ -9,6 +10,7 @@ export const BUILDING_DEFINITIONS = {
   thief: {
     name: "Thieves’ Guild",
     classLabel: "Thief",
+    commandLabel: "PILFER",
     core: (level) => `+${(level - 1) * 15}% damage to wounded foes`,
     pathA: { label: "PRECISION", short: "+5% crit" },
     pathB: { label: "HASTE", short: "+10% speed" },
@@ -16,6 +18,7 @@ export const BUILDING_DEFINITIONS = {
   bard: {
     name: "Bard College",
     classLabel: "Bard",
+    commandLabel: "RALLY",
     core: (level) => `ally buff +${20 + (level - 1) * 5}% power`,
     pathA: { label: "VIGOR", short: "+15% health" },
     pathB: { label: "CHORUS", short: "+1 buff target" },
@@ -23,6 +26,7 @@ export const BUILDING_DEFINITIONS = {
   cleric: {
     name: "Temple",
     classLabel: "Cleric",
+    commandLabel: "DIVINE AEGIS",
     core: (level) => `healing ${10 + (level - 1) * 3}% of power`,
     pathA: { label: "SANCTUARY", short: "+15% health" },
     pathB: { label: "DEVOTION", short: "+10% speed" },
@@ -30,6 +34,7 @@ export const BUILDING_DEFINITIONS = {
   barbarian: {
     name: "Fighting Pit",
     classLabel: "Barbarian",
+    commandLabel: "BLOODLUST",
     core: (level) => `+${(level - 1) * 10}% damage`,
     pathA: { label: "HARDEN", short: "+15% health" },
     pathB: { label: "SAVAGERY", short: "+5% crit" },
@@ -37,6 +42,7 @@ export const BUILDING_DEFINITIONS = {
   ranger: {
     name: "Hunter’s Lodge",
     classLabel: "Ranger",
+    commandLabel: "MARK PREY",
     core: (level) => `+${(level - 1) * 10}% attack speed`,
     pathA: { label: "DEADEYE", short: "+5% crit" },
     pathB: { label: "DRAW", short: "+12% damage" },
@@ -44,6 +50,7 @@ export const BUILDING_DEFINITIONS = {
   mage: {
     name: "Mage Guild",
     classLabel: "Mage",
+    commandLabel: "TIME FREEZE",
     core: (level) => `${level} spell target${level === 1 ? "" : "s"}`,
     pathA: { label: "WARDING", short: "+15% health" },
     pathB: { label: "QUICKEN", short: "+10% speed" },

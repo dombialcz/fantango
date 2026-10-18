@@ -135,3 +135,13 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Undead Uprising now fields skeletons, zombies, bone mages, and necromancers; Demonic Invasion fields cultists, demons, warlocks, and archdemons; and the Assassins’ Guild fields cutthroats, enforcers, marksmen, and teleporting assassins.
 - Kept the Vault Tyrant as the universal floor-10 boss while making all ordinary floors visually and mechanically reflect the active campaign.
 - Added roster-selection unit tests and browser-tested all three campaign openings plus portrait-mobile battle rendering with no console or page errors.
+
+## Vaultbound battle commands
+
+- Added a shared 0–100 Command meter that begins each floor at 50 and refills as either side deals damage.
+- Added seven building-themed commands powered by up to four matching living heroes: Knight Hold the Line, Thief Pilfer, Bard Rally, Cleric Divine Aegis, Barbarian Bloodlust, Ranger Mark Prey, and Mage Time Freeze.
+- Time Freeze stops enemy timers and special actions; Divine Aegis blocks damage; Rally accelerates the whole party; Mark Prey focuses a selected reachable enemy and accelerates attackers; and Hold the Line buffs front-row armor and damage.
+- Bloodlust costs every allied frontliner 10% maximum health, cannot kill them, bypasses protection, and delivers a Barbarian-scaled strike to every enemy frontliner.
+- Pilfer is limited to once per floor and generates one pending gold per living Thief, paid only after the party clears the floor.
+- Added a responsive command palette, meter/effect readout, target-selection state, distinct Freeze/Aegis/Hold/Bloodlust/Mark highlights, town command labels, and command state in `render_game_to_text`.
+- Added command-scaling unit tests and browser-tested all seven commands, pause behavior, target selection, delayed Pilfer payout, desktop/portrait layouts, effect timing, and console output.

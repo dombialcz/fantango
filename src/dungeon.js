@@ -3,6 +3,14 @@ import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
 import { BOSS_FLOOR, floorGoldReward, isBossFloor } from "./dungeon-progression.js";
 import { enemyTypeForRoll, FLAVOR_ROSTERS } from "./enemy-rosters.js";
 import {
+  BATTLE_COMMANDS,
+  COMMAND_GAIN_PER_DAMAGE,
+  COMMAND_IDS,
+  COMMAND_MAX,
+  COMMAND_START,
+  commandPower,
+} from "./battle-commands.js";
+import {
   BUILDING_DEFINITIONS,
   alchemistSupplies,
   buildingEffects,
@@ -246,6 +254,22 @@ function createCampaign() {
     battleTime: 0,
     battleSpeed: 1,
     battlePaused: false,
+    commandMeter: COMMAND_START,
+    commandMenuOpen: false,
+    commandTargeting: null,
+    enemyFreezeMs: 0,
+    divineAegisMs: 0,
+    rallyMs: 0,
+    rallySpeedBonus: 0,
+    markedEnemyId: null,
+    markMs: 0,
+    markSpeedBonus: 0,
+    holdLineMs: 0,
+    holdArmorBonus: 0,
+    holdDamageBonus: 0,
+    pilferUsed: false,
+    pilferPending: 0,
+    floorPilferGold: 0,
     potionsRemaining: 0,
     potionHealRatio: 0.2,
     potionTargeting: false,
@@ -528,6 +552,7 @@ function prepareFloor() {
   state.view = "battle";
   state.battlePaused = false;
   state.potionTargeting = false;
+  resetFloorCommands();
   state.enemies = generateEnemies(state.floor);
   state.battleTime = 0;
   state.combatEffects = [];
@@ -548,6 +573,142 @@ function livingParty() {
 
 function livingEnemies() {
   return state.enemies.filter((unit) => unit.hp > 0);
+}
+
+function resetFloorCommands() {
+  state.commandMeter = COMMAND_START;
+  state.commandMenuOpen = false;
+  state.commandTargeting = null;
+  state.enemyFreezeMs = 0;
+  state.divineAegisMs = 0;
+  state.rallyMs = 0;
+  state.rallySpeedBonus = 0;
+  state.markedEnemyId = null;
+  state.markMs = 0;
+  state.markSpeedBonus = 0;
+  state.holdLineMs = 0;
+  state.holdArmorBonus = 0;
+  state.holdDamageBonus = 0;
+  state.pilferUsed = false;
+  state.pilferPending = 0;
+  state.floorPilferGold = 0;
+}
+
+function commandHeroCount(commandId) {
+  const classType = BATTLE_COMMANDS[commandId].classType;
+  return livingParty().filter((unit) => unit.type === classType).length;
+}
+
+function activeMarkedEnemy() {
+  if (state.markMs <= 0 || state.markedEnemyId === null) return null;
+  return livingEnemies().find((unit) => unit.id === state.markedEnemyId) ?? null;
+}
+
+function heroCanReach(unit, target) {
+  if (!target) return false;
+  if (["ranger", "mage"].includes(unit.type)) return true;
+  return target.row === "front" || unitsInRow(livingEnemies(), "front").length === 0;
+}
+
+function commandUnavailableReason(commandId) {
+  const command = BATTLE_COMMANDS[commandId];
+  if (state.view !== "battle") return "battle only";
+  if (commandHeroCount(commandId) === 0) return `needs ${HERO_TYPES[command.classType].label}`;
+  if (state.commandMeter < command.cost) return `needs ${command.cost}`;
+  if (commandId === "pilfer" && state.pilferUsed) return "used this floor";
+  if (commandId === "freeze" && state.enemyFreezeMs > 0) return "already active";
+  if (commandId === "aegis" && state.divineAegisMs > 0) return "already active";
+  if (commandId === "rally" && state.rallyMs > 0) return "already active";
+  if (commandId === "mark" && state.markMs > 0) return "already active";
+  if (commandId === "hold" && state.holdLineMs > 0) return "already active";
+  if (commandId === "bloodlust" && unitsInRow(livingEnemies(), "front").length === 0) return "no enemy front";
+  if (commandId === "bloodlust" && unitsInRow(livingParty(), "front").length === 0) return "no allied front";
+  return null;
+}
+
+function spendCommand(commandId) {
+  state.commandMeter = Math.max(0, state.commandMeter - BATTLE_COMMANDS[commandId].cost);
+  state.commandMenuOpen = false;
+  state.commandTargeting = null;
+  state.potionTargeting = false;
+}
+
+function flashCommandHeroes(commandId) {
+  const classType = BATTLE_COMMANDS[commandId].classType;
+  for (const unit of livingParty().filter((hero) => hero.type === classType)) unit.actionFlash = 850;
+}
+
+function useBattleCommand(commandId) {
+  if (commandUnavailableReason(commandId)) return;
+  if (commandId === "mark") {
+    state.commandMenuOpen = false;
+    state.commandTargeting = "mark";
+    state.potionTargeting = false;
+    return;
+  }
+
+  const count = commandHeroCount(commandId);
+  const power = commandPower(commandId, count);
+  spendCommand(commandId);
+  flashCommandHeroes(commandId);
+
+  if (commandId === "freeze") {
+    state.enemyFreezeMs = power.durationMs;
+    logBattle(`${count} Mage${count === 1 ? "" : "s"} freeze time for ${(power.durationMs / 1000).toFixed(1)} seconds.`);
+  } else if (commandId === "aegis") {
+    state.divineAegisMs = power.durationMs;
+    logBattle(`Divine Aegis shields the party for ${(power.durationMs / 1000).toFixed(1)} seconds.`);
+  } else if (commandId === "rally") {
+    state.rallyMs = power.durationMs;
+    state.rallySpeedBonus = power.speedBonus;
+    for (const hero of livingParty()) hero.timer /= 1 + power.speedBonus;
+    logBattle(`Rally grants the party +${Math.round(power.speedBonus * 100)}% attack speed.`);
+  } else if (commandId === "hold") {
+    state.holdLineMs = power.durationMs;
+    state.holdArmorBonus = power.armorBonus;
+    state.holdDamageBonus = power.damageBonus;
+    logBattle(`Hold the Line grants the front +${Math.round(power.armorBonus * 100)}% armor and damage.`);
+  } else if (commandId === "pilfer") {
+    state.pilferUsed = true;
+    state.pilferPending = power.gold;
+    logBattle(`The Thieves pilfer ${power.gold} gold, secured if this floor is cleared.`);
+  } else if (commandId === "bloodlust") {
+    const alliedFront = unitsInRow(livingParty(), "front");
+    const enemyFront = unitsInRow(livingEnemies(), "front");
+    const strongestBarbarian = livingParty()
+      .filter((unit) => unit.type === "barbarian")
+      .sort((a, b) => b.power * b.damageMultiplier - a.power * a.damageMultiplier)[0];
+    for (const hero of alliedFront) {
+      const healthCost = Math.ceil(hero.maxHp * power.healthCostRatio);
+      hero.hp = Math.max(1, hero.hp - healthCost);
+      hero.flash = 700;
+    }
+    const normalStrike = strongestBarbarian.power
+      * HERO_TYPES.barbarian.damage
+      * strongestBarbarian.damageMultiplier;
+    for (const enemy of enemyFront) dealDamage(enemy, normalStrike * power.damageMultiplier, "Bloodlust");
+    logBattle(`Bloodlust sacrifices the front line and smashes ${enemyFront.length} foe${enemyFront.length === 1 ? "" : "s"}.`);
+  }
+}
+
+function markEnemy(target) {
+  if (state.commandTargeting !== "mark" || target?.hp <= 0 || commandUnavailableReason("mark")) return;
+  const count = commandHeroCount("mark");
+  const power = commandPower("mark", count);
+  spendCommand("mark");
+  flashCommandHeroes("mark");
+  state.markedEnemyId = target.id;
+  state.markMs = power.durationMs;
+  state.markSpeedBonus = power.speedBonus;
+  for (const hero of livingParty().filter((unit) => heroCanReach(unit, target))) {
+    hero.timer /= 1 + power.speedBonus;
+  }
+  logBattle(`${target.label} is marked: attackers gain +${Math.round(power.speedBonus * 100)}% speed against it.`);
+}
+
+function gainCommandMeter(damage) {
+  if (state.view !== "battle" || damage <= 0) return;
+  state.commandMeter = Math.min(COMMAND_MAX, state.commandMeter + damage * COMMAND_GAIN_PER_DAMAGE);
 }
 
 function unitsInRow(units, row) {
@@ -580,21 +741,31 @@ function addCombatEffect(source, target, kind = "attack") {
 function dealDamage(target, amount, source) {
   if (!target || target.hp <= 0) return;
   const sourceLabel = typeof source === "string" ? source : source.label;
+  if (target.side === "hero" && state.divineAegisMs > 0) {
+    target.flash = 240;
+    return 0;
+  }
   const critical = typeof source === "object"
     && source.side === "hero"
     && source.critChance > 0
     && Math.random() < source.critChance;
   const criticalAmount = critical ? amount * 2 : amount;
+  const holdArmor = target.side === "hero" && target.row === "front" && state.holdLineMs > 0
+    ? state.holdArmorBonus
+    : 0;
   const reducedAmount = target.side === "hero"
-    ? criticalAmount * (1 - (target.damageReduction ?? 0))
+    ? criticalAmount * (1 - Math.min(0.8, (target.damageReduction ?? 0) + holdArmor))
     : criticalAmount;
   const damage = Math.max(1, Math.round(reducedAmount * COMBAT_DAMAGE_SCALE));
+  const previousHp = target.hp;
   target.hp = Math.max(0, target.hp - damage);
+  const actualDamage = previousHp - target.hp;
   target.flash = 420;
   if (typeof source === "object") addCombatEffect(source, target);
   if (critical) logBattle(`${sourceLabel} lands a critical hit.`);
   if (target.hp === 0) logBattle(`${sourceLabel} defeats ${target.label}.`);
-  return damage;
+  if (typeof source === "object" && source.side !== target.side) gainCommandMeter(actualDamage);
+  return actualDamage;
 }
 
 function logBattle(copy) {
@@ -606,7 +777,16 @@ function heroInterval(unit) {
   const definition = HERO_TYPES[unit.type];
   if (!Number.isFinite(definition.interval)) return Infinity;
   const heroLevelSpeed = ["mage", "ranger"].includes(unit.type) ? 1 : speedMultiplier(unit.hero.level);
-  return (definition.interval * COMBAT_INTERVAL_SCALE) / (heroLevelSpeed * unit.buildingSpeed);
+  const rallyMultiplier = state.rallyMs > 0 ? 1 + state.rallySpeedBonus : 1;
+  const markMultiplier = activeMarkedEnemy() && heroCanReach(unit, activeMarkedEnemy())
+    ? 1 + state.markSpeedBonus
+    : 1;
+  return (definition.interval * COMBAT_INTERVAL_SCALE)
+    / (heroLevelSpeed * unit.buildingSpeed * rallyMultiplier * markMultiplier);
+}
+
+function heroCommandDamageMultiplier(unit) {
+  return unit.row === "front" && state.holdLineMs > 0 ? 1 + state.holdDamageBonus : 1;
 }
 
 function actHero(unit) {
@@ -616,30 +796,39 @@ function actHero(unit) {
   if (!enemies.length) return;
 
   if (unit.type === "mage") {
-    const ordered = [...unitsInRow(enemies, "back"), ...unitsInRow(enemies, "front")];
+    const marked = activeMarkedEnemy();
+    const normalOrder = [...unitsInRow(enemies, "back"), ...unitsInRow(enemies, "front")];
+    const ordered = marked ? [marked, ...normalOrder.filter((enemy) => enemy.id !== marked.id)] : normalOrder;
     const targets = ordered.slice(0, unit.mageTargets);
-    for (const target of targets) dealDamage(target, unit.power * definition.damage * unit.damageMultiplier, unit);
+    for (const target of targets) {
+      dealDamage(target, unit.power * definition.damage * unit.damageMultiplier * heroCommandDamageMultiplier(unit), unit);
+    }
     logBattle(`${unit.label} arcs magic through ${targets.length} foe${targets.length === 1 ? "" : "s"}.`);
     return;
   }
 
-  let target;
-  if (unit.type === "thief") {
+  let target = activeMarkedEnemy();
+  if (target && !heroCanReach(unit, target)) target = null;
+  if (!target && unit.type === "thief") {
     const preferred = unitsInRow(enemies, "front");
     const pool = preferred.length ? preferred : unitsInRow(enemies, "back");
     target = [...pool].sort((a, b) => a.hp - b.hp)[0];
-  } else if (unit.type === "barbarian") {
+  } else if (!target && unit.type === "barbarian") {
     target = [...enemies].sort((a, b) => b.hp - a.hp)[0];
-  } else if (unit.type === "ranger") {
+  } else if (!target && unit.type === "ranger") {
     target = targetBackFirst(enemies);
-  } else {
+  } else if (!target) {
     target = targetFrontFirst(enemies);
   }
 
   const executeMultiplier = unit.type === "thief" && target.hp <= target.maxHp * 0.5
     ? 1 + unit.executeBonus
     : 1;
-  dealDamage(target, unit.power * definition.damage * unit.damageMultiplier * executeMultiplier, unit);
+  dealDamage(
+    target,
+    unit.power * definition.damage * unit.damageMultiplier * executeMultiplier * heroCommandDamageMultiplier(unit),
+    unit,
+  );
   if (target.hp > 0) logBattle(`${unit.label} strikes ${target.label}.`);
 
   if (unit.type === "cleric") {
@@ -668,8 +857,10 @@ function actEnemy(unit) {
   if (unit.type === "vaultTyrant") {
     const front = unitsInRow(heroes, "front");
     const targets = front.length ? front : unitsInRow(heroes, "back");
-    for (const target of targets) dealDamage(target, unit.damage, unit);
-    logBattle(`The Vault Tyrant cleaves through the ${front.length ? "front" : "back"} row.`);
+    const damage = targets.reduce((total, target) => total + dealDamage(target, unit.damage, unit), 0);
+    logBattle(damage > 0
+      ? `The Vault Tyrant cleaves through the ${front.length ? "front" : "back"} row.`
+      : "Divine Aegis turns aside the Vault Tyrant’s cleave.");
     return;
   }
 
@@ -686,13 +877,14 @@ function actEnemy(unit) {
   } else {
     target = targetFrontFirst(heroes);
   }
-  dealDamage(target, unit.damage, unit);
-  if (target.hp > 0) logBattle(`${unit.label} strikes ${target.label}.`);
+  const damage = dealDamage(target, unit.damage, unit);
+  if (damage > 0 && target.hp > 0) logBattle(`${unit.label} strikes ${target.label}.`);
 }
 
 function updateBattle(milliseconds) {
   if (state.view !== "battle" || state.battlePaused) return;
   const delta = milliseconds * state.battleSpeed;
+  const enemiesFrozen = state.enemyFreezeMs > 0;
   state.battleTime += delta;
   state.combatEffects = state.combatEffects
     .map((effect) => ({ ...effect, remaining: effect.remaining - delta }))
@@ -713,7 +905,7 @@ function updateBattle(milliseconds) {
     }
   }
 
-  if (livingEnemies().length) {
+  if (livingEnemies().length && !enemiesFrozen) {
     for (const unit of [...livingEnemies()]) {
       if (unit.type === "assassin" && unit.returnAt !== null && state.battleTime >= unit.returnAt) {
         unit.row = "back";
@@ -725,6 +917,17 @@ function updateBattle(milliseconds) {
         unit.timer += ENEMY_TYPES[unit.type].interval * COMBAT_INTERVAL_SCALE;
       }
     }
+  }
+
+  state.enemyFreezeMs = Math.max(0, state.enemyFreezeMs - delta);
+  state.divineAegisMs = Math.max(0, state.divineAegisMs - delta);
+  state.rallyMs = Math.max(0, state.rallyMs - delta);
+  state.markMs = Math.max(0, state.markMs - delta);
+  state.holdLineMs = Math.max(0, state.holdLineMs - delta);
+  if (!activeMarkedEnemy()) {
+    state.markedEnemyId = null;
+    state.markMs = 0;
+    state.markSpeedBonus = 0;
   }
 
   const enemiesLeft = livingEnemies().length;
@@ -742,7 +945,8 @@ function finishFloor() {
   clearCombatFeedback();
   state.view = "floor_result";
   state.floorReward = floorGoldReward(state.day);
-  state.gold += state.floorReward;
+  state.floorPilferGold = state.pilferPending;
+  state.gold += state.floorReward + state.floorPilferGold;
   state.deepestFloor = Math.max(state.deepestFloor, state.floor);
   const survivorCount = livingParty().length;
   const survivorCopy = `${survivorCount} ${survivorCount === 1 ? "hero remains" : "heroes remain"}`;
@@ -751,11 +955,13 @@ function finishFloor() {
     state.victoryAchieved = true;
     state.victoryDay ??= state.day;
     state.resultTitle = firstVictory ? "Victory" : "Boss Defeated";
-    state.resultCopy = `The Vault Tyrant falls. ${survivorCopy}. The party claims ${state.floorReward} gold and may continue for a deeper record.`;
+    const lootCopy = state.floorPilferGold ? `, plus ${state.floorPilferGold} pilfered gold` : "";
+    state.resultCopy = `The Vault Tyrant falls. ${survivorCopy}. The party claims ${state.floorReward} gold${lootCopy} and may continue for a deeper record.`;
     state.message = "Victory is secured. Flee safely or continue beyond floor 10 for a deeper record.";
   } else {
     state.resultTitle = `Floor ${state.floor} Cleared`;
-    state.resultCopy = `${survivorCopy}. The vault yields ${state.floorReward} gold for day ${state.day}.`;
+    const lootCopy = state.floorPilferGold ? ` Thieves also secure ${state.floorPilferGold} pilfered gold.` : "";
+    state.resultCopy = `${survivorCopy}. The vault yields ${state.floorReward} gold for day ${state.day}.${lootCopy}`;
     state.message = "Take the winnings and flee, or press deeper with your current health.";
   }
 }
@@ -768,6 +974,7 @@ function continueExpedition() {
 
 function finishDay(reason = "The company returns to the surface with its survivors.", title = null, retreatType = "automatic") {
   clearCombatFeedback();
+  state.pilferPending = 0;
   state.party = livingParty();
   resolveRetreatLevelUps(retreatType);
   const campaignEnded = state.day >= 10;
@@ -810,6 +1017,8 @@ function togglePotionTargeting() {
   }
   if (state.potionsRemaining <= 0) return;
   if (!livingParty().some((unit) => unit.hp < unit.maxHp)) return;
+  state.commandMenuOpen = false;
+  state.commandTargeting = null;
   state.potionTargeting = true;
 }
 
@@ -828,6 +1037,8 @@ function usePotionOn(unit) {
 function clearCombatFeedback() {
   state.battlePaused = false;
   state.potionTargeting = false;
+  state.commandMenuOpen = false;
+  state.commandTargeting = null;
   state.combatEffects = [];
   for (const unit of [...state.party, ...state.enemies]) {
     unit.flash = 0;
@@ -880,6 +1091,8 @@ function advanceDay() {
   state.enemies = [];
   state.potionsRemaining = 0;
   state.potionTargeting = false;
+  state.commandMenuOpen = false;
+  state.commandTargeting = null;
   state.expeditionStartIds = [];
   const levelUps = state.retreatLevelUpIds.length;
   state.retreatType = null;
@@ -1448,7 +1661,7 @@ function drawTownBuildingCard(type, rect) {
   context.font = `italic ${rect.width < 280 ? 11 : 12}px Georgia`;
   const detail = definition.utility
     ? type === "alchemist" ? "RESTOCKS EACH EXPEDITION" : "AFFECTS NEW CONTRACTS"
-    : `${definition.pathA.label} ${building.pathA}  •  ${definition.pathB.label} ${building.pathB}`;
+    : `${definition.commandLabel}  •  ${definition.pathA.label} ${building.pathA}  •  ${definition.pathB.label} ${building.pathB}`;
   fitText(detail, rect.x + 14, rect.y + portraitSize + 52, rect.width - 28);
 
   const buttonY = rect.y + rect.height - 56;
@@ -1554,9 +1767,22 @@ function drawCombatUnit(unit, rect) {
   const potionCandidate = state.view === "battle" && state.potionTargeting && unit.side === "hero" && unit.hp > 0;
   const canReceivePotion = potionCandidate && unit.hp < unit.maxHp;
   const potionGlow = unit.potionFlash > 0;
-  context.lineWidth = isHit || isActing || canReceivePotion || potionGlow ? 3 : 1;
+  const markCandidate = state.view === "battle" && state.commandTargeting === "mark" && unit.side === "enemy" && unit.hp > 0;
+  const isMarked = unit.side === "enemy" && unit.id === state.markedEnemyId && state.markMs > 0;
+  const isFrozen = unit.side === "enemy" && state.enemyFreezeMs > 0;
+  const hasAegis = unit.side === "hero" && state.divineAegisMs > 0;
+  const isHolding = unit.side === "hero" && unit.row === "front" && state.holdLineMs > 0;
+  context.lineWidth = isHit || isActing || canReceivePotion || potionGlow || markCandidate || isMarked || isFrozen || hasAegis || isHolding ? 3 : 1;
   context.strokeStyle = potionGlow || canReceivePotion
     ? COLORS.heal
+    : isMarked || markCandidate
+      ? COLORS.goldBright
+      : isFrozen
+        ? COLORS.blue
+        : hasAegis
+          ? "#d9f4ff"
+          : isHolding
+            ? "#d69a55"
     : isHit
       ? COLORS.danger
       : isActing
@@ -1582,6 +1808,7 @@ function drawCombatUnit(unit, rect) {
   context.fillStyle = unit.side === "hero" ? COLORS.heal : COLORS.danger;
   context.fillRect(bar.x, bar.y, bar.width * Math.max(0, unit.hp / unit.maxHp), bar.height);
   if (canReceivePotion) addHit(rect, () => usePotionOn(unit));
+  if (markCandidate) addHit(rect, () => markEnemy(unit));
 }
 
 function drawBattle() {
@@ -1590,18 +1817,33 @@ function drawBattle() {
   else drawBattleLandscape();
   drawCombatEffects();
   if (state.view !== "battle") return;
-  const potionRect = layoutMode === "portrait"
-    ? { x: 24, y: 1190, width: 162, height: 62 }
-    : { x: WIDTH - 686, y: HEIGHT - 74, width: 154, height: 48 };
-  const fleeRect = layoutMode === "portrait"
-    ? { x: 194, y: 1190, width: 162, height: 62 }
-    : { x: WIDTH - 520, y: HEIGHT - 74, width: 154, height: 48 };
-  const pauseRect = layoutMode === "portrait"
-    ? { x: 364, y: 1190, width: 162, height: 62 }
-    : { x: WIDTH - 354, y: HEIGHT - 74, width: 154, height: 48 };
-  const speedRect = layoutMode === "portrait"
-    ? { x: 534, y: 1190, width: 162, height: 62 }
-    : { x: WIDTH - 188, y: HEIGHT - 74, width: 154, height: 48 };
+  const portrait = layoutMode === "portrait";
+  const controlWidth = portrait ? 128 : 154;
+  const controlHeight = portrait ? 62 : 48;
+  const controlGap = portrait ? 8 : 12;
+  const controlY = portrait ? 1190 : HEIGHT - 74;
+  const controlStartX = portrait
+    ? 24
+    : WIDTH - (controlWidth * 5 + controlGap * 4) - 34;
+  const controlRect = (index) => ({
+    x: controlStartX + index * (controlWidth + controlGap),
+    y: controlY,
+    width: controlWidth,
+    height: controlHeight,
+  });
+  const commandRect = controlRect(0);
+  const potionRect = controlRect(1);
+  const fleeRect = controlRect(2);
+  const pauseRect = controlRect(3);
+  const speedRect = controlRect(4);
+  drawCommandMeter(portrait
+    ? { x: 24, y: 1150, width: 672, height: 28 }
+    : { x: 34, y: HEIGHT - 74, width: controlStartX - 52, height: 48 });
+  drawButton(commandRect, state.commandMenuOpen ? "CLOSE" : "COMMANDS", {
+    accent: state.commandMenuOpen || state.commandTargeting === "mark",
+    sublabel: `${Math.floor(state.commandMeter)}/${COMMAND_MAX}`,
+    action: toggleCommandMenu,
+  });
   const hasWoundedHero = livingParty().some((unit) => unit.hp < unit.maxHp);
   drawButton(potionRect, state.potionTargeting ? "CANCEL" : `POTION ×${state.potionsRemaining}`, {
     accent: state.potionTargeting || (state.potionsRemaining > 0 && hasWoundedHero),
@@ -1611,7 +1853,7 @@ function drawBattle() {
   });
   drawButton(fleeRect, "FLEE", {
     danger: true,
-    sublabel: `-${midBattleFleeCost()}g • ${manualFleeLevelChance()}% level-up`,
+    sublabel: `-${midBattleFleeCost()}g • LV ${manualFleeLevelChance()}%`,
     action: fleeMidBattle,
   });
   drawButton(pauseRect, state.battlePaused ? "RESUME" : "PAUSE", {
@@ -1623,8 +1865,121 @@ function drawBattle() {
       state.battleSpeed = state.battleSpeed === 1 ? 2 : 1;
     },
   });
-  if (state.potionTargeting) drawPotionTargetBanner();
+  if (state.commandMenuOpen) drawCommandMenu();
+  else if (state.commandTargeting === "mark") drawCommandTargetBanner();
+  else if (state.potionTargeting) drawPotionTargetBanner();
   else if (state.battlePaused) drawPauseBanner();
+}
+
+function toggleCommandMenu() {
+  if (state.view !== "battle") return;
+  state.commandMenuOpen = !state.commandMenuOpen;
+  state.commandTargeting = null;
+  if (state.commandMenuOpen) state.potionTargeting = false;
+}
+
+function commandButtonSublabel(commandId, count) {
+  const reason = commandUnavailableReason(commandId);
+  if (reason) return reason;
+  const power = commandPower(commandId, count);
+  const cost = BATTLE_COMMANDS[commandId].cost;
+  if (commandId === "freeze" || commandId === "aegis") return `${(power.durationMs / 1000).toFixed(1)}s • ${cost}`;
+  if (commandId === "rally" || commandId === "mark") return `+${Math.round(power.speedBonus * 100)}% speed • ${cost}`;
+  if (commandId === "hold") return `+${Math.round(power.armorBonus * 100)}% both • ${cost}`;
+  if (commandId === "pilfer") return `+${power.gold}g on clear • ${cost}`;
+  return `×${power.damageMultiplier.toFixed(2)} sweep • ${cost}`;
+}
+
+function drawCommandMenu() {
+  const portrait = layoutMode === "portrait";
+  const rect = portrait
+    ? { x: 40, y: 400, width: 640, height: 440 }
+    : { x: WIDTH / 2 - 390, y: HEIGHT - 286, width: 780, height: 202 };
+  drawPanel(rect, 1);
+  context.textAlign = "left";
+  context.fillStyle = COLORS.goldBright;
+  context.font = `small-caps 700 ${portrait ? 26 : 22}px Georgia`;
+  context.fillText("MAYOR’S BATTLE COMMANDS", rect.x + 20, rect.y + 32);
+  context.textAlign = "right";
+  context.fillStyle = COLORS.gold;
+  context.font = `700 ${portrait ? 18 : 15}px Georgia`;
+  context.fillText(`${Math.floor(state.commandMeter)} / ${COMMAND_MAX}`, rect.x + rect.width - 20, rect.y + 31);
+
+  const columns = portrait ? 2 : 4;
+  const gap = portrait ? 12 : 10;
+  const inset = 18;
+  const top = rect.y + (portrait ? 54 : 48);
+  const buttonHeight = portrait ? 78 : 62;
+  const buttonWidth = (rect.width - inset * 2 - gap * (columns - 1)) / columns;
+  COMMAND_IDS.forEach((commandId, index) => {
+    const command = BATTLE_COMMANDS[commandId];
+    const count = commandHeroCount(commandId);
+    const buttonRect = {
+      x: rect.x + inset + (index % columns) * (buttonWidth + gap),
+      y: top + Math.floor(index / columns) * (buttonHeight + gap),
+      width: buttonWidth,
+      height: buttonHeight,
+    };
+    drawButton(buttonRect, `${command.shortLabel} ×${count}`, {
+      accent: !commandUnavailableReason(commandId),
+      enabled: !commandUnavailableReason(commandId),
+      sublabel: commandButtonSublabel(commandId, count),
+      action: () => useBattleCommand(commandId),
+    });
+  });
+}
+
+function activeCommandStatusText() {
+  const active = [];
+  if (state.enemyFreezeMs > 0) active.push(`Freeze ${(state.enemyFreezeMs / 1000).toFixed(1)}s`);
+  if (state.divineAegisMs > 0) active.push(`Aegis ${(state.divineAegisMs / 1000).toFixed(1)}s`);
+  if (state.rallyMs > 0) active.push(`Rally +${Math.round(state.rallySpeedBonus * 100)}%`);
+  if (state.markMs > 0) active.push(`Marked +${Math.round(state.markSpeedBonus * 100)}%`);
+  if (state.holdLineMs > 0) active.push(`Hold +${Math.round(state.holdArmorBonus * 100)}%`);
+  if (state.pilferPending > 0) active.push(`Pilfer +${state.pilferPending}g`);
+  return active.join(" • ") || "Deal and take damage to build command";
+}
+
+function drawCommandMeter(rect) {
+  roundedRect(rect.x, rect.y, rect.width, rect.height, 8);
+  context.fillStyle = "rgba(4, 11, 19, 0.96)";
+  context.fill();
+  context.lineWidth = 1.5;
+  context.strokeStyle = COLORS.line;
+  context.stroke();
+  const ratio = Math.max(0, Math.min(1, state.commandMeter / COMMAND_MAX));
+  if (ratio > 0) {
+    roundedRect(rect.x + 3, rect.y + 3, (rect.width - 6) * ratio, rect.height - 6, 6);
+    context.fillStyle = "rgba(93, 128, 166, 0.72)";
+    context.fill();
+  }
+  context.textAlign = "center";
+  context.fillStyle = COLORS.text;
+  context.font = `700 ${layoutMode === "portrait" ? 13 : 12}px Georgia`;
+  const label = layoutMode === "portrait"
+    ? `COMMAND ${Math.floor(state.commandMeter)}/${COMMAND_MAX} • ${activeCommandStatusText()}`
+    : `COMMAND ${Math.floor(state.commandMeter)}/${COMMAND_MAX}`;
+  fitText(label, rect.x + rect.width / 2, rect.y + rect.height / 2 + 5, rect.width - 16);
+  if (layoutMode !== "portrait") {
+    context.fillStyle = COLORS.muted;
+    context.font = "10px Georgia";
+    fitText(activeCommandStatusText(), rect.x + rect.width / 2, rect.y + rect.height - 6, rect.width - 16);
+  }
+}
+
+function drawCommandTargetBanner() {
+  const portrait = layoutMode === "portrait";
+  const rect = portrait
+    ? { x: 120, y: 610, width: 480, height: 145 }
+    : { x: WIDTH / 2 - 180, y: HEIGHT - 220, width: 360, height: 78 };
+  drawPanel(rect, 1);
+  context.textAlign = "center";
+  context.fillStyle = COLORS.goldBright;
+  context.font = `small-caps 700 ${portrait ? 27 : 23}px Georgia`;
+  context.fillText("CHOOSE AN ENEMY TO MARK", rect.x + rect.width / 2, rect.y + (portrait ? 60 : 32));
+  context.fillStyle = COLORS.muted;
+  context.font = `italic ${portrait ? 15 : 13}px Georgia`;
+  context.fillText("Eligible heroes focus it and attack faster", rect.x + rect.width / 2, rect.y + (portrait ? 94 : 56));
 }
 
 function toggleBattlePause() {
@@ -1936,7 +2291,7 @@ window.render_game_to_text = () => {
     active: hero.active,
   });
   return JSON.stringify({
-    coordinateSystem: "Canvas origin is top-left; tavern cards and battle controls are clickable.",
+    coordinateSystem: "Canvas origin is top-left; tavern cards, battle controls, command buttons, and marked enemy cards are clickable.",
     game: "Vaultbound",
     layout: layoutMode,
     view: state.view,
@@ -1981,6 +2336,39 @@ window.render_game_to_text = () => {
     deepestFloor: state.deepestFloor,
     battleSpeed: state.battleSpeed,
     battlePaused: state.battlePaused,
+    commands: {
+      meter: Math.floor(state.commandMeter),
+      maximum: COMMAND_MAX,
+      menuOpen: state.commandMenuOpen,
+      targeting: state.commandTargeting,
+      pilferUsed: state.pilferUsed,
+      pilferPending: state.pilferPending,
+      available: Object.fromEntries(COMMAND_IDS.map((commandId) => {
+        const count = commandHeroCount(commandId);
+        return [commandId, {
+          label: BATTLE_COMMANDS[commandId].label,
+          building: BUILDING_DEFINITIONS[BATTLE_COMMANDS[commandId].classType].name,
+          heroClass: BATTLE_COMMANDS[commandId].classType,
+          livingHeroes: count,
+          cost: BATTLE_COMMANDS[commandId].cost,
+          power: commandPower(commandId, count),
+          usable: commandUnavailableReason(commandId) === null,
+          unavailableReason: commandUnavailableReason(commandId),
+        }];
+      })),
+      effects: {
+        enemyFreezeMs: Math.round(state.enemyFreezeMs),
+        divineAegisMs: Math.round(state.divineAegisMs),
+        rallyMs: Math.round(state.rallyMs),
+        rallySpeedBonus: state.rallySpeedBonus,
+        markedEnemyId: state.markedEnemyId,
+        markMs: Math.round(state.markMs),
+        markSpeedBonus: state.markSpeedBonus,
+        holdLineMs: Math.round(state.holdLineMs),
+        holdArmorBonus: state.holdArmorBonus,
+        holdDamageBonus: state.holdDamageBonus,
+      },
+    },
     potions: {
       remaining: state.potionsRemaining,
       healingPercent: Math.round(state.potionHealRatio * 100),
@@ -2020,7 +2408,12 @@ window.render_game_to_text = () => {
     })),
     battleLog: state.battleLog,
     result: ["floor_result", "day_result", "campaign_end"].includes(state.view)
-      ? { title: state.resultTitle, copy: state.resultCopy, floorReward: state.floorReward }
+      ? {
+          title: state.resultTitle,
+          copy: state.resultCopy,
+          floorReward: state.floorReward,
+          pilferGold: state.floorPilferGold,
+        }
       : null,
     retreatLeveling: ["day_result", "campaign_end"].includes(state.view)
       ? {
@@ -2031,7 +2424,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Each cleared floor awards gold equal to the current day. Defeat the Vault Tyrant on floor 10 to win; Continue remains available afterward for a deeper record. T toggles Town and Contract Reel. Town buildings reset with each ten-day campaign. During battle, select Potion and then a wounded hero; supplies replenish when the daily expedition begins. Tavern level controls contract level chances. Manual Flee gives each eligible survivor an 80% level-up roll, minus 10 points per other fleeing hero; automatic retreat guarantees it. Select an offer to inspect it, then use Hire to recruit it for free. Tap/click cards and buttons. Mid-battle Flee costs half your current gold, rounded up. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
+    controls: "Each cleared floor awards gold equal to the current day. Defeat the Vault Tyrant on floor 10 to win; Continue remains available afterward for a deeper record. T toggles Town and Contract Reel. Town buildings reset with each ten-day campaign. During battle, damage fills the shared Command meter. Open Commands to use class-powered orders; Mark Prey then requires selecting an enemy. Commands and Potions work while paused. Select Potion and then a wounded hero; supplies replenish when the daily expedition begins. Manual Flee gives each eligible survivor an 80% level-up roll, minus 10 points per other fleeing hero; automatic retreat guarantees it. Select an offer to inspect it, then use Hire to recruit it for free. Tap/click cards and buttons. Mid-battle Flee costs half your current gold, rounded up. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
   });
 };
 
