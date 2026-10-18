@@ -128,3 +128,10 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Clearing floor 10 records victory and the victory day, changes the campaign status in the header, and keeps Continue available so the player can push floors 11+ for a deeper record.
 - Added an end-of-day campaign outcome that distinguishes a recorded victory from running out of the ten-day clock before defeating the boss.
 - Added pure unit tests for the complete day 1–10 gold curve and boss-floor boundary, then browser-tested day-2 rewards, the full-strength boss and cleave, the victory overlay, post-victory continuation, and portrait-mobile boss layout with no console or page errors.
+
+## Vaultbound campaign enemy rosters
+
+- Replaced the shared goblin/orc/hexer pool with a complete themed roster for every campaign.
+- Undead Uprising now fields skeletons, zombies, bone mages, and necromancers; Demonic Invasion fields cultists, demons, warlocks, and archdemons; and the Assassins’ Guild fields cutthroats, enforcers, marksmen, and teleporting assassins.
+- Kept the Vault Tyrant as the universal floor-10 boss while making all ordinary floors visually and mechanically reflect the active campaign.
+- Added roster-selection unit tests and browser-tested all three campaign openings plus portrait-mobile battle rendering with no console or page errors.

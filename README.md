@@ -52,7 +52,7 @@ Mage Guild level determines how many enemies every Mage can hit, while its chose
 
 The Alchemist stocks each daily expedition with healing potions. Levels 1–3 provide one, two, then three potions that restore 20% of maximum health; level 4 keeps three potions and raises healing to 33%, and level 5 raises it to 50%. Supplies persist between floors but replenish at the beginning of the next day’s expedition. Tavern level—not campaign day—sets contract quality: its five levels provide no bonus roll, then `L2 10%`, `L2 20% → L3 10%`, `L2 30% → L3 15%`, and `L2 40% → L3 20% → L4 10%`.
 
-The active party grows from four to eight slots over the campaign. Surviving heroes heal after each day, while defeated heroes are lost. Each campaign rolls one of three enemy flavors: Undead Uprising, Demonic Invasion, or Assassins' Guild.
+The active party grows from four to eight slots over the campaign. Surviving heroes heal after each day, while defeated heroes are lost. Each campaign rolls one of three complete enemy rosters: Undead Uprising fields skeletons, zombies, bone mages, and necromancers; Demonic Invasion fields cultists, demons, warlocks, and archdemons; and the Assassins' Guild fields cutthroats, enforcers, marksmen, and teleporting assassins.
 
 Floor 10 is the victory milestone. It replaces the normal enemy group with the high-health Vault Tyrant, whose cleave damages every hero in the defending row. Defeating it marks the campaign victorious, but the player may continue to floors 11 and beyond until the current expedition ends or the ten-day limit expires, preserving the deepest floor as the run’s record.
 

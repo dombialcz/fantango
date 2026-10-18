@@ -1,6 +1,7 @@
 import { offerLevelChances, rollOfferLevel } from "./hero-offers.js";
 import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
 import { BOSS_FLOOR, floorGoldReward, isBossFloor } from "./dungeon-progression.js";
+import { enemyTypeForRoll, FLAVOR_ROSTERS } from "./enemy-rosters.js";
 import {
   BUILDING_DEFINITIONS,
   alchemistSupplies,
@@ -128,28 +129,30 @@ const HERO_NAMES = {
 const FLAVORS = {
   undead: {
     name: "Undead Uprising",
-    description: "Necromancers shelter behind the dead and send fresh skeletons forward.",
-    special: "necromancer",
+    description: "Skeleton ranks and swollen zombies screen bone mages and their necromancers.",
   },
   demons: {
     name: "Demonic Invasion",
-    description: "Chunky back-row demons tear directly into your vulnerable rear line.",
-    special: "demon",
+    description: "Cultists open the way for demons, warlocks, and rear-line archdemons.",
   },
   assassins: {
     name: "Assassins’ Guild",
-    description: "Assassins blink forward, strike the weakest hero, then vanish to the rear.",
-    special: "assassin",
+    description: "Cutthroats and enforcers screen marksmen while assassins blink through the lines.",
   },
 };
 
 const ENEMY_TYPES = {
-  goblin: { label: "Goblin", row: "front", hp: 60, damage: 18, interval: 900, color: "#78934f", glyph: "G" },
-  orc: { label: "Orc", row: "front", hp: 150, damage: 35, interval: 1750, color: "#687849", glyph: "O" },
-  enemyMage: { label: "Hexer", row: "back", hp: 65, damage: 40, interval: 1450, color: "#845f9e", glyph: "M" },
-  skeleton: { label: "Skeleton", row: "front", hp: 36, damage: 15, interval: 1100, color: "#bbb5a5", glyph: "S" },
+  skeleton: { label: "Skeleton", row: "front", hp: 42, damage: 16, interval: 1050, color: "#bbb5a5", glyph: "S" },
+  zombie: { label: "Zombie", row: "front", hp: 175, damage: 28, interval: 1950, color: "#71806a", glyph: "Z" },
+  boneMage: { label: "Bone Mage", row: "back", hp: 58, damage: 38, interval: 1500, color: "#8a7aa0", glyph: "B" },
   necromancer: { label: "Necromancer", row: "back", hp: 95, damage: 16, interval: 2100, color: "#745887", glyph: "N" },
-  demon: { label: "Demon", row: "back", hp: 280, damage: 62, interval: 1850, color: "#a54f45", glyph: "D" },
+  cultist: { label: "Cultist", row: "front", hp: 55, damage: 22, interval: 850, color: "#9c725c", glyph: "C" },
+  demon: { label: "Demon", row: "front", hp: 170, damage: 42, interval: 1700, color: "#a54f45", glyph: "D" },
+  warlock: { label: "Warlock", row: "back", hp: 62, damage: 42, interval: 1400, color: "#965879", glyph: "W" },
+  archdemon: { label: "Archdemon", row: "back", hp: 280, damage: 62, interval: 1850, color: "#c3493f", glyph: "A" },
+  cutthroat: { label: "Cutthroat", row: "front", hp: 58, damage: 22, interval: 820, color: "#596b7f", glyph: "C" },
+  enforcer: { label: "Enforcer", row: "front", hp: 165, damage: 38, interval: 1600, color: "#705d55", glyph: "E" },
+  marksman: { label: "Marksman", row: "back", hp: 70, damage: 40, interval: 1350, color: "#687c94", glyph: "M" },
   assassin: { label: "Assassin", row: "back", hp: 72, damage: 55, interval: 780, color: "#53627d", glyph: "A" },
   vaultTyrant: { label: "Vault Tyrant", row: "front", hp: 750, damage: 65, interval: 1800, color: "#b85c4d", glyph: "V" },
 };
@@ -507,17 +510,16 @@ function makeEnemy(type, floor = state.floor) {
 
 function generateEnemies(floor) {
   if (isBossFloor(floor)) return [makeEnemy("vaultTyrant", floor)];
+  const roster = FLAVOR_ROSTERS[state.flavorKey];
   const total = Math.min(2 + Math.ceil(floor * 0.58), 10);
   const enemies = [];
   for (let index = 0; index < total; index += 1) {
     const roll = Math.random();
-    let type = "goblin";
-    if (floor >= 2 && roll > 0.78) type = "enemyMage";
-    else if (roll > 0.48) type = "orc";
+    const type = enemyTypeForRoll(state.flavorKey, floor, roll);
     enemies.push(makeEnemy(type, floor));
   }
   if (floor % 3 === 0 || Math.random() < Math.min(0.08 + floor * 0.025, 0.38)) {
-    enemies.push(makeEnemy(currentFlavor().special, floor));
+    enemies.push(makeEnemy(roster.special, floor));
   }
   return enemies;
 }
@@ -672,14 +674,14 @@ function actEnemy(unit) {
   }
 
   let target;
-  if (unit.type === "demon") {
+  if (unit.type === "archdemon") {
     target = targetBackFirst(heroes);
   } else if (unit.type === "assassin") {
     unit.row = "front";
     unit.returnAt = state.battleTime + 350;
     target = [...heroes].sort((a, b) => a.hp - b.hp)[0];
     logBattle(`${unit.label} blinks forward toward ${target.label}.`);
-  } else if (unit.type === "enemyMage") {
+  } else if (["boneMage", "warlock", "marksman"].includes(unit.type)) {
     target = randomLiving(heroes);
   } else {
     target = targetFrontFirst(heroes);
@@ -1949,7 +1951,7 @@ window.render_game_to_text = () => {
       currentFloorIsBoss: isBossFloor(state.floor),
       canContinueAfterVictory: true,
     },
-    flavor: { key: state.flavorKey, ...currentFlavor() },
+    flavor: { key: state.flavorKey, ...currentFlavor(), roster: FLAVOR_ROSTERS[state.flavorKey] },
     teamCapacity: teamCapacity(state.day),
     benchCapacity: benchLimit(),
     rerollCost: state.rerollCost,
