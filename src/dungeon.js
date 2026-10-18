@@ -1,5 +1,6 @@
 import { offerLevelChances, rollOfferLevel } from "./hero-offers.js";
 import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
+import { BUILDING_DEFINITIONS, buildingEffects, buildingUpgradeCost, createTownBuildings } from "./town.js";
 
 const canvas = document.querySelector("#dungeon-game");
 const context = canvas.getContext("2d");
@@ -101,11 +102,12 @@ const HERO_TYPES = {
     interval: 1400,
     color: "#a684dc",
     image: "assets/heroes/mage.png",
-    summary: "Strikes one distinct enemy per level, back row first.",
+    summary: "Strikes one enemy per Mage Guild level, back row first.",
   },
 };
 
 const HERO_KEYS = Object.keys(HERO_TYPES);
+const TOWN_TYPES = Object.keys(BUILDING_DEFINITIONS);
 const HERO_NAMES = {
   knight: ["Aldric", "Branna", "Cedric", "Ysabel"],
   thief: ["Nyx", "Silas", "Vesper", "Rook"],
@@ -222,6 +224,7 @@ function createCampaign() {
     selectedOfferId: null,
     offerPage: 0,
     benchPage: 0,
+    buildings: createTownBuildings(),
     party: [],
     enemies: [],
     battleTime: 0,
@@ -257,6 +260,35 @@ function selectedHero() {
 
 function selectedOffer() {
   return state.offers.find((hero) => hero.id === state.selectedOfferId) ?? null;
+}
+
+function openTown() {
+  if (state.view !== "tavern") return;
+  state.view = "town";
+  state.message = "Invest expedition gold in the districts that shape your heroes.";
+}
+
+function closeTown() {
+  if (state.view !== "town") return;
+  state.view = "tavern";
+  state.message = "Choose contracts, tune the roster, and prepare the next expedition.";
+}
+
+function upgradeTownBuilding(type, path) {
+  if (state.view !== "town") return;
+  const building = state.buildings[type];
+  const definition = BUILDING_DEFINITIONS[type];
+  if (!building || !definition || !["pathA", "pathB"].includes(path)) return;
+  const cost = buildingUpgradeCost(building.level);
+  if (cost === null) return;
+  if (state.gold < cost) {
+    state.message = `${definition.name} needs ${cost} gold for its next level.`;
+    return;
+  }
+  state.gold -= cost;
+  building.level += 1;
+  building[path] += 1;
+  state.message = `${definition.name} reaches level ${building.level}: ${definition[path].short}.`;
 }
 
 function benchLimit() {
@@ -381,19 +413,23 @@ function startExpedition() {
 }
 
 function buildParty(heroes) {
-  const buffCounts = new Map(heroes.map((hero) => [hero.id, 0]));
+  const buffAmounts = new Map(heroes.map((hero) => [hero.id, 0]));
   for (const bard of heroes.filter((hero) => hero.type === "bard")) {
-    const targets = heroes.filter((hero) => hero.type !== "bard");
-    if (!targets.length) continue;
-    const target = randomItem(targets);
-    buffCounts.set(target.id, buffCounts.get(target.id) + 1);
+    const effects = buildingEffects("bard", state.buildings.bard);
+    const available = heroes.filter((hero) => hero.type !== "bard");
+    for (let index = 0; index < effects.bardTargets && available.length; index += 1) {
+      const targetIndex = Math.floor(Math.random() * available.length);
+      const [target] = available.splice(targetIndex, 1);
+      buffAmounts.set(target.id, buffAmounts.get(target.id) + effects.bardBuff);
+    }
   }
 
   return heroes.map((hero) => {
     const definition = HERO_TYPES[hero.type];
-    const buffs = buffCounts.get(hero.id) ?? 0;
-    const power = heroPower(hero.level) * (1 + buffs * 0.2);
-    const maxHp = Math.round(power * definition.hp);
+    const effects = buildingEffects(hero.type, state.buildings[hero.type]);
+    const buffAmount = buffAmounts.get(hero.id) ?? 0;
+    const power = heroPower(hero.level) * (1 + buffAmount);
+    const maxHp = Math.round(power * definition.hp * effects.healthMultiplier);
     return {
       id: `hero-${hero.id}`,
       hero,
@@ -402,7 +438,14 @@ function buildParty(heroes) {
       label: hero.name,
       row: definition.row,
       power,
-      bardBuffs: buffs,
+      bardBuffPercent: Math.round(buffAmount * 100),
+      buildingSpeed: effects.speedMultiplier,
+      damageMultiplier: effects.damageMultiplier,
+      damageReduction: effects.damageReduction,
+      critChance: effects.critChance,
+      executeBonus: effects.executeBonus,
+      healRatio: effects.healRatio,
+      mageTargets: effects.mageTargets,
       maxHp,
       hp: maxHp,
       timer: Math.random() * 450,
@@ -503,10 +546,19 @@ function addCombatEffect(source, target, kind = "attack") {
 function dealDamage(target, amount, source) {
   if (!target || target.hp <= 0) return;
   const sourceLabel = typeof source === "string" ? source : source.label;
-  const damage = Math.max(1, Math.round(amount * COMBAT_DAMAGE_SCALE));
+  const critical = typeof source === "object"
+    && source.side === "hero"
+    && source.critChance > 0
+    && Math.random() < source.critChance;
+  const criticalAmount = critical ? amount * 2 : amount;
+  const reducedAmount = target.side === "hero"
+    ? criticalAmount * (1 - (target.damageReduction ?? 0))
+    : criticalAmount;
+  const damage = Math.max(1, Math.round(reducedAmount * COMBAT_DAMAGE_SCALE));
   target.hp = Math.max(0, target.hp - damage);
   target.flash = 420;
   if (typeof source === "object") addCombatEffect(source, target);
+  if (critical) logBattle(`${sourceLabel} lands a critical hit.`);
   if (target.hp === 0) logBattle(`${sourceLabel} defeats ${target.label}.`);
   return damage;
 }
@@ -519,8 +571,8 @@ function logBattle(copy) {
 function heroInterval(unit) {
   const definition = HERO_TYPES[unit.type];
   if (!Number.isFinite(definition.interval)) return Infinity;
-  if (unit.type === "mage") return definition.interval * COMBAT_INTERVAL_SCALE;
-  return (definition.interval * COMBAT_INTERVAL_SCALE) / speedMultiplier(unit.hero.level);
+  const heroLevelSpeed = ["mage", "ranger"].includes(unit.type) ? 1 : speedMultiplier(unit.hero.level);
+  return (definition.interval * COMBAT_INTERVAL_SCALE) / (heroLevelSpeed * unit.buildingSpeed);
 }
 
 function actHero(unit) {
@@ -531,8 +583,8 @@ function actHero(unit) {
 
   if (unit.type === "mage") {
     const ordered = [...unitsInRow(enemies, "back"), ...unitsInRow(enemies, "front")];
-    const targets = ordered.slice(0, unit.hero.level);
-    for (const target of targets) dealDamage(target, unit.power * definition.damage, unit);
+    const targets = ordered.slice(0, unit.mageTargets);
+    for (const target of targets) dealDamage(target, unit.power * definition.damage * unit.damageMultiplier, unit);
     logBattle(`${unit.label} arcs magic through ${targets.length} foe${targets.length === 1 ? "" : "s"}.`);
     return;
   }
@@ -550,14 +602,17 @@ function actHero(unit) {
     target = targetFrontFirst(enemies);
   }
 
-  dealDamage(target, unit.power * definition.damage, unit);
+  const executeMultiplier = unit.type === "thief" && target.hp <= target.maxHp * 0.5
+    ? 1 + unit.executeBonus
+    : 1;
+  dealDamage(target, unit.power * definition.damage * unit.damageMultiplier * executeMultiplier, unit);
   if (target.hp > 0) logBattle(`${unit.label} strikes ${target.label}.`);
 
   if (unit.type === "cleric") {
     const damaged = livingParty().filter((ally) => ally.id !== unit.id && ally.hp < ally.maxHp);
     if (damaged.length) {
       const ally = randomItem(damaged);
-      const amount = Math.max(1, Math.round(unit.power * definition.heal * COMBAT_DAMAGE_SCALE));
+      const amount = Math.max(1, Math.round(unit.power * unit.healRatio * COMBAT_DAMAGE_SCALE));
       ally.hp = Math.min(ally.maxHp, ally.hp + amount);
       addCombatEffect(unit, ally, "heal");
       logBattle(`${unit.label} restores ${amount} health to ${ally.label}.`);
@@ -1042,7 +1097,12 @@ function drawTavernLandscape() {
     enabled: state.gold >= state.rerollCost,
     action: rerollOffers,
   });
-  drawButton({ x: 254, y: bottomY, width: 160, height: 56 }, "NEW RUN", { danger: true, action: resetCampaign });
+  drawButton({ x: 254, y: bottomY, width: 77, height: 56 }, "NEW", {
+    danger: true,
+    sublabel: "campaign",
+    action: resetCampaign,
+  });
+  drawButton({ x: 337, y: bottomY, width: 77, height: 56 }, "TOWN", { action: openTown });
   drawButton({ x: WIDTH - 306, y: bottomY, width: 272, height: 56 }, "BEGIN EXPEDITION", {
     accent: true,
     sublabel: `${activeBench().length} heroes selected`,
@@ -1107,7 +1167,12 @@ function drawTavernPortrait() {
   }
 
   drawHeroDetails({ x: 22, y: 858, width: 676, height: 244 });
-  drawButton({ x: 22, y: 1122, width: 180, height: 74 }, "NEW RUN", { danger: true, action: resetCampaign });
+  drawButton({ x: 22, y: 1122, width: 86, height: 74 }, "NEW", {
+    danger: true,
+    sublabel: "campaign",
+    action: resetCampaign,
+  });
+  drawButton({ x: 116, y: 1122, width: 86, height: 74 }, "TOWN", { action: openTown });
   drawButton({ x: 220, y: 1122, width: 478, height: 74 }, "BEGIN EXPEDITION", {
     accent: true,
     sublabel: `${activeBench().length} heroes selected`,
@@ -1165,6 +1230,131 @@ function drawHeroDetails(rect) {
   drawButton({ x: rect.x + 12 + (buttonWidth + gap) * 2, y: buttonY, width: buttonWidth, height: 44 }, "DISMISS", {
     danger: true,
     action: dismissSelected,
+  });
+}
+
+function drawTown() {
+  if (layoutMode === "portrait") drawTownPortrait();
+  else drawTownLandscape();
+}
+
+function drawTownLandscape() {
+  const bottomY = HEIGHT - 78;
+  const panel = { x: 28, y: 94, width: WIDTH - 56, height: bottomY - 108 };
+  drawPanel(panel);
+  drawSectionTitle(
+    "THE MAYOR’S QUARTER",
+    "Buildings reset when the ten-day campaign ends",
+    48,
+    128,
+    WIDTH - 96,
+  );
+
+  const columns = 4;
+  const gap = 12;
+  const startX = 48;
+  const startY = 145;
+  const cardWidth = (WIDTH - 96 - gap * (columns - 1)) / columns;
+  const cardHeight = (bottomY - 20 - startY - gap) / 2;
+  TOWN_TYPES.forEach((type, index) => {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    drawTownBuildingCard(type, {
+      x: startX + column * (cardWidth + gap),
+      y: startY + row * (cardHeight + gap),
+      width: cardWidth,
+      height: cardHeight,
+    });
+  });
+
+  drawButton({ x: 34, y: bottomY, width: 208, height: 56 }, "CONTRACT REEL", {
+    accent: true,
+    action: closeTown,
+  });
+  drawButton({ x: 254, y: bottomY, width: 160, height: 56 }, "NEW", {
+    danger: true,
+    sublabel: "reset town",
+    action: resetCampaign,
+  });
+  drawMessage({ x: 430, y: bottomY, width: WIDTH - 464, height: 56 });
+}
+
+function drawTownPortrait() {
+  drawPanel({ x: 22, y: 134, width: 676, height: 968 });
+  drawSectionTitle("MAYOR’S QUARTER", "resets after day 10", 42, 169, 520);
+  const gap = 12;
+  const cardWidth = 307;
+  const cardHeight = 216;
+  TOWN_TYPES.forEach((type, index) => {
+    const column = index % 2;
+    const row = Math.floor(index / 2);
+    drawTownBuildingCard(type, {
+      x: index === TOWN_TYPES.length - 1 ? (WIDTH - cardWidth) / 2 : 42 + column * (cardWidth + gap),
+      y: 190 + row * (cardHeight + gap),
+      width: cardWidth,
+      height: cardHeight,
+    });
+  });
+
+  drawButton({ x: 22, y: 1122, width: 330, height: 74 }, "CONTRACT REEL", {
+    accent: true,
+    action: closeTown,
+  });
+  drawButton({ x: 368, y: 1122, width: 330, height: 74 }, "NEW CAMPAIGN", {
+    danger: true,
+    action: resetCampaign,
+  });
+}
+
+function drawTownBuildingCard(type, rect) {
+  const definition = BUILDING_DEFINITIONS[type];
+  const building = state.buildings[type];
+  const cost = buildingUpgradeCost(building.level);
+  roundedRect(rect.x, rect.y, rect.width, rect.height, 12);
+  context.fillStyle = "rgba(10, 22, 34, 0.96)";
+  context.fill();
+  context.lineWidth = 1.5;
+  context.strokeStyle = HERO_TYPES[type].color;
+  context.stroke();
+
+  const portraitSize = Math.min(70, rect.height * 0.3);
+  drawHeroImage({ type }, rect.x + 12, rect.y + 12, portraitSize);
+  const textX = rect.x + portraitSize + 24;
+  context.textAlign = "left";
+  context.fillStyle = COLORS.goldBright;
+  context.font = `700 ${rect.width < 280 ? 18 : 20}px Georgia`;
+  fitText(definition.name, textX, rect.y + 34, rect.width - portraitSize - 36);
+  context.fillStyle = HERO_TYPES[type].color;
+  context.font = "700 12px Georgia";
+  context.fillText(`${definition.classLabel.toUpperCase()} • LEVEL ${building.level}`, textX, rect.y + 56);
+
+  context.fillStyle = COLORS.text;
+  context.font = `700 ${rect.width < 280 ? 13 : 14}px Georgia`;
+  context.fillText(definition.core(building.level), rect.x + 14, rect.y + portraitSize + 30);
+  context.fillStyle = COLORS.muted;
+  context.font = `italic ${rect.width < 280 ? 11 : 12}px Georgia`;
+  context.fillText(
+    `${definition.pathA.label} ${building.pathA}  •  ${definition.pathB.label} ${building.pathB}`,
+    rect.x + 14,
+    rect.y + portraitSize + 52,
+  );
+
+  const buttonY = rect.y + rect.height - 56;
+  const inset = 12;
+  const gap = 8;
+  const buttonWidth = (rect.width - inset * 2 - gap) / 2;
+  const canUpgrade = cost !== null && state.gold >= cost;
+  drawButton({ x: rect.x + inset, y: buttonY, width: buttonWidth, height: 44 }, definition.pathA.label, {
+    accent: canUpgrade,
+    enabled: canUpgrade,
+    sublabel: cost === null ? "MAX" : `${cost}g • ${definition.pathA.short}`,
+    action: () => upgradeTownBuilding(type, "pathA"),
+  });
+  drawButton({ x: rect.x + inset + buttonWidth + gap, y: buttonY, width: buttonWidth, height: 44 }, definition.pathB.label, {
+    accent: canUpgrade,
+    enabled: canUpgrade,
+    sublabel: cost === null ? "MAX" : `${cost}g • ${definition.pathB.short}`,
+    action: () => upgradeTownBuilding(type, "pathB"),
   });
 }
 
@@ -1485,6 +1675,7 @@ function render() {
   drawBackground();
   drawHeader();
   if (state.view === "tavern") drawTavern();
+  else if (state.view === "town") drawTown();
   else drawBattle();
   if (["floor_result", "day_result", "campaign_end"].includes(state.view)) drawOverlay();
 }
@@ -1512,6 +1703,10 @@ window.addEventListener("keydown", (event) => {
     else canvas.requestFullscreen();
   } else if (event.key.toLowerCase() === "r" && state.view === "tavern") {
     rerollOffers();
+    render();
+  } else if (event.key.toLowerCase() === "t" && ["tavern", "town"].includes(state.view)) {
+    if (state.view === "tavern") openTown();
+    else closeTown();
     render();
   } else if (event.key.toLowerCase() === "p" && state.view === "battle") {
     toggleBattlePause();
@@ -1578,6 +1773,20 @@ window.render_game_to_text = () => {
     offerCount: state.offers.length,
     offers: state.offers.map(summarizeHero),
     bench: state.bench.map(summarizeHero),
+    buildings: Object.fromEntries(
+      TOWN_TYPES.map((type) => {
+        const building = state.buildings[type];
+        return [type, {
+          name: BUILDING_DEFINITIONS[type].name,
+          level: building.level,
+          pathA: building.pathA,
+          pathB: building.pathB,
+          core: BUILDING_DEFINITIONS[type].core(building.level),
+          nextCost: buildingUpgradeCost(building.level),
+          effects: buildingEffects(type, building),
+        }];
+      }),
+    ),
     selectedHeroId: state.selectedHeroId,
     selectedOfferId: state.selectedOfferId,
     floor: state.floor,
@@ -1600,7 +1809,13 @@ window.render_game_to_text = () => {
       row: unit.row,
       hp: Math.ceil(unit.hp),
       maxHp: unit.maxHp,
-      bardBuffs: unit.bardBuffs,
+      bardBuffPercent: unit.bardBuffPercent,
+      attackIntervalMs: Number.isFinite(heroInterval(unit)) ? Math.round(heroInterval(unit)) : null,
+      critChance: unit.critChance,
+      damageMultiplier: unit.damageMultiplier,
+      damageReduction: unit.damageReduction,
+      healRatio: unit.healRatio,
+      mageTargets: unit.mageTargets,
     })),
     enemies: state.enemies.filter((unit) => unit.hp > 0).map((unit) => ({
       type: unit.type,
@@ -1621,7 +1836,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Manual Flee gives each eligible survivor an 80% level-up roll, minus 10 points per other fleeing hero; automatic retreat guarantees it. Select an offer to inspect it, then use Hire to recruit it for free. Tap/click cards and buttons. Mid-battle Flee costs half your current gold, rounded up. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
+    controls: "T toggles Town and Contract Reel. Town buildings reset with each ten-day campaign. Manual Flee gives each eligible survivor an 80% level-up roll, minus 10 points per other fleeing hero; automatic retreat guarantees it. Select an offer to inspect it, then use Hire to recruit it for free. Tap/click cards and buttons. Mid-battle Flee costs half your current gold, rounded up. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
   });
 };
 

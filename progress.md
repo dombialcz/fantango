@@ -96,3 +96,13 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - The result panel now reports the actual number of survivors who earned a level, and the next day upgrades only those heroes while healing all survivors.
 - Added unit tests for the complete party-size chance curve, the automatic 100% guarantee, and independent manual rolls.
 - Browser-tested forced all-success and all-failure manual retreats, post-floor retreat, automatic two-survivor retreat, next-day levels, and desktop/portrait/compact visuals with no console or page errors.
+
+## Vaultbound mayoral town
+
+- Added the Mayor’s Quarter as a second screen beside the contract reel, with one class building for every hero type and responsive desktop, portrait-phone, and compact-landscape layouts.
+- Added four town upgrades per building. Each level asks the mayor to choose one of two paths and costs 3, 6, 9, then 12 gold; class bonuses stack across the ten-day campaign.
+- Reworked Mages so Mage Guild level controls their number of spell targets, with Warding and Quicken choices for health or speed.
+- Reworked Rangers so Hunter’s Lodge level controls attack speed, with Deadeye and Draw choices for critical-hit chance or damage.
+- Added class-wide building effects for Knight damage reduction, Thief wounded-target damage, Bard buff strength and targets, Cleric healing, and Barbarian damage.
+- Town progress persists between daily expeditions and resets only when the ten-day campaign ends and a new campaign begins.
+- Added unit tests for town defaults, costs, caps, and upgrade-path effects, and browser-tested building purchases, combat integration, day-to-day persistence, campaign reset, and all responsive layouts with no console or page errors.

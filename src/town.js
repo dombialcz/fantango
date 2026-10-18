@@ -1,0 +1,111 @@
+export const BUILDING_DEFINITIONS = {
+  knight: {
+    name: "Barracks",
+    classLabel: "Knight",
+    core: (level) => `${(level - 1) * 5}% damage reduction`,
+    pathA: { label: "FORTIFY", short: "+15% health" },
+    pathB: { label: "DRILL", short: "+10% speed" },
+  },
+  thief: {
+    name: "Thieves’ Guild",
+    classLabel: "Thief",
+    core: (level) => `+${(level - 1) * 15}% damage to wounded foes`,
+    pathA: { label: "PRECISION", short: "+5% crit" },
+    pathB: { label: "HASTE", short: "+10% speed" },
+  },
+  bard: {
+    name: "Bard College",
+    classLabel: "Bard",
+    core: (level) => `ally buff +${20 + (level - 1) * 5}% power`,
+    pathA: { label: "VIGOR", short: "+15% health" },
+    pathB: { label: "CHORUS", short: "+1 buff target" },
+  },
+  cleric: {
+    name: "Temple",
+    classLabel: "Cleric",
+    core: (level) => `healing ${10 + (level - 1) * 3}% of power`,
+    pathA: { label: "SANCTUARY", short: "+15% health" },
+    pathB: { label: "DEVOTION", short: "+10% speed" },
+  },
+  barbarian: {
+    name: "Fighting Pit",
+    classLabel: "Barbarian",
+    core: (level) => `+${(level - 1) * 10}% damage`,
+    pathA: { label: "HARDEN", short: "+15% health" },
+    pathB: { label: "SAVAGERY", short: "+5% crit" },
+  },
+  ranger: {
+    name: "Hunter’s Lodge",
+    classLabel: "Ranger",
+    core: (level) => `+${(level - 1) * 10}% attack speed`,
+    pathA: { label: "DEADEYE", short: "+5% crit" },
+    pathB: { label: "DRAW", short: "+12% damage" },
+  },
+  mage: {
+    name: "Mage Guild",
+    classLabel: "Mage",
+    core: (level) => `${level} spell target${level === 1 ? "" : "s"}`,
+    pathA: { label: "WARDING", short: "+15% health" },
+    pathB: { label: "QUICKEN", short: "+10% speed" },
+  },
+};
+
+export function createTownBuildings() {
+  return Object.fromEntries(
+    Object.keys(BUILDING_DEFINITIONS).map((type) => [type, { level: 1, pathA: 0, pathB: 0 }]),
+  );
+}
+
+export function buildingUpgradeCost(level) {
+  return level >= 5 ? null : level * 3;
+}
+
+export function buildingEffects(type, building) {
+  const level = building?.level ?? 1;
+  const pathA = building?.pathA ?? 0;
+  const pathB = building?.pathB ?? 0;
+  const effects = {
+    healthMultiplier: 1,
+    speedMultiplier: 1,
+    damageMultiplier: 1,
+    damageReduction: 0,
+    critChance: 0,
+    executeBonus: 0,
+    bardBuff: 0.2,
+    bardTargets: 1,
+    healRatio: 0.1,
+    mageTargets: 1,
+  };
+
+  if (type === "knight") {
+    effects.damageReduction = (level - 1) * 0.05;
+    effects.healthMultiplier += pathA * 0.15;
+    effects.speedMultiplier += pathB * 0.1;
+  } else if (type === "thief") {
+    effects.executeBonus = (level - 1) * 0.15;
+    effects.critChance = pathA * 0.05;
+    effects.speedMultiplier += pathB * 0.1;
+  } else if (type === "bard") {
+    effects.bardBuff = 0.2 + (level - 1) * 0.05;
+    effects.healthMultiplier += pathA * 0.15;
+    effects.bardTargets += pathB;
+  } else if (type === "cleric") {
+    effects.healRatio = 0.1 + (level - 1) * 0.03;
+    effects.healthMultiplier += pathA * 0.15;
+    effects.speedMultiplier += pathB * 0.1;
+  } else if (type === "barbarian") {
+    effects.damageMultiplier += (level - 1) * 0.1;
+    effects.healthMultiplier += pathA * 0.15;
+    effects.critChance = pathB * 0.05;
+  } else if (type === "ranger") {
+    effects.speedMultiplier += (level - 1) * 0.1;
+    effects.critChance = pathA * 0.05;
+    effects.damageMultiplier += pathB * 0.12;
+  } else if (type === "mage") {
+    effects.mageTargets = level;
+    effects.healthMultiplier += pathA * 0.15;
+    effects.speedMultiplier += pathB * 0.1;
+  }
+
+  return effects;
+}
