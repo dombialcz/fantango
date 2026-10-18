@@ -1,5 +1,6 @@
 import { offerLevelChances, rollOfferLevel } from "./hero-offers.js";
 import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
+import { BOSS_FLOOR, floorGoldReward, isBossFloor } from "./dungeon-progression.js";
 import {
   BUILDING_DEFINITIONS,
   alchemistSupplies,
@@ -150,6 +151,7 @@ const ENEMY_TYPES = {
   necromancer: { label: "Necromancer", row: "back", hp: 95, damage: 16, interval: 2100, color: "#745887", glyph: "N" },
   demon: { label: "Demon", row: "back", hp: 280, damage: 62, interval: 1850, color: "#a54f45", glyph: "D" },
   assassin: { label: "Assassin", row: "back", hp: 72, damage: 55, interval: 780, color: "#53627d", glyph: "A" },
+  vaultTyrant: { label: "Vault Tyrant", row: "front", hp: 750, damage: 65, interval: 1800, color: "#b85c4d", glyph: "V" },
 };
 
 const background = loadImage("assets/vault-bg.jpg");
@@ -224,6 +226,8 @@ function createCampaign() {
     gold: 10,
     flavorKey: randomItem(Object.keys(FLAVORS)),
     deepestFloor: 0,
+    victoryAchieved: false,
+    victoryDay: null,
     floor: 0,
     rerollCost: 1,
     offers: rollHeroes(5, buildings.tavern.level),
@@ -252,7 +256,7 @@ function createCampaign() {
     floorReward: 0,
     resultTitle: "",
     resultCopy: "",
-    message: "Recruit a party, lock your favorites, and spend carefully.",
+    message: "Recruit a party. Floor clears pay the current day in gold; floor 10 holds the boss.",
   };
 }
 
@@ -502,6 +506,7 @@ function makeEnemy(type, floor = state.floor) {
 }
 
 function generateEnemies(floor) {
+  if (isBossFloor(floor)) return [makeEnemy("vaultTyrant", floor)];
   const total = Math.min(2 + Math.ceil(floor * 0.58), 10);
   const enemies = [];
   for (let index = 0; index < total; index += 1) {
@@ -527,8 +532,12 @@ function prepareFloor() {
   state.party.forEach((hero, index) => {
     hero.timer = 650 + index * 420 + Math.random() * 220;
   });
-  state.battleLog = [`Floor ${state.floor}: ${state.enemies.length} enemies close in.`];
-  state.message = "The battle runs on its own. Watch the rows and health bars.";
+  state.battleLog = isBossFloor(state.floor)
+    ? ["The Vault Tyrant bars the road to victory."]
+    : [`Floor ${state.floor}: ${state.enemies.length} enemies close in.`];
+  state.message = isBossFloor(state.floor)
+    ? "Boss floor: defeat the Vault Tyrant to claim victory."
+    : "The battle runs on its own. Watch the rows and health bars.";
 }
 
 function livingParty() {
@@ -654,6 +663,14 @@ function actEnemy(unit) {
     return;
   }
 
+  if (unit.type === "vaultTyrant") {
+    const front = unitsInRow(heroes, "front");
+    const targets = front.length ? front : unitsInRow(heroes, "back");
+    for (const target of targets) dealDamage(target, unit.damage, unit);
+    logBattle(`The Vault Tyrant cleaves through the ${front.length ? "front" : "back"} row.`);
+    return;
+  }
+
   let target;
   if (unit.type === "demon") {
     target = targetBackFirst(heroes);
@@ -722,12 +739,23 @@ function updateBattle(milliseconds) {
 function finishFloor() {
   clearCombatFeedback();
   state.view = "floor_result";
-  state.floorReward = 1;
+  state.floorReward = floorGoldReward(state.day);
   state.gold += state.floorReward;
   state.deepestFloor = Math.max(state.deepestFloor, state.floor);
-  state.resultTitle = `Floor ${state.floor} Cleared`;
-  state.resultCopy = `${livingParty().length} heroes remain. The vault yields ${state.floorReward} gold.`;
-  state.message = "Take the winnings and flee, or press deeper with your current health.";
+  const survivorCount = livingParty().length;
+  const survivorCopy = `${survivorCount} ${survivorCount === 1 ? "hero remains" : "heroes remain"}`;
+  if (isBossFloor(state.floor)) {
+    const firstVictory = !state.victoryAchieved;
+    state.victoryAchieved = true;
+    state.victoryDay ??= state.day;
+    state.resultTitle = firstVictory ? "Victory" : "Boss Defeated";
+    state.resultCopy = `The Vault Tyrant falls. ${survivorCopy}. The party claims ${state.floorReward} gold and may continue for a deeper record.`;
+    state.message = "Victory is secured. Flee safely or continue beyond floor 10 for a deeper record.";
+  } else {
+    state.resultTitle = `Floor ${state.floor} Cleared`;
+    state.resultCopy = `${survivorCopy}. The vault yields ${state.floorReward} gold for day ${state.day}.`;
+    state.message = "Take the winnings and flee, or press deeper with your current health.";
+  }
 }
 
 function continueExpedition() {
@@ -740,10 +768,17 @@ function finishDay(reason = "The company returns to the surface with its survivo
   clearCombatFeedback();
   state.party = livingParty();
   resolveRetreatLevelUps(retreatType);
-  state.resultTitle = title ?? (state.party.length ? "Expedition Ended" : "No One Returned");
-  state.resultCopy = reason;
+  const campaignEnded = state.day >= 10;
+  state.resultTitle = title ?? (campaignEnded && state.victoryAchieved
+    ? "Campaign Victory"
+    : state.party.length ? "Expedition Ended" : "No One Returned");
+  state.resultCopy = campaignEnded
+    ? `${reason} ${state.victoryAchieved
+      ? `The Vault Tyrant was defeated on day ${state.victoryDay}; your record is floor ${state.deepestFloor}.`
+      : "Ten days expire before the Vault Tyrant is defeated."}`
+    : reason;
   state.message = reason;
-  state.view = state.day >= 10 ? "campaign_end" : "day_result";
+  state.view = campaignEnded ? "campaign_end" : "day_result";
 }
 
 function resolveRetreatLevelUps(retreatType) {
@@ -850,8 +885,8 @@ function advanceDay() {
   state.retreatLevelUpIds = [];
   state.view = "tavern";
   state.message = levelUps > 0
-    ? `Day ${state.day}. Survivors return healed; ${levelUps} gained a level.`
-    : `Day ${state.day}. Survivors return healed; no one gained a level.`;
+    ? `Day ${state.day}. Survivors return healed; ${levelUps} gained a level. Floors now yield ${floorGoldReward(state.day)} gold.`
+    : `Day ${state.day}. Survivors return healed; no one gained a level. Floors now yield ${floorGoldReward(state.day)} gold.`;
 }
 
 function resetCampaign() {
@@ -947,9 +982,13 @@ function drawHeader() {
   context.font = `700 ${portrait ? 19 : 17}px Georgia`;
   const floorCopy = state.floor ? `  •  Floor ${state.floor}` : "";
   context.fillText(`Day ${state.day}/10  •  ${state.gold} gold${floorCopy}`, WIDTH - 28, statsY);
-  context.fillStyle = COLORS.gold;
+  const bossActive = state.view === "battle" && isBossFloor(state.floor);
+  context.fillStyle = state.victoryAchieved ? COLORS.heal : bossActive ? COLORS.danger : COLORS.gold;
   context.font = `${portrait ? 17 : 14}px Georgia`;
-  context.fillText(currentFlavor().name, WIDTH - 28, statsY + (portrait ? 27 : 24));
+  const campaignStatus = state.victoryAchieved
+    ? `${currentFlavor().name} • VICTORY`
+    : bossActive ? "BOSS FLOOR • VAULT TYRANT" : currentFlavor().name;
+  fitText(campaignStatus, WIDTH - 28, statsY + (portrait ? 27 : 24), portrait ? 400 : 360);
 }
 
 function addHit(rect, action, enabled = true) {
@@ -1668,12 +1707,12 @@ function drawBattleLandscape() {
 
   const centerX = WIDTH / 2;
   context.textAlign = "center";
-  context.fillStyle = COLORS.goldBright;
+  context.fillStyle = isBossFloor(state.floor) ? COLORS.danger : COLORS.goldBright;
   context.font = "small-caps 700 30px Georgia";
   context.fillText(`Floor ${state.floor}`, centerX, 155);
-  context.fillStyle = COLORS.muted;
+  context.fillStyle = isBossFloor(state.floor) ? COLORS.goldBright : COLORS.muted;
   context.font = "italic 14px Georgia";
-  context.fillText(currentFlavor().name, centerX, 180);
+  context.fillText(isBossFloor(state.floor) ? "Boss • Vault Tyrant" : currentFlavor().name, centerX, 180);
   drawPanel({ x: centerX - 155, y: 210, width: 310, height: 245 }, 0.82);
   context.textAlign = "left";
   state.battleLog.forEach((line, index) => {
@@ -1715,7 +1754,7 @@ function drawBattlePortrait() {
   drawHorizontalCombatRow(heroBack, 980, "YOUR BACK");
 
   context.textAlign = "center";
-  context.fillStyle = COLORS.goldBright;
+  context.fillStyle = isBossFloor(state.floor) ? COLORS.danger : COLORS.goldBright;
   context.font = "small-caps 700 34px Georgia";
   context.fillText(`Floor ${state.floor}`, 360, 648);
   context.fillStyle = COLORS.muted;
@@ -1902,6 +1941,14 @@ window.render_game_to_text = () => {
     day: state.day,
     daysTotal: 10,
     gold: state.gold,
+    goldPerClearedFloor: floorGoldReward(state.day),
+    victory: {
+      achieved: state.victoryAchieved,
+      bossFloor: BOSS_FLOOR,
+      victoryDay: state.victoryDay,
+      currentFloorIsBoss: isBossFloor(state.floor),
+      canContinueAfterVictory: true,
+    },
     flavor: { key: state.flavorKey, ...currentFlavor() },
     teamCapacity: teamCapacity(state.day),
     benchCapacity: benchLimit(),
@@ -1964,6 +2011,7 @@ window.render_game_to_text = () => {
     })),
     enemies: state.enemies.filter((unit) => unit.hp > 0).map((unit) => ({
       type: unit.type,
+      name: unit.label,
       row: unit.row,
       hp: Math.ceil(unit.hp),
       maxHp: unit.maxHp,
@@ -1981,7 +2029,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "T toggles Town and Contract Reel. Town buildings reset with each ten-day campaign. During battle, select Potion and then a wounded hero; supplies replenish when the daily expedition begins. Tavern level controls contract level chances. Manual Flee gives each eligible survivor an 80% level-up roll, minus 10 points per other fleeing hero; automatic retreat guarantees it. Select an offer to inspect it, then use Hire to recruit it for free. Tap/click cards and buttons. Mid-battle Flee costs half your current gold, rounded up. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
+    controls: "Each cleared floor awards gold equal to the current day. Defeat the Vault Tyrant on floor 10 to win; Continue remains available afterward for a deeper record. T toggles Town and Contract Reel. Town buildings reset with each ten-day campaign. During battle, select Potion and then a wounded hero; supplies replenish when the daily expedition begins. Tavern level controls contract level chances. Manual Flee gives each eligible survivor an 80% level-up roll, minus 10 points per other fleeing hero; automatic retreat guarantees it. Select an offer to inspect it, then use Hire to recruit it for free. Tap/click cards and buttons. Mid-battle Flee costs half your current gold, rounded up. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
   });
 };
 

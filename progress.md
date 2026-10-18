@@ -119,3 +119,12 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 ### Future tuning
 
 - Revisit whether potion supplies should replenish per daily expedition or per floor after playtesting; the current balance treats them as expedition-long resources.
+
+## Vaultbound escalating gold and floor-10 victory
+
+- Changed every floor reward from a flat 1 gold to the current campaign day: day 1 pays 1 gold per clear, increasing through day 10 at 10 gold per clear.
+- Added floor 10 as the campaign’s victory milestone and replaced its procedural enemy group with a unique Vault Tyrant boss.
+- Made the Vault Tyrant a high-health front-row enemy with a cleave that damages every living hero in the defending row.
+- Clearing floor 10 records victory and the victory day, changes the campaign status in the header, and keeps Continue available so the player can push floors 11+ for a deeper record.
+- Added an end-of-day campaign outcome that distinguishes a recorded victory from running out of the ten-day clock before defeating the boss.
+- Added pure unit tests for the complete day 1–10 gold curve and boss-floor boundary, then browser-tested day-2 rewards, the full-strength boss and cleave, the victory overlay, post-victory continuation, and portrait-mobile boss layout with no console or page errors.

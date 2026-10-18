@@ -54,6 +54,8 @@ The Alchemist stocks each daily expedition with healing potions. Levels 1–3 pr
 
 The active party grows from four to eight slots over the campaign. Surviving heroes heal after each day, while defeated heroes are lost. Each campaign rolls one of three enemy flavors: Undead Uprising, Demonic Invasion, or Assassins' Guild.
 
+Floor 10 is the victory milestone. It replaces the normal enemy group with the high-health Vault Tyrant, whose cleave damages every hero in the defending row. Defeating it marks the campaign victorious, but the player may continue to floors 11 and beyond until the current expedition ends or the ten-day limit expires, preserving the deepest floor as the run’s record.
+
 Heroes who retreat automatically are guaranteed to gain a level. When the player chooses Flee, each eligible survivor instead has an 80% level-up chance, reduced by 10 percentage points for every other fleeing hero, to a minimum of 0%.
 
-Vaultbound supports mouse, touch, portrait phones, and short landscape screens. Every cleared floor awards 1 gold. You can flee safely between floors, or flee during a battle by sacrificing half your current gold (rounded up). During battle, select Potion and then select a wounded hero. Press `T` to switch between the contract reel and town, `R` to reroll, `Enter` to begin or continue an expedition, `P` to pause or resume, `Space` to toggle battle speed, and `F` for fullscreen.
+Vaultbound supports mouse, touch, portrait phones, and short landscape screens. Every cleared floor awards gold equal to the current campaign day: 1 gold on day 1 through 10 gold on day 10. You can flee safely between floors, or flee during a battle by sacrificing half your current gold (rounded up). During battle, select Potion and then select a wounded hero. Press `T` to switch between the contract reel and town, `R` to reroll, `Enter` to begin or continue an expedition, `P` to pause or resume, `Space` to toggle battle speed, and `F` for fullscreen.
