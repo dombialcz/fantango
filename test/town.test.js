@@ -1,13 +1,28 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildingEffects, buildingUpgradeCost, createTownBuildings } from "../src/town.js";
+import {
+  alchemistSupplies,
+  buildingEffects,
+  buildingUpgradeCost,
+  createTownBuildings,
+} from "../src/town.js";
 
 test("town buildings begin at level one and use shared upgrade costs", () => {
   const buildings = createTownBuildings();
-  assert.equal(Object.keys(buildings).length, 7);
+  assert.equal(Object.keys(buildings).length, 9);
   assert.ok(Object.values(buildings).every((building) => building.level === 1));
   assert.deepEqual([1, 2, 3, 4, 5].map(buildingUpgradeCost), [3, 6, 9, 12, null]);
+});
+
+test("alchemist levels define expedition potion supplies", () => {
+  assert.deepEqual([1, 2, 3, 4, 5].map(alchemistSupplies), [
+    { count: 1, healRatio: 0.2 },
+    { count: 2, healRatio: 0.2 },
+    { count: 3, healRatio: 0.2 },
+    { count: 3, healRatio: 0.33 },
+    { count: 3, healRatio: 0.5 },
+  ]);
 });
 
 test("mage targets and ranger speed come from their buildings", () => {

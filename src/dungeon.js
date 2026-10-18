@@ -1,6 +1,12 @@
 import { offerLevelChances, rollOfferLevel } from "./hero-offers.js";
 import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
-import { BUILDING_DEFINITIONS, buildingEffects, buildingUpgradeCost, createTownBuildings } from "./town.js";
+import {
+  BUILDING_DEFINITIONS,
+  alchemistSupplies,
+  buildingEffects,
+  buildingUpgradeCost,
+  createTownBuildings,
+} from "./town.js";
 
 const canvas = document.querySelector("#dungeon-game");
 const context = canvas.getContext("2d");
@@ -188,28 +194,30 @@ function upgradeCost(level) {
 }
 
 function offerLevelOddsText() {
-  const chances = offerLevelChances(state.day);
-  if (!chances.length) return "Bonus rolls: none today";
+  const tavernLevel = state.buildings.tavern.level;
+  const chances = offerLevelChances(tavernLevel);
+  if (!chances.length) return `Tavern L${tavernLevel}: level 1 contracts`;
   const copy = chances.map(({ level, chance }) => `L${level} ${chance}%`).join("  →  ");
-  return `Bonus rolls: ${copy}`;
+  return `Tavern L${tavernLevel}: ${copy}`;
 }
 
-function makeHero(type = randomItem(HERO_KEYS), day = 1) {
+function makeHero(type = randomItem(HERO_KEYS), tavernLevel = 1) {
   const names = HERO_NAMES[type];
   return {
     id: nextHeroId++,
     type,
     name: randomItem(names),
-    level: rollOfferLevel(day),
+    level: rollOfferLevel(tavernLevel),
     active: false,
   };
 }
 
-function rollHeroes(count, day = 1) {
-  return Array.from({ length: count }, () => makeHero(randomItem(HERO_KEYS), day));
+function rollHeroes(count, tavernLevel = 1) {
+  return Array.from({ length: count }, () => makeHero(randomItem(HERO_KEYS), tavernLevel));
 }
 
 function createCampaign() {
+  const buildings = createTownBuildings();
   return {
     view: "tavern",
     day: 1,
@@ -218,18 +226,22 @@ function createCampaign() {
     deepestFloor: 0,
     floor: 0,
     rerollCost: 1,
-    offers: rollHeroes(5, 1),
+    offers: rollHeroes(5, buildings.tavern.level),
     bench: [],
     selectedHeroId: null,
     selectedOfferId: null,
     offerPage: 0,
     benchPage: 0,
-    buildings: createTownBuildings(),
+    townPage: 0,
+    buildings,
     party: [],
     enemies: [],
     battleTime: 0,
     battleSpeed: 1,
     battlePaused: false,
+    potionsRemaining: 0,
+    potionHealRatio: 0.2,
+    potionTargeting: false,
     battleLog: [],
     combatEffects: [],
     expeditionStartCount: 0,
@@ -274,11 +286,12 @@ function closeTown() {
   state.message = "Choose contracts, tune the roster, and prepare the next expedition.";
 }
 
-function upgradeTownBuilding(type, path) {
+function upgradeTownBuilding(type, path = null) {
   if (state.view !== "town") return;
   const building = state.buildings[type];
   const definition = BUILDING_DEFINITIONS[type];
-  if (!building || !definition || !["pathA", "pathB"].includes(path)) return;
+  if (!building || !definition) return;
+  if (definition.utility ? path !== null : !["pathA", "pathB"].includes(path)) return;
   const cost = buildingUpgradeCost(building.level);
   if (cost === null) return;
   if (state.gold < cost) {
@@ -287,8 +300,12 @@ function upgradeTownBuilding(type, path) {
   }
   state.gold -= cost;
   building.level += 1;
-  building[path] += 1;
-  state.message = `${definition.name} reaches level ${building.level}: ${definition[path].short}.`;
+  if (definition.utility) {
+    state.message = `${definition.name} reaches level ${building.level}: ${definition.core(building.level)}.`;
+  } else {
+    building[path] += 1;
+    state.message = `${definition.name} reaches level ${building.level}: ${definition[path].short}.`;
+  }
 }
 
 function benchLimit() {
@@ -334,7 +351,7 @@ function rerollOffers() {
   }
   state.gold -= state.rerollCost;
   state.rerollCost += 1;
-  state.offers = rollHeroes(offerCount(state.day), state.day);
+  state.offers = rollHeroes(offerCount(state.day), state.buildings.tavern.level);
   state.offerPage = 0;
   state.selectedOfferId = null;
   state.message = "The reel rattles. New contracts slide into view.";
@@ -408,6 +425,10 @@ function startExpedition() {
   state.party = buildParty(chosen);
   state.expeditionStartCount = state.party.length;
   state.expeditionStartIds = chosen.map((hero) => hero.id);
+  const supplies = alchemistSupplies(state.buildings.alchemist.level);
+  state.potionsRemaining = supplies.count;
+  state.potionHealRatio = supplies.healRatio;
+  state.potionTargeting = false;
   state.battleLog = [];
   prepareFloor();
 }
@@ -451,6 +472,7 @@ function buildParty(heroes) {
       timer: Math.random() * 450,
       flash: 0,
       actionFlash: 0,
+      potionFlash: 0,
     };
   });
 }
@@ -498,6 +520,7 @@ function generateEnemies(floor) {
 function prepareFloor() {
   state.view = "battle";
   state.battlePaused = false;
+  state.potionTargeting = false;
   state.enemies = generateEnemies(state.floor);
   state.battleTime = 0;
   state.combatEffects = [];
@@ -658,6 +681,7 @@ function updateBattle(milliseconds) {
   for (const unit of [...state.party, ...state.enemies]) {
     unit.flash = Math.max(0, unit.flash - delta);
     unit.actionFlash = Math.max(0, unit.actionFlash - delta);
+    unit.potionFlash = Math.max(0, (unit.potionFlash ?? 0) - delta);
   }
 
   for (const unit of [...livingParty()]) {
@@ -741,12 +765,37 @@ function retreatLevelResultText() {
   return `${count} survivor${count === 1 ? "" : "s"} gained a level`;
 }
 
+function togglePotionTargeting() {
+  if (state.view !== "battle") return;
+  if (state.potionTargeting) {
+    state.potionTargeting = false;
+    return;
+  }
+  if (state.potionsRemaining <= 0) return;
+  if (!livingParty().some((unit) => unit.hp < unit.maxHp)) return;
+  state.potionTargeting = true;
+}
+
+function usePotionOn(unit) {
+  if (state.view !== "battle" || !state.potionTargeting || state.potionsRemaining <= 0) return;
+  if (!unit || unit.side !== "hero" || unit.hp <= 0 || unit.hp >= unit.maxHp) return;
+  const healing = Math.max(1, Math.round(unit.maxHp * state.potionHealRatio));
+  const restored = Math.min(healing, unit.maxHp - unit.hp);
+  unit.hp += restored;
+  unit.potionFlash = 650;
+  state.potionsRemaining -= 1;
+  state.potionTargeting = false;
+  logBattle(`A potion restores ${restored} health to ${unit.label}.`);
+}
+
 function clearCombatFeedback() {
   state.battlePaused = false;
+  state.potionTargeting = false;
   state.combatEffects = [];
   for (const unit of [...state.party, ...state.enemies]) {
     unit.flash = 0;
     unit.actionFlash = 0;
+    unit.potionFlash = 0;
   }
 }
 
@@ -783,7 +832,7 @@ function advanceDay() {
   }
   for (const hero of reserves) hero.active = false;
   state.bench = [...survivors, ...reserves];
-  state.offers = rollHeroes(offerCount(state.day), state.day);
+  state.offers = rollHeroes(offerCount(state.day), state.buildings.tavern.level);
   state.selectedHeroId = survivors[0]?.id ?? null;
   state.selectedOfferId = null;
   state.offerPage = 0;
@@ -792,6 +841,8 @@ function advanceDay() {
   state.floor = 0;
   state.party = [];
   state.enemies = [];
+  state.potionsRemaining = 0;
+  state.potionTargeting = false;
   state.expeditionStartIds = [];
   const levelUps = state.retreatLevelUpIds.length;
   state.retreatType = null;
@@ -1250,12 +1301,13 @@ function drawTownLandscape() {
     WIDTH - 96,
   );
 
-  const columns = 4;
+  const columns = layoutMode === "compact" ? 5 : 3;
+  const rows = Math.ceil(TOWN_TYPES.length / columns);
   const gap = 12;
   const startX = 48;
   const startY = 145;
   const cardWidth = (WIDTH - 96 - gap * (columns - 1)) / columns;
-  const cardHeight = (bottomY - 20 - startY - gap) / 2;
+  const cardHeight = (bottomY - 20 - startY - gap * (rows - 1)) / rows;
   TOWN_TYPES.forEach((type, index) => {
     const column = index % columns;
     const row = Math.floor(index / columns);
@@ -1282,19 +1334,37 @@ function drawTownLandscape() {
 function drawTownPortrait() {
   drawPanel({ x: 22, y: 134, width: 676, height: 968 });
   drawSectionTitle("MAYOR’S QUARTER", "resets after day 10", 42, 169, 520);
-  const gap = 12;
+  const pageSize = 6;
+  const pageCount = Math.ceil(TOWN_TYPES.length / pageSize);
+  state.townPage = Math.max(0, Math.min(state.townPage, pageCount - 1));
+  const visible = TOWN_TYPES.slice(state.townPage * pageSize, (state.townPage + 1) * pageSize);
+  const gap = 14;
   const cardWidth = 307;
-  const cardHeight = 216;
-  TOWN_TYPES.forEach((type, index) => {
+  const cardHeight = 276;
+  visible.forEach((type, index) => {
     const column = index % 2;
     const row = Math.floor(index / 2);
     drawTownBuildingCard(type, {
-      x: index === TOWN_TYPES.length - 1 ? (WIDTH - cardWidth) / 2 : 42 + column * (cardWidth + gap),
+      x: visible.length % 2 === 1 && index === visible.length - 1
+        ? (WIDTH - cardWidth) / 2
+        : 42 + column * (cardWidth + gap),
       y: 190 + row * (cardHeight + gap),
       width: cardWidth,
       height: cardHeight,
     });
   });
+  drawButton({ x: 574, y: 144, width: 48, height: 36 }, "‹", {
+    enabled: state.townPage > 0,
+    action: () => { state.townPage -= 1; },
+  });
+  drawButton({ x: 630, y: 144, width: 48, height: 36 }, "›", {
+    enabled: state.townPage < pageCount - 1,
+    action: () => { state.townPage += 1; },
+  });
+  context.textAlign = "right";
+  context.fillStyle = COLORS.muted;
+  context.font = "13px Georgia";
+  context.fillText(`${state.townPage + 1}/${pageCount}`, 562, 168);
 
   drawButton({ x: 22, y: 1122, width: 330, height: 74 }, "CONTRACT REEL", {
     accent: true,
@@ -1310,40 +1380,50 @@ function drawTownBuildingCard(type, rect) {
   const definition = BUILDING_DEFINITIONS[type];
   const building = state.buildings[type];
   const cost = buildingUpgradeCost(building.level);
+  const color = definition.color ?? HERO_TYPES[type].color;
   roundedRect(rect.x, rect.y, rect.width, rect.height, 12);
   context.fillStyle = "rgba(10, 22, 34, 0.96)";
   context.fill();
   context.lineWidth = 1.5;
-  context.strokeStyle = HERO_TYPES[type].color;
+  context.strokeStyle = color;
   context.stroke();
 
-  const portraitSize = Math.min(70, rect.height * 0.3);
-  drawHeroImage({ type }, rect.x + 12, rect.y + 12, portraitSize);
+  const portraitSize = Math.min(70, rect.height * 0.28);
+  if (definition.utility) drawTownUtilityIcon(definition, rect.x + 12, rect.y + 12, portraitSize);
+  else drawHeroImage({ type }, rect.x + 12, rect.y + 12, portraitSize);
   const textX = rect.x + portraitSize + 24;
   context.textAlign = "left";
   context.fillStyle = COLORS.goldBright;
   context.font = `700 ${rect.width < 280 ? 18 : 20}px Georgia`;
   fitText(definition.name, textX, rect.y + 34, rect.width - portraitSize - 36);
-  context.fillStyle = HERO_TYPES[type].color;
+  context.fillStyle = color;
   context.font = "700 12px Georgia";
-  context.fillText(`${definition.classLabel.toUpperCase()} • LEVEL ${building.level}`, textX, rect.y + 56);
+  fitText(`${definition.classLabel.toUpperCase()} • LEVEL ${building.level}`, textX, rect.y + 56, rect.width - portraitSize - 36);
 
   context.fillStyle = COLORS.text;
   context.font = `700 ${rect.width < 280 ? 13 : 14}px Georgia`;
-  context.fillText(definition.core(building.level), rect.x + 14, rect.y + portraitSize + 30);
+  fitText(definition.core(building.level), rect.x + 14, rect.y + portraitSize + 30, rect.width - 28);
   context.fillStyle = COLORS.muted;
   context.font = `italic ${rect.width < 280 ? 11 : 12}px Georgia`;
-  context.fillText(
-    `${definition.pathA.label} ${building.pathA}  •  ${definition.pathB.label} ${building.pathB}`,
-    rect.x + 14,
-    rect.y + portraitSize + 52,
-  );
+  const detail = definition.utility
+    ? type === "alchemist" ? "RESTOCKS EACH EXPEDITION" : "AFFECTS NEW CONTRACTS"
+    : `${definition.pathA.label} ${building.pathA}  •  ${definition.pathB.label} ${building.pathB}`;
+  fitText(detail, rect.x + 14, rect.y + portraitSize + 52, rect.width - 28);
 
   const buttonY = rect.y + rect.height - 56;
   const inset = 12;
   const gap = 8;
   const buttonWidth = (rect.width - inset * 2 - gap) / 2;
   const canUpgrade = cost !== null && state.gold >= cost;
+  if (definition.utility) {
+    drawButton({ x: rect.x + inset, y: buttonY, width: rect.width - inset * 2, height: 44 }, "UPGRADE", {
+      accent: canUpgrade,
+      enabled: canUpgrade,
+      sublabel: cost === null ? "LEVEL 5 • MAX" : `${cost}g • improve town service`,
+      action: () => upgradeTownBuilding(type),
+    });
+    return;
+  }
   drawButton({ x: rect.x + inset, y: buttonY, width: buttonWidth, height: 44 }, definition.pathA.label, {
     accent: canUpgrade,
     enabled: canUpgrade,
@@ -1356,6 +1436,25 @@ function drawTownBuildingCard(type, rect) {
     sublabel: cost === null ? "MAX" : `${cost}g • ${definition.pathB.short}`,
     action: () => upgradeTownBuilding(type, "pathB"),
   });
+}
+
+function drawTownUtilityIcon(definition, x, y, size) {
+  const gradient = context.createRadialGradient(x + size * 0.42, y + size * 0.35, 2, x + size / 2, y + size / 2, size * 0.55);
+  gradient.addColorStop(0, definition.color);
+  gradient.addColorStop(1, "#17202a");
+  context.fillStyle = gradient;
+  context.beginPath();
+  context.arc(x + size / 2, y + size / 2, size * 0.46, 0, Math.PI * 2);
+  context.fill();
+  context.lineWidth = 2;
+  context.strokeStyle = "rgba(245, 221, 165, 0.72)";
+  context.stroke();
+  context.fillStyle = "#f7e5b8";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.font = `700 ${size * 0.48}px Georgia`;
+  context.fillText(definition.glyph, x + size / 2, y + size / 2 + 1);
+  context.textBaseline = "alphabetic";
 }
 
 function drawRecruitmentStatus(rect) {
@@ -1411,12 +1510,19 @@ function drawCombatUnit(unit, rect) {
   context.fill();
   const isHit = unit.flash > 0;
   const isActing = unit.actionFlash > 0;
-  context.lineWidth = isHit || isActing ? 3 : 1;
-  context.strokeStyle = isHit
-    ? COLORS.danger
-    : isActing
-      ? COLORS.goldBright
-      : "rgba(155, 173, 185, 0.3)";
+  const potionCandidate = state.view === "battle" && state.potionTargeting && unit.side === "hero" && unit.hp > 0;
+  const canReceivePotion = potionCandidate && unit.hp < unit.maxHp;
+  const potionGlow = unit.potionFlash > 0;
+  context.lineWidth = isHit || isActing || canReceivePotion || potionGlow ? 3 : 1;
+  context.strokeStyle = potionGlow || canReceivePotion
+    ? COLORS.heal
+    : isHit
+      ? COLORS.danger
+      : isActing
+        ? COLORS.goldBright
+        : potionCandidate
+          ? "rgba(119, 203, 161, 0.25)"
+          : "rgba(155, 173, 185, 0.3)";
   context.stroke();
   const portraitSize = Math.min(rect.height - 14, rect.width * 0.44);
   if (unit.side === "hero") drawHeroImage(unit.hero, rect.x + 6, rect.y + 5, portraitSize);
@@ -1434,6 +1540,7 @@ function drawCombatUnit(unit, rect) {
   context.fillRect(bar.x, bar.y, bar.width, bar.height);
   context.fillStyle = unit.side === "hero" ? COLORS.heal : COLORS.danger;
   context.fillRect(bar.x, bar.y, bar.width * Math.max(0, unit.hp / unit.maxHp), bar.height);
+  if (canReceivePotion) addHit(rect, () => usePotionOn(unit));
 }
 
 function drawBattle() {
@@ -1442,15 +1549,25 @@ function drawBattle() {
   else drawBattleLandscape();
   drawCombatEffects();
   if (state.view !== "battle") return;
+  const potionRect = layoutMode === "portrait"
+    ? { x: 24, y: 1190, width: 162, height: 62 }
+    : { x: WIDTH - 686, y: HEIGHT - 74, width: 154, height: 48 };
   const fleeRect = layoutMode === "portrait"
-    ? { x: 166, y: 1190, width: 166, height: 62 }
+    ? { x: 194, y: 1190, width: 162, height: 62 }
     : { x: WIDTH - 520, y: HEIGHT - 74, width: 154, height: 48 };
   const pauseRect = layoutMode === "portrait"
-    ? { x: 348, y: 1190, width: 166, height: 62 }
+    ? { x: 364, y: 1190, width: 162, height: 62 }
     : { x: WIDTH - 354, y: HEIGHT - 74, width: 154, height: 48 };
   const speedRect = layoutMode === "portrait"
-    ? { x: 530, y: 1190, width: 166, height: 62 }
+    ? { x: 534, y: 1190, width: 162, height: 62 }
     : { x: WIDTH - 188, y: HEIGHT - 74, width: 154, height: 48 };
+  const hasWoundedHero = livingParty().some((unit) => unit.hp < unit.maxHp);
+  drawButton(potionRect, state.potionTargeting ? "CANCEL" : `POTION ×${state.potionsRemaining}`, {
+    accent: state.potionTargeting || (state.potionsRemaining > 0 && hasWoundedHero),
+    sublabel: state.potionTargeting ? "choose no one" : `${Math.round(state.potionHealRatio * 100)}% max health`,
+    enabled: state.potionTargeting || (state.potionsRemaining > 0 && hasWoundedHero),
+    action: togglePotionTargeting,
+  });
   drawButton(fleeRect, "FLEE", {
     danger: true,
     sublabel: `-${midBattleFleeCost()}g • ${manualFleeLevelChance()}% level-up`,
@@ -1465,7 +1582,8 @@ function drawBattle() {
       state.battleSpeed = state.battleSpeed === 1 ? 2 : 1;
     },
   });
-  if (state.battlePaused) drawPauseBanner();
+  if (state.potionTargeting) drawPotionTargetBanner();
+  else if (state.battlePaused) drawPauseBanner();
 }
 
 function toggleBattlePause() {
@@ -1486,6 +1604,25 @@ function drawPauseBanner() {
   context.fillStyle = COLORS.muted;
   context.font = `italic ${portrait ? 15 : 13}px Georgia`;
   context.fillText("Press P or tap Resume", rect.x + rect.width / 2, rect.y + (portrait ? 94 : 56));
+}
+
+function drawPotionTargetBanner() {
+  const portrait = layoutMode === "portrait";
+  const rect = portrait
+    ? { x: 120, y: 610, width: 480, height: 145 }
+    : { x: WIDTH / 2 - 180, y: HEIGHT - 220, width: 360, height: 78 };
+  drawPanel(rect, 1);
+  context.textAlign = "center";
+  context.fillStyle = COLORS.heal;
+  context.font = `small-caps 700 ${portrait ? 27 : 23}px Georgia`;
+  context.fillText("CHOOSE A WOUNDED HERO", rect.x + rect.width / 2, rect.y + (portrait ? 60 : 32));
+  context.fillStyle = COLORS.muted;
+  context.font = `italic ${portrait ? 15 : 13}px Georgia`;
+  context.fillText(
+    `Potion restores ${Math.round(state.potionHealRatio * 100)}% of maximum health`,
+    rect.x + rect.width / 2,
+    rect.y + (portrait ? 94 : 56),
+  );
 }
 
 function drawCombatEffects() {
@@ -1769,7 +1906,8 @@ window.render_game_to_text = () => {
     teamCapacity: teamCapacity(state.day),
     benchCapacity: benchLimit(),
     rerollCost: state.rerollCost,
-    offerLevelChances: offerLevelChances(state.day),
+    tavernLevel: state.buildings.tavern.level,
+    offerLevelChances: offerLevelChances(state.buildings.tavern.level),
     offerCount: state.offers.length,
     offers: state.offers.map(summarizeHero),
     bench: state.bench.map(summarizeHero),
@@ -1781,6 +1919,7 @@ window.render_game_to_text = () => {
           level: building.level,
           pathA: building.pathA,
           pathB: building.pathB,
+          utility: Boolean(BUILDING_DEFINITIONS[type].utility),
           core: BUILDING_DEFINITIONS[type].core(building.level),
           nextCost: buildingUpgradeCost(building.level),
           effects: buildingEffects(type, building),
@@ -1793,6 +1932,12 @@ window.render_game_to_text = () => {
     deepestFloor: state.deepestFloor,
     battleSpeed: state.battleSpeed,
     battlePaused: state.battlePaused,
+    potions: {
+      remaining: state.potionsRemaining,
+      healingPercent: Math.round(state.potionHealRatio * 100),
+      choosingTarget: state.potionTargeting,
+      replenishes: "at the start of each daily expedition",
+    },
     midBattleFleeCost: state.view === "battle" ? midBattleFleeCost() : null,
     manualFleeLevelChance: ["battle", "floor_result"].includes(state.view) ? manualFleeLevelChance() : null,
     battleTimeMs: Math.round(state.battleTime),
@@ -1836,7 +1981,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "T toggles Town and Contract Reel. Town buildings reset with each ten-day campaign. Manual Flee gives each eligible survivor an 80% level-up roll, minus 10 points per other fleeing hero; automatic retreat guarantees it. Select an offer to inspect it, then use Hire to recruit it for free. Tap/click cards and buttons. Mid-battle Flee costs half your current gold, rounded up. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
+    controls: "T toggles Town and Contract Reel. Town buildings reset with each ten-day campaign. During battle, select Potion and then a wounded hero; supplies replenish when the daily expedition begins. Tavern level controls contract level chances. Manual Flee gives each eligible survivor an 80% level-up roll, minus 10 points per other fleeing hero; automatic retreat guarantees it. Select an offer to inspect it, then use Hire to recruit it for free. Tap/click cards and buttons. Mid-battle Flee costs half your current gold, rounded up. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
   });
 };
 

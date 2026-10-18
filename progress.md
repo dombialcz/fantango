@@ -106,3 +106,16 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Added class-wide building effects for Knight damage reduction, Thief wounded-target damage, Bard buff strength and targets, Cleric healing, and Barbarian damage.
 - Town progress persists between daily expeditions and resets only when the ten-day campaign ends and a new campaign begins.
 - Added unit tests for town defaults, costs, caps, and upgrade-path effects, and browser-tested building purchases, combat integration, day-to-day persistence, campaign reset, and all responsive layouts with no console or page errors.
+
+## Vaultbound Alchemist and Tavern progression
+
+- Expanded the Mayor’s Quarter from seven to nine buildings with two pathless utility upgrades: the Alchemist and Tavern.
+- Added per-expedition healing supplies: Alchemist levels provide 1×20%, 2×20%, 3×20%, 3×33%, then 3×50% maximum-health potions. Supplies persist between floors and restock at the beginning of each daily expedition.
+- Added an explicit battle interaction on every layout: select Potion, choose a highlighted wounded hero, apply capped healing, consume one supply, and record the result in the battle log. Potion targeting works while combat is paused.
+- Moved higher-level contract probabilities entirely from campaign day to Tavern level. Existing offers remain unchanged; rerolls and future daily offers use the current Tavern odds.
+- Reworked the nine-building town into a 3×3 desktop grid, 5×2 compact-landscape grid, and two-page portrait layout.
+- Added unit coverage for all five Alchemist supply levels and the Tavern probability curve, then browser-tested Tavern upgrades/rerolls and potion targeting/healing on desktop and portrait mobile with no console or page errors.
+
+### Future tuning
+
+- Revisit whether potion supplies should replenish per daily expedition or per floor after playtesting; the current balance treats them as expedition-long resources.

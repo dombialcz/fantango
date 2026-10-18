@@ -48,7 +48,44 @@ export const BUILDING_DEFINITIONS = {
     pathA: { label: "WARDING", short: "+15% health" },
     pathB: { label: "QUICKEN", short: "+10% speed" },
   },
+  alchemist: {
+    name: "Alchemist",
+    classLabel: "Supplies",
+    utility: true,
+    glyph: "⚗",
+    color: "#71c9a5",
+    core: (level) => {
+      const supplies = alchemistSupplies(level);
+      return `${supplies.count} potion${supplies.count === 1 ? "" : "s"} • heal ${Math.round(supplies.healRatio * 100)}%`;
+    },
+  },
+  tavern: {
+    name: "Tavern",
+    classLabel: "Contracts",
+    utility: true,
+    glyph: "◆",
+    color: "#d7ae5d",
+    core: (level) => {
+      const odds = [
+        "level 1 contracts only",
+        "L2 10%",
+        "L2 20% → L3 10%",
+        "L2 30% → L3 15%",
+        "L2 40% → L3 20% → L4 10%",
+      ];
+      return odds[Math.max(1, Math.min(5, level)) - 1];
+    },
+  },
 };
+
+export function alchemistSupplies(level) {
+  const clamped = Math.max(1, Math.min(5, level));
+  if (clamped === 1) return { count: 1, healRatio: 0.2 };
+  if (clamped === 2) return { count: 2, healRatio: 0.2 };
+  if (clamped === 3) return { count: 3, healRatio: 0.2 };
+  if (clamped === 4) return { count: 3, healRatio: 0.33 };
+  return { count: 3, healRatio: 0.5 };
+}
 
 export function createTownBuildings() {
   return Object.fromEntries(
