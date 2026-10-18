@@ -72,7 +72,7 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
       <div class="town-header__right"><span class="town-day"></span><span class="town-gold"></span><button class="town-return" type="button" data-town-action="close">Prepare company <span aria-hidden="true">→</span></button></div>
     </header>
     <nav class="campaign-steps" aria-label="Daily expedition"><span aria-current="step"><b>01</b> Town</span><button type="button" data-town-action="close"><b>02</b> Company</button><span><b>03</b> Dungeon</span></nav>
-    <div class="town-intro"><div><span class="town-eyebrow">YOUR CITY. THEIR LAST SAFE HAVEN.</span><h1>The Mayor's Quarter</h1><p>Bring gold home. Give your heroes something to come back to.</p></div><span class="town-campaign"></span></div>
+    <div class="town-intro"><div><span class="town-eyebrow">YOUR CITY. THEIR LAST SAFE HAVEN.</span><h1></h1><p class="town-flavor"></p><ul class="town-traits"></ul></div><span class="town-campaign"></span></div>
     <div class="town-panorama"><div><span class="town-eyebrow">BEFORE THE GATES OPEN</span><h2>A little hope, on the edge of the dark.</h2><p class="town-roll-status"></p></div><button type="button" data-town-action="close">Prepare your company <span aria-hidden="true">→</span></button></div>
     <div class="town-layout">
       <section class="town-districts" aria-label="Town districts">
@@ -152,7 +152,17 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
         return;
       }
       snapshot = next;
-      const nextSignature = JSON.stringify([next.day, next.gold, next.flavorName, next.message, next.buildings, next.rolledToday]);
+      root.querySelector("h1").textContent = next.town.name;
+      root.setAttribute("aria-label", next.town.name);
+      root.querySelector(".town-flavor").textContent = next.town.flavor;
+      const traits = root.querySelector(".town-traits");
+      if (traits.dataset.town !== next.town.name) {
+        traits.replaceChildren(...next.town.bonuses.map((bonus) => {
+          const item = document.createElement("li"); item.textContent = bonus; return item;
+        }));
+        traits.dataset.town = next.town.name;
+      }
+      const nextSignature = JSON.stringify([next.day, next.gold, next.flavorName, next.message, next.buildings, next.rolledToday, next.town]);
       if (nextSignature === signature && wasVisible) return;
       signature = nextSignature;
       root.querySelector(".town-day").textContent = `DAY ${next.day} / 10`;

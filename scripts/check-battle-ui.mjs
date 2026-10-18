@@ -9,7 +9,7 @@ await mkdir("output/battle-ui", { recursive: true });
 
 async function battle(classes, viewport = { width: 1440, height: 1000 }) {
   const context = await browser.newContext({ viewport });
-  const sequence = [.05];
+  const sequence = [.05, .05, .05, .05, .05];
   for (let index = 0; index < 5; index += 1) sequence.push(rolls[classes[index] ?? classes.at(-1)], .05);
   await context.addInitScript((values) => { let index = 0; Math.random = () => values[index++] ?? .05; }, sequence);
   const page = await context.newPage();

@@ -220,3 +220,8 @@ body.town-open > .sidegame-link { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .town-screen *, .town-screen *::before { transition: none !important; scroll-behavior: auto !important; }
 }
+
+.town-intro > div { min-width: 0; }
+.town-intro h1 { overflow-wrap: anywhere; }
+.town-traits { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 0; margin: 12px 0 0; list-style: none; color: #d7c599; font-size: 12px; line-height: 1.5; }
+.town-traits li::before { content: "✦ "; color: #bfa067; }

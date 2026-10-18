@@ -1,3 +1,4 @@
+import { createTownIdentity, townHeroEffects, rollTownClass, townRollCost } from "./town-identity.js";
 import { offerLevelChances, rollOfferLevel } from "./hero-offers.js";
 import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
 import { BOSS_FLOOR, floorGoldReward, isBossFloor } from "./dungeon-progression.js";
@@ -197,15 +198,18 @@ function makeHero(type = randomItem(HERO_KEYS), tavernLevel = 1) {
 }
 
 function rollHeroes(count, tavernLevel = 1) {
-  return Array.from({ length: count }, () => makeHero(randomItem(HERO_KEYS), tavernLevel));
+  return Array.from({ length: count }, () => makeHero(rollTownClass(HERO_KEYS, state.town), tavernLevel));
 }
 
 function createCampaign() {
   const buildings = createTownBuildings();
+  const town = createTownIdentity();
   return {
     view: "town",
     day: 1,
-    gold: 10,
+    gold: 10 + (town.prefix.gold ?? 0) + (town.settlement.dailyGold ?? 0),
+    town,
+    freeRerollsRemaining: town.settlement.freeRerolls ?? 0,
     flavorKey: randomItem(Object.keys(FLAVORS)),
     deepestFloor: 0,
     victoryAchieved: false,
@@ -401,13 +405,14 @@ function selectOffer(index) {
 
 function rerollOffers() {
   if (state.view !== "tavern" || state.rollRemainingMs > 0) return;
-  const cost = state.rolledToday ? state.rerollCost : 0;
+  const cost = townRollCost(state);
   if (state.gold < cost) {
     state.message = `You need ${cost} gold for the next spin.`;
     return;
   }
   state.gold -= cost;
-  if (state.rolledToday) state.rerollCost += 1;
+  if (state.rolledToday && state.freeRerollsRemaining > 0) state.freeRerollsRemaining -= 1;
+  else if (cost > 0) state.rerollCost += 1;
   state.rolledToday = true;
   state.rollRemainingMs = 1300;
   state.offers = rollHeroes(offerCount(state.day), state.buildings.tavern.level);
@@ -472,10 +477,14 @@ function startExpedition() {
   prepareFloor();
 }
 
+function heroEffects(type) {
+  return townHeroEffects(type, buildingEffects(type, state.buildings[type]), state.town);
+}
+
 function buildParty(heroes) {
   const buffAmounts = new Map(heroes.map((hero) => [hero.id, 0]));
   for (const bard of heroes.filter((hero) => hero.type === "bard")) {
-    const effects = buildingEffects("bard", state.buildings.bard);
+    const effects = heroEffects("bard");
     const available = heroes.filter((hero) => hero.type !== "bard");
     for (let index = 0; index < effects.bardTargets && available.length; index += 1) {
       const targetIndex = Math.floor(Math.random() * available.length);
@@ -486,7 +495,7 @@ function buildParty(heroes) {
 
   return heroes.map((hero) => {
     const definition = HERO_TYPES[hero.type];
-    const effects = buildingEffects(hero.type, state.buildings[hero.type]);
+    const effects = heroEffects(hero.type);
     const buffAmount = buffAmounts.get(hero.id) ?? 0;
     const power = heroPower(hero.level) * (1 + buffAmount);
     const maxHp = Math.round(power * definition.hp * effects.healthMultiplier);
@@ -749,6 +758,13 @@ function dealDamage(target, amount, source) {
   if (target.side === "hero" && state.divineAegisMs > 0) {
     target.flash = 240;
     return 0;
+  }
+  if (target.side === "hero" && typeof source === "object" && source.side === "enemy") {
+    if (state.town.prefix.evasion && Math.random() < state.town.prefix.evasion) {
+      logBattle(`${target.label} evades the attack.`);
+      return 0;
+    }
+    amount *= state.town.prefix.enemyDamage ?? 1;
   }
   const critical = typeof source === "object"
     && source.side === "hero"
@@ -1075,6 +1091,8 @@ function fleeMidBattle() {
 function advanceDay() {
   if (state.view !== "day_result") return;
   state.day += 1;
+  state.gold += state.town.settlement.dailyGold ?? 0;
+  state.freeRerollsRemaining = state.town.settlement.freeRerolls ?? 0;
   const survivors = state.party.map((unit) => unit.hero);
   const reserves = state.bench.filter((hero) => !state.expeditionStartIds.includes(hero.id));
   for (const hero of survivors) {
@@ -1134,6 +1152,7 @@ function render() {
   townView.render({
     visible: townVisible,
     buildings: state.buildings,
+    town: state.town,
     gold: state.gold,
     day: state.day,
     flavorName: currentFlavor().name,
@@ -1144,7 +1163,7 @@ function render() {
   battleView.render(battleVisible ? battlePresentation() : { visible: false });
   const presentHero = (hero) => {
     const definition = HERO_TYPES[hero.type];
-    const effects = buildingEffects(hero.type, state.buildings[hero.type]);
+    const effects = heroEffects(hero.type);
     const power = heroPower(hero.level);
     let summary = definition.summary;
     if (hero.type === "mage") summary = `Strikes up to ${effects.mageTargets} different enemies per attack, starting in the back row. Spell targets come from the Mage Guild.`;
@@ -1154,7 +1173,7 @@ function render() {
   rosterView.render(state.view === "tavern" ? {
     visible: true, day: state.day, gold: state.gold, flavor: currentFlavor().name,
     rolledToday: state.rolledToday, rollRemainingMs: state.rollRemainingMs,
-    rerollCost: state.rerollCost, dailyOffers: offerCount(state.day),
+    rerollCost: state.rerollCost, nextRollCost: townRollCost(state), freeRerollsRemaining: state.freeRerollsRemaining, dailyOffers: offerCount(state.day),
     tavernLevel: state.buildings.tavern.level, odds: offerLevelOddsText().replace(/^Tavern L\d+: /, ""),
     offers: state.rollRemainingMs > 0 ? [] : state.offers.map(presentHero),
     bench: state.bench.map(presentHero), selectedHeroId: state.selectedHeroId, selectedOfferId: state.selectedOfferId,
@@ -1304,7 +1323,9 @@ window.render_game_to_text = () => {
     rerollCost: state.rerollCost,
     rolledToday: state.rolledToday,
     rollRemainingMs: Math.ceil(state.rollRemainingMs),
-    nextRollCost: state.rolledToday ? state.rerollCost : 0,
+    nextRollCost: townRollCost(state),
+    freeRerollsRemaining: state.freeRerollsRemaining,
+    town: state.town,
     dailyOfferCount: offerCount(state.day),
     tavernLevel: state.buildings.tavern.level,
     offerLevelChances: offerLevelChances(state.buildings.tavern.level),
