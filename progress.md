@@ -167,3 +167,4 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Added persistent English/Polish switching for page copy, class names, clue text, party titles, difficulty labels, date formatting, and screen-reader labels.
 - Moved all English and Polish party-name parts into `src/mastermind-names.js`, imported by both the generator and UI modules.
 - Visually reviewed English and Polish layouts at desktop and 320/390px mobile widths; the seven-slot board fits without horizontal overflow and all hero portraits load.
+- Replaced the generic PAIR/TRIO/SINGLE labels on clue cards with the corresponding thematic party-name terms (for example, “of Coin”), leaving the exact hero-count explanation beneath them. Applied the same behavior to Polish.

@@ -39,9 +39,6 @@ const COPY = {
     playFantango: "Play Fantango",
     dailyFooter: "A new code every day · Three challenges",
     ruleNote: "No prefix means no pair. No class appears four times; each named duplicate is exact, and every other hero is a singleton.",
-    pair: "PAIR",
-    trio: "TRIO",
-    single: "SINGLE",
     exactCount: (count) => `Exactly ${count}`,
     rowLabel: (number) => `Guess ${number}`,
     emptyPlace: (place) => `Place ${place}, empty`,
@@ -97,9 +94,6 @@ const COPY = {
     playFantango: "Zagraj w Fantango",
     dailyFooter: "Nowy kod każdego dnia · Trzy wyzwania",
     ruleNote: "Brak przedrostka oznacza brak pary. Żadna klasa nie występuje cztery razy; wskazane duplikaty są dokładne, a pozostałe klasy pojawiają się pojedynczo.",
-    pair: "PARA",
-    trio: "TRÓJKA",
-    single: "JEDEN",
     exactCount: (count) => `Dokładnie ${count}×`,
     rowLabel: (number) => `Próba ${number}`,
     emptyPlace: (place) => `Miejsce ${place}, puste`,
@@ -331,7 +325,7 @@ function makeCluePart(clue) {
   text.className = "clue-text";
   const kind = document.createElement("span");
   kind.className = "clue-kind";
-  kind.textContent = strings[clue.kind];
+  kind.textContent = PARTY_NAMES[state.locale][clue.kind][clue.type];
   const title = document.createElement("strong");
   title.textContent = localizedHero(clue.type);
   const exact = document.createElement("small");
