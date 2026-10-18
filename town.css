@@ -87,15 +87,7 @@ body.town-open > .sidegame-link { display: none; }
 .town-district__top { display: flex; align-items: center; justify-content: space-between; color: var(--district-color); font: 8px/1.5 Arial, sans-serif; letter-spacing: 0.12em; }
 .town-district__level { color: #b9b4a8; letter-spacing: 0.04em; }
 .town-art { position: relative; display: block; width: 100%; aspect-ratio: 1; pointer-events: none; }
-.town-art__ghost,
-.town-art__revealed { position: absolute; inset: 0; background-image: url("assets/town/buildings-atlas.webp"); background-size: 300% 300%; background-position: var(--atlas-x) var(--atlas-y); background-repeat: no-repeat; }
-.town-art__ghost { filter: grayscale(1) brightness(0.75); opacity: 0.23; }
-@property --reveal-top { syntax: "<percentage>"; inherits: false; initial-value: 32%; }
-.town-art__revealed { --reveal-top: 32%; mask-image: linear-gradient(to bottom, transparent calc(var(--reveal-top) - 7%), #000 calc(var(--reveal-top) + 8%)); filter: saturate(0.88); transition: --reveal-top 700ms ease, filter 700ms ease; }
-.town-art[data-stage="2"] .town-art__revealed { --reveal-top: 24%; }
-.town-art[data-stage="3"] .town-art__revealed { --reveal-top: 16%; }
-.town-art[data-stage="4"] .town-art__revealed { --reveal-top: 8%; }
-.town-art[data-stage="5"] .town-art__revealed { --reveal-top: -8%; filter: saturate(1.08) brightness(1.06); }
+.town-art__image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
 .town-district > .town-art { width: clamp(115px, 14vh, 170px); max-width: 100%; align-self: center; margin: -4px 0 -6px; }
 .town-district__name { display: block; margin: 5px 0 10px; color: #e4d7bc; font-size: clamp(14px, 1.25vw, 18px); font-weight: 400; white-space: nowrap; }
 .town-district__bottom { display: flex; align-items: center; justify-content: space-between; gap: 6px; }

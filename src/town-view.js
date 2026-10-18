@@ -1,8 +1,7 @@
 import { BUILDING_DEFINITIONS, buildingUpgradeCost } from "./town.js";
 
-const ATLAS_ORDER = ["knight", "thief", "bard", "cleric", "barbarian", "ranger", "mage", "alchemist", "tavern"];
 const DISTRICT_ORDER = ["knight", "ranger", "mage", "thief", "tavern", "cleric", "barbarian", "bard", "alchemist"];
-const STAGES = ["Foundations", "Established", "Expanded", "Fortified", "Fully restored"];
+const STAGES = ["Humble beginnings", "Established", "Expanded", "Fortified", "Fully restored"];
 const DISTRICTS = {
   knight: { color: "#a4bac8", title: "A shield at the city gates", copy: "The watch trains here. Invest in the Knights who stand between your company and the dark.", command: "Hold the Line strengthens front-row armor and damage. More living Knights strengthen both bonuses." },
   thief: { color: "#91a7d0", title: "Fortunes favor the unseen", copy: "Behind an unmarked door, the city's quietest professionals sharpen their trade.", command: "Pilfer reserves extra gold for a cleared floor. More living Thieves secure a larger haul." },
@@ -16,9 +15,8 @@ const DISTRICTS = {
 };
 
 function artMarkup(type, level) {
-  const index = ATLAS_ORDER.indexOf(type);
-  return `<span class="town-art" data-stage="${level}" style="--atlas-x:${(index % 3) * 50}%;--atlas-y:${Math.floor(index / 3) * 50}%" aria-hidden="true">
-    <span class="town-art__ghost"></span><span class="town-art__revealed"></span>
+  return `<span class="town-art" data-stage="${level}" aria-hidden="true">
+    <img class="town-art__image" src="assets/town/levels/${type}-${level}.webp" alt="" decoding="async"/>
   </span>`;
 }
 
@@ -65,7 +63,6 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
   let selectedType = "tavern";
   let snapshot = null;
   let signature = "";
-  let inspectorType = null;
   let mobileTrigger = null;
   const mobile = window.matchMedia("(max-width: 760px)");
   root.innerHTML = `<div class="town-shell">
@@ -99,19 +96,9 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
   function updateInspector() {
     if (!snapshot) return;
     const activePath = root.contains(document.activeElement) ? document.activeElement.dataset.path : null;
-    const previousStage = inspectorType === selectedType ? inspector.querySelector(".town-art")?.dataset.stage : null;
     const markup = inspectorMarkup(selectedType, snapshot);
     inspector.innerHTML = markup;
     sheetContent.innerHTML = markup;
-    inspectorType = selectedType;
-    if (previousStage && previousStage !== String(snapshot.buildings[selectedType].level)) {
-      const nextStage = String(snapshot.buildings[selectedType].level);
-      const artwork = [inspector.querySelector(".town-art"), sheetContent.querySelector(".town-art")];
-      for (const art of artwork) art.dataset.stage = previousStage;
-      requestAnimationFrame(() => {
-        for (const art of artwork) art.dataset.stage = nextStage;
-      });
-    }
     if (activePath !== null && activePath !== undefined) {
       const container = sheet.open ? sheetContent : inspector;
       container.querySelector(`[data-path="${activePath}"]`)?.focus({ preventScroll: true });
@@ -177,7 +164,11 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
         const cost = buildingUpgradeCost(building.level);
         card.setAttribute("aria-pressed", String(type === selectedType));
         card.setAttribute("aria-label", `${BUILDING_DEFINITIONS[type].name}, level ${building.level} of 5. Inspect district.`);
-        card.querySelector(".town-art").dataset.stage = building.level;
+        const art = card.querySelector(".town-art");
+        if (art.dataset.stage !== String(building.level)) {
+          art.dataset.stage = building.level;
+          art.querySelector("img").src = `assets/town/levels/${type}-${building.level}.webp`;
+        }
         card.querySelector(".town-district__level").textContent = `LV ${building.level}`;
         card.querySelectorAll(".town-pips i").forEach((pip, index) => pip.classList.toggle("is-built", index < building.level));
         card.querySelector(".town-district__cost").textContent = cost === null ? "Complete" : `${cost}g to improve`;

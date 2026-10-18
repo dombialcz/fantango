@@ -178,3 +178,14 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Kept both existing upgrade paths, utility upgrades, 3/6/9/12 gold costs, level caps, class-command descriptions, and campaign reset behavior. Town selection only opens inspection; purchases are explicit.
 - Browser-verified every district, both class upgrade paths, all five art stages, all nine maximum-level buildings, utility purchases, return-to-tavern state preservation, campaign reset, and no horizontal overflow at 320/390px phone, laptop, desktop, and short landscape sizes. Existing 19-test suite passes.
 - Saved the final generation prompt and asset workflow in `assets/town/ART_DIRECTION.md`.
+
+## 2026-10-18 — Distinct building levels and illustrated battle command deck
+
+- Replaced the town's masked single-image levels with 45 distinct building images. Generated 36 individual earlier-stage buildings against the original style reference and retained the nine fully developed buildings as level five.
+- Generated seven individual command paintings: Hold the Line, Pilfer, Rally, Divine Aegis, Bloodlust, Mark Prey, and Time Freeze. Optimized all 52 runtime assets to WebP (~2.8 MB total) and saved every new prompt and delivered asset path in `assets/ART_PROMPTS.json`.
+- Added `scripts/prepare-game-art.mjs` for repeatable image packaging without new runtime libraries.
+- Replaced the battle's canvas presentation with responsive HTML formation rows, clear HP bars, strike trails, a docked shared resource meter, seven always-visible illustrated command buttons, effect timers, and inspectable unavailable commands. Removed the command-popup workflow and the obsolete canvas battle drawing code.
+- Added keyboard commands 1–7 and Esc to cancel targeting. Kept potion targeting, pause/speed, mid-fight Flee, safe retreat, survivor leveling, and the combat simulation intact.
+- Battle results occupy their own center section, freeing the command deck's space so the company and remaining health stay visible.
+- Added `scripts/check-battle-ui.mjs`, covering all seven commands, all-button visibility at desktop/390px/320px/short-landscape sizes, freeze and Aegis timing, paused command use, mark cancellation and ranged targeting, Bloodlust sacrifice, delayed Pilfer payout, and continuing to a new floor.
+- Visually reviewed every building image in five-level contact sheets and all command paintings; verified all 45 building-image swaps, both class upgrade paths, utility upgrades, gold costs, and level caps on desktop and mobile. Verified paused potion targeting, mid-fight retreat cost, and next-day navigation with no page or console errors.

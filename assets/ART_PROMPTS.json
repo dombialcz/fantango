@@ -1,0 +1,392 @@
+{
+  "mode": "built-in image generation",
+  "reference": "assets/town/buildings-master.png",
+  "generated": [
+    {
+      "id": "knight-1",
+      "kind": "building",
+      "type": "knight",
+      "level": 1,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Knight Barracks, LEVEL 1 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the top left building as the target's final identity. Generate ONE Knight Barracks at an earlier stage of development.\nExact building for this level: A tiny one-storey stone guard hut with one blue pennant, a wooden training dummy and a low fence. No tower, no castle.\nMaintain weathered gray stone, blue pennants, shield emblems. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/knight-1.webp"
+    },
+    {
+      "id": "knight-2",
+      "kind": "building",
+      "type": "knight",
+      "level": 2,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Knight Barracks, LEVEL 2 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the top left building as the target's final identity. Generate ONE Knight Barracks at an earlier stage of development.\nExact building for this level: A modest stone watch house with a short wooden lookout platform and small training yard. No tall turret.\nMaintain weathered gray stone, blue pennants, shield emblems. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/knight-2.webp"
+    },
+    {
+      "id": "knight-3",
+      "kind": "building",
+      "type": "knight",
+      "level": 3,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Knight Barracks, LEVEL 3 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the top left building as the target's final identity. Generate ONE Knight Barracks at an earlier stage of development.\nExact building for this level: A compact stone gatehouse with one squat crenellated turret, a blue banner and enclosed training yard.\nMaintain weathered gray stone, blue pennants, shield emblems. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/knight-3.webp"
+    },
+    {
+      "id": "knight-4",
+      "kind": "building",
+      "type": "knight",
+      "level": 4,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Knight Barracks, LEVEL 4 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the top left building as the target's final identity. Generate ONE Knight Barracks at an earlier stage of development.\nExact building for this level: A strong fortified stone barracks with the squat central turret, an attached hall, battlements and a blue-bannered gate. Slightly simpler than the reference final fortress.\nMaintain weathered gray stone, blue pennants, shield emblems. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/knight-4.webp"
+    },
+    {
+      "id": "thief-1",
+      "kind": "building",
+      "type": "thief",
+      "level": 1,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Thieves Guild, LEVEL 1 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the top middle building as the target's final identity. Generate ONE Thieves Guild at an earlier stage of development.\nExact building for this level: A small, low, one-room timber hideout with a slate lean-to roof, discreet side door and one chest.\nMaintain aged timber, charcoal blue slate roofs, brass coin or chest motif, secret doors. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/thief-1.webp"
+    },
+    {
+      "id": "thief-2",
+      "kind": "building",
+      "type": "thief",
+      "level": 2,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Thieves Guild, LEVEL 2 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the top middle building as the target's final identity. Generate ONE Thieves Guild at an earlier stage of development.\nExact building for this level: A modest two-storey timber hideout with a slate gable roof, tiny balcony and a secret side door.\nMaintain aged timber, charcoal blue slate roofs, brass coin or chest motif, secret doors. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/thief-2.webp"
+    },
+    {
+      "id": "thief-3",
+      "kind": "building",
+      "type": "thief",
+      "level": 3,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Thieves Guild, LEVEL 3 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the top middle building as the target's final identity. Generate ONE Thieves Guild at an earlier stage of development.\nExact building for this level: A crooked timber guildhouse with an attic lookout, rear stair, lantern and attached concealed storage shed.\nMaintain aged timber, charcoal blue slate roofs, brass coin or chest motif, secret doors. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/thief-3.webp"
+    },
+    {
+      "id": "thief-4",
+      "kind": "building",
+      "type": "thief",
+      "level": 4,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Thieves Guild, LEVEL 4 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the top middle building as the target's final identity. Generate ONE Thieves Guild at an earlier stage of development.\nExact building for this level: An elaborate timber guildhouse with a short attic tower, blue slate roofs, walled side passage and chest emblem; slightly smaller than the reference final building.\nMaintain aged timber, charcoal blue slate roofs, brass coin or chest motif, secret doors. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/thief-4.webp"
+    },
+    {
+      "id": "bard-1",
+      "kind": "building",
+      "type": "bard",
+      "level": 1,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Bard College, LEVEL 1 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the top right building as the target's final identity. Generate ONE Bard College at an earlier stage of development.\nExact building for this level: A tiny timber rehearsal cottage with a red fabric awning and a lute hanging by the door.\nMaintain warm half timber and stone, burgundy roofs and canopy, lute emblem. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/bard-1.webp"
+    },
+    {
+      "id": "bard-2",
+      "kind": "building",
+      "type": "bard",
+      "level": 2,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Bard College, LEVEL 2 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the top right building as the target's final identity. Generate ONE Bard College at an earlier stage of development.\nExact building for this level: A welcoming timber music house with burgundy gabled roof and a small courtyard stage.\nMaintain warm half timber and stone, burgundy roofs and canopy, lute emblem. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/bard-2.webp"
+    },
+    {
+      "id": "bard-3",
+      "kind": "building",
+      "type": "bard",
+      "level": 3,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Bard College, LEVEL 3 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the top right building as the target's final identity. Generate ONE Bard College at an earlier stage of development.\nExact building for this level: A stone-and-timber music hall with burgundy canopy, lute emblem and one small practice wing.\nMaintain warm half timber and stone, burgundy roofs and canopy, lute emblem. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/bard-3.webp"
+    },
+    {
+      "id": "bard-4",
+      "kind": "building",
+      "type": "bard",
+      "level": 4,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Bard College, LEVEL 4 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the top right building as the target's final identity. Generate ONE Bard College at an earlier stage of development.\nExact building for this level: An elegant music college with a modest round tower, burgundy roofs, courtyard stage and attached practice rooms; less grand than the final reference.\nMaintain warm half timber and stone, burgundy roofs and canopy, lute emblem. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/bard-4.webp"
+    },
+    {
+      "id": "cleric-1",
+      "kind": "building",
+      "type": "cleric",
+      "level": 1,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Cleric Temple, LEVEL 1 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the middle left building as the target's final identity. Generate ONE Cleric Temple at an earlier stage of development.\nExact building for this level: A tiny ivory-stone shrine with a simple blue pitched roof, small gold sun above the door and two candles. No bell tower.\nMaintain ivory stone, blue roof, golden sun emblem, warm candle light. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/cleric-1.webp"
+    },
+    {
+      "id": "cleric-2",
+      "kind": "building",
+      "type": "cleric",
+      "level": 2,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Cleric Temple, LEVEL 2 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the middle left building as the target's final identity. Generate ONE Cleric Temple at an earlier stage of development.\nExact building for this level: A small stone chapel with a blue gabled roof and modest wooden bell frame.\nMaintain ivory stone, blue roof, golden sun emblem, warm candle light. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/cleric-2.webp"
+    },
+    {
+      "id": "cleric-3",
+      "kind": "building",
+      "type": "cleric",
+      "level": 3,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Cleric Temple, LEVEL 3 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the middle left building as the target's final identity. Generate ONE Cleric Temple at an earlier stage of development.\nExact building for this level: A medium ivory-stone chapel with a short blue-roofed bell tower, golden sun and small side sanctuary.\nMaintain ivory stone, blue roof, golden sun emblem, warm candle light. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/cleric-3.webp"
+    },
+    {
+      "id": "cleric-4",
+      "kind": "building",
+      "type": "cleric",
+      "level": 4,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Cleric Temple, LEVEL 4 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the middle left building as the target's final identity. Generate ONE Cleric Temple at an earlier stage of development.\nExact building for this level: An elegant temple with one bell tower, blue-roofed sanctuary, candlelit arched door and a side chapel; less ornate than the reference final temple.\nMaintain ivory stone, blue roof, golden sun emblem, warm candle light. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/cleric-4.webp"
+    },
+    {
+      "id": "barbarian-1",
+      "kind": "building",
+      "type": "barbarian",
+      "level": 1,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Barbarian Fighting Pit, LEVEL 1 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the middle center building as the target's final identity. Generate ONE Barbarian Fighting Pit at an earlier stage of development.\nExact building for this level: A tiny dirt sparring ring surrounded by a low rough wooden fence, two red pennants and a simple timber gate. No tall walls.\nMaintain rugged circular timber-and-stone arena, red banners, horned gate, amber braziers. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/barbarian-1.webp"
+    },
+    {
+      "id": "barbarian-2",
+      "kind": "building",
+      "type": "barbarian",
+      "level": 2,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Barbarian Fighting Pit, LEVEL 2 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the middle center building as the target's final identity. Generate ONE Barbarian Fighting Pit at an earlier stage of development.\nExact building for this level: A small oval training pit with a waist-high stone wall, wooden gate and two modest braziers.\nMaintain rugged circular timber-and-stone arena, red banners, horned gate, amber braziers. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/barbarian-2.webp"
+    },
+    {
+      "id": "barbarian-3",
+      "kind": "building",
+      "type": "barbarian",
+      "level": 3,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Barbarian Fighting Pit, LEVEL 3 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the middle center building as the target's final identity. Generate ONE Barbarian Fighting Pit at an earlier stage of development.\nExact building for this level: A circular stone fighting pit with a timber palisade, horned gate and red banners, one small seating platform.\nMaintain rugged circular timber-and-stone arena, red banners, horned gate, amber braziers. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/barbarian-3.webp"
+    },
+    {
+      "id": "barbarian-4",
+      "kind": "building",
+      "type": "barbarian",
+      "level": 4,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Barbarian Fighting Pit, LEVEL 4 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the middle center building as the target's final identity. Generate ONE Barbarian Fighting Pit at an earlier stage of development.\nExact building for this level: A fortified circular arena with tall stone walls, red canopy, horned gate and braziers; slightly simpler than the final reference arena.\nMaintain rugged circular timber-and-stone arena, red banners, horned gate, amber braziers. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/barbarian-4.webp"
+    },
+    {
+      "id": "ranger-1",
+      "kind": "building",
+      "type": "ranger",
+      "level": 1,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Hunter's Lodge, LEVEL 1 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the middle right building as the target's final identity. Generate ONE Hunter's Lodge at an earlier stage of development.\nExact building for this level: A tiny timber tracker cabin with a simple forest-green roof, antlers above the door and one archery target. No tower.\nMaintain aged timber, forest green roofs, antlers, archery targets and spruce trees. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/ranger-1.webp"
+    },
+    {
+      "id": "ranger-2",
+      "kind": "building",
+      "type": "ranger",
+      "level": 2,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Hunter's Lodge, LEVEL 2 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the middle right building as the target's final identity. Generate ONE Hunter's Lodge at an earlier stage of development.\nExact building for this level: A modest green-roofed timber hunter cabin with a covered porch and a little spruce tree.\nMaintain aged timber, forest green roofs, antlers, archery targets and spruce trees. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/ranger-2.webp"
+    },
+    {
+      "id": "ranger-3",
+      "kind": "building",
+      "type": "ranger",
+      "level": 3,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Hunter's Lodge, LEVEL 3 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the middle right building as the target's final identity. Generate ONE Hunter's Lodge at an earlier stage of development.\nExact building for this level: A timber lodge with green gables, antler emblem, two archery targets, and a low lookout platform.\nMaintain aged timber, forest green roofs, antlers, archery targets and spruce trees. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/ranger-3.webp"
+    },
+    {
+      "id": "ranger-4",
+      "kind": "building",
+      "type": "ranger",
+      "level": 4,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Hunter's Lodge, LEVEL 4 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the middle right building as the target's final identity. Generate ONE Hunter's Lodge at an earlier stage of development.\nExact building for this level: A substantial green-roofed lodge with a taller wooden lookout tower, archery yard and spruce trees; slightly simpler than the final reference lodge.\nMaintain aged timber, forest green roofs, antlers, archery targets and spruce trees. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/ranger-4.webp"
+    },
+    {
+      "id": "mage-1",
+      "kind": "building",
+      "type": "mage",
+      "level": 1,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Mage Guild, LEVEL 1 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the bottom left building as the target's final identity. Generate ONE Mage Guild at an earlier stage of development.\nExact building for this level: A tiny one-storey stone wizard study with a simple indigo roof and one small violet crystal in a window. No tall tower.\nMaintain gray stone, indigo roofs, violet magical crystals and windows, bronze trim. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/mage-1.webp"
+    },
+    {
+      "id": "mage-2",
+      "kind": "building",
+      "type": "mage",
+      "level": 2,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Mage Guild, LEVEL 2 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the bottom left building as the target's final identity. Generate ONE Mage Guild at an earlier stage of development.\nExact building for this level: A short two-storey round stone study tower with an indigo cone roof and modest violet lamp.\nMaintain gray stone, indigo roofs, violet magical crystals and windows, bronze trim. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/mage-2.webp"
+    },
+    {
+      "id": "mage-3",
+      "kind": "building",
+      "type": "mage",
+      "level": 3,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Mage Guild, LEVEL 3 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the bottom left building as the target's final identity. Generate ONE Mage Guild at an earlier stage of development.\nExact building for this level: A taller arcane stone tower with indigo roofs, a small attached library and one violet crystal at its top.\nMaintain gray stone, indigo roofs, violet magical crystals and windows, bronze trim. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/mage-3.webp"
+    },
+    {
+      "id": "mage-4",
+      "kind": "building",
+      "type": "mage",
+      "level": 4,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Mage Guild, LEVEL 4 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the bottom left building as the target's final identity. Generate ONE Mage Guild at an earlier stage of development.\nExact building for this level: An elegant multi-storey arcane tower with indigo roofs, a glowing violet crystal and a domed library wing; slightly less grand than the final reference.\nMaintain gray stone, indigo roofs, violet magical crystals and windows, bronze trim. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/mage-4.webp"
+    },
+    {
+      "id": "alchemist-1",
+      "kind": "building",
+      "type": "alchemist",
+      "level": 1,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Alchemist, LEVEL 1 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the bottom middle building as the target's final identity. Generate ONE Alchemist at an earlier stage of development.\nExact building for this level: A tiny crooked timber apothecary hut with a green roof, a small brass chimney, teal bottle by the door and herb boxes. No glasshouse.\nMaintain crooked timber, green copper roofs, brass chimney, teal bottles and glasshouse. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/alchemist-1.webp"
+    },
+    {
+      "id": "alchemist-2",
+      "kind": "building",
+      "type": "alchemist",
+      "level": 2,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Alchemist, LEVEL 2 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the bottom middle building as the target's final identity. Generate ONE Alchemist at an earlier stage of development.\nExact building for this level: A modest green-roofed apothecary cottage with a brass still on the side and teal potion bottles.\nMaintain crooked timber, green copper roofs, brass chimney, teal bottles and glasshouse. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/alchemist-2.webp"
+    },
+    {
+      "id": "alchemist-3",
+      "kind": "building",
+      "type": "alchemist",
+      "level": 3,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Alchemist, LEVEL 3 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the bottom middle building as the target's final identity. Generate ONE Alchemist at an earlier stage of development.\nExact building for this level: A larger apothecary with green copper roof, brass chimney, herb garden and small attached glasshouse.\nMaintain crooked timber, green copper roofs, brass chimney, teal bottles and glasshouse. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/alchemist-3.webp"
+    },
+    {
+      "id": "alchemist-4",
+      "kind": "building",
+      "type": "alchemist",
+      "level": 4,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Alchemist, LEVEL 4 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the bottom middle building as the target's final identity. Generate ONE Alchemist at an earlier stage of development.\nExact building for this level: An elaborate green-roofed alchemist house with a brass still tower, teal potion light and a rounded glasshouse; slightly simpler than the final reference.\nMaintain crooked timber, green copper roofs, brass chimney, teal bottles and glasshouse. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/alchemist-4.webp"
+    },
+    {
+      "id": "tavern-1",
+      "kind": "building",
+      "type": "tavern",
+      "level": 1,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Tavern, LEVEL 1 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the bottom right building as the target's final identity. Generate ONE Tavern at an earlier stage of development.\nExact building for this level: A tiny one-storey roadside tavern with a red-brown gable roof, warm amber door, two barrels and a tankard sign. No upper floors.\nMaintain warm half timber, red-brown roof tiles, amber windows, hanging tankard sign. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/tavern-1.webp"
+    },
+    {
+      "id": "tavern-2",
+      "kind": "building",
+      "type": "tavern",
+      "level": 2,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Tavern, LEVEL 2 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the bottom right building as the target's final identity. Generate ONE Tavern at an earlier stage of development.\nExact building for this level: A modest half-timber inn with a red-brown roof, two floors, warm windows and a small porch.\nMaintain warm half timber, red-brown roof tiles, amber windows, hanging tankard sign. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/tavern-2.webp"
+    },
+    {
+      "id": "tavern-3",
+      "kind": "building",
+      "type": "tavern",
+      "level": 3,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Tavern, LEVEL 3 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the bottom right building as the target's final identity. Generate ONE Tavern at an earlier stage of development.\nExact building for this level: A welcoming two-storey inn with red-brown tiled gables, tankard sign, lanterns and a small stable wing.\nMaintain warm half timber, red-brown roof tiles, amber windows, hanging tankard sign. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/tavern-3.webp"
+    },
+    {
+      "id": "tavern-4",
+      "kind": "building",
+      "type": "tavern",
+      "level": 4,
+      "prompt": "Use case: stylized-concept. Asset: ONE individual transparent isometric game building sprite for Vaultbound, Tavern, LEVEL 4 OF 5.\nThe reference image is a STYLE AND ARCHITECTURAL IDENTITY REFERENCE ONLY. It contains nine final-level buildings. Use ONLY the bottom right building as the target's final identity. Generate ONE Tavern at an earlier stage of development.\nExact building for this level: A large half-timber inn with multiple red-brown gables, two chimneys, lanterns, balconies and a small side wing; slightly smaller than the final reference tavern.\nMaintain warm half timber, red-brown roof tiles, amber windows, hanging tankard sign. Consistent hand-painted premium dark-fantasy strategy-game miniature, weathered stone and timber, navy shadows, warm amber windows, readable architectural silhouette and crisp materials. Orthographic isometric three-quarter view, exactly the same orientation as reference. Entire structure on a small cobblestone foundation, centered, at least 12% empty transparent padding on all sides. Keep the building physically modest for early levels, not a huge castle scaled down. This is a complete useful building at its level, not a ruin, not scaffolding, not a cropped finished building. Strong progression toward the reference level five.\nSquare composition. No other buildings, no humans, no scene background, no text, no UI, no frame, no watermark. Genuine alpha transparency.",
+      "file": "assets/town/levels/tavern-4.webp"
+    },
+    {
+      "id": "hold",
+      "kind": "command",
+      "prompt": "Use case: stylized-concept. Asset: a single square RPG command icon for the dark fantasy game Vaultbound. Command: Hold the Line. Subject: an imposing steel kite shield braced in front of crossed swords, stone rampart below, warm bronze rim and blue ward light. Premium hand-painted fantasy ability art, dramatic clear central symbol, readable at 64 pixels, sculpted metal and rich painterly light, jewel colors on deep ink-navy background, bronze details matching a medieval town. Fill the square elegantly with one bold centered composition, no tiny scene or characters. Soft vignette at edges. No text, no numbers, no UI labels, no borders or frame, no watermark. A polished game ability painting, not a flat vector logo.",
+      "file": "assets/commands/hold.webp"
+    },
+    {
+      "id": "pilfer",
+      "kind": "command",
+      "prompt": "Use case: stylized-concept. Asset: a single square RPG command icon for the dark fantasy game Vaultbound. Command: Pilfer. Subject: a gloved rogue hand lifting three gold coins from an open leather coin purse, warm golden glints, stealthy midnight-blue shadows. Premium hand-painted fantasy ability art, dramatic clear central symbol, readable at 64 pixels, sculpted metal and rich painterly light, jewel colors on deep ink-navy background, bronze details matching a medieval town. Fill the square elegantly with one bold centered composition, no tiny scene or characters. Soft vignette at edges. No text, no numbers, no UI labels, no borders or frame, no watermark. A polished game ability painting, not a flat vector logo.",
+      "file": "assets/commands/pilfer.webp"
+    },
+    {
+      "id": "rally",
+      "kind": "command",
+      "prompt": "Use case: stylized-concept. Asset: a single square RPG command icon for the dark fantasy game Vaultbound. Command: Rally. Subject: a finely carved medieval lute in front of a flowing burgundy battle standard, swirling amber music energy, no notes or letters. Premium hand-painted fantasy ability art, dramatic clear central symbol, readable at 64 pixels, sculpted metal and rich painterly light, jewel colors on deep ink-navy background, bronze details matching a medieval town. Fill the square elegantly with one bold centered composition, no tiny scene or characters. Soft vignette at edges. No text, no numbers, no UI labels, no borders or frame, no watermark. A polished game ability painting, not a flat vector logo.",
+      "file": "assets/commands/rally.webp"
+    },
+    {
+      "id": "aegis",
+      "kind": "command",
+      "prompt": "Use case: stylized-concept. Asset: a single square RPG command icon for the dark fantasy game Vaultbound. Command: Divine Aegis. Subject: a radiant golden sun disk above a pale shield, a curved luminous ivory barrier surrounding it, warm divine rays. Premium hand-painted fantasy ability art, dramatic clear central symbol, readable at 64 pixels, sculpted metal and rich painterly light, jewel colors on deep ink-navy background, bronze details matching a medieval town. Fill the square elegantly with one bold centered composition, no tiny scene or characters. Soft vignette at edges. No text, no numbers, no UI labels, no borders or frame, no watermark. A polished game ability painting, not a flat vector logo.",
+      "file": "assets/commands/aegis.webp"
+    },
+    {
+      "id": "bloodlust",
+      "kind": "command",
+      "prompt": "Use case: stylized-concept. Asset: a single square RPG command icon for the dark fantasy game Vaultbound. Command: Bloodlust. Subject: a brutal double-headed battle axe sweeping through a crimson shockwave, fierce red energy and a few red droplets, no gore or bodies. Premium hand-painted fantasy ability art, dramatic clear central symbol, readable at 64 pixels, sculpted metal and rich painterly light, jewel colors on deep ink-navy background, bronze details matching a medieval town. Fill the square elegantly with one bold centered composition, no tiny scene or characters. Soft vignette at edges. No text, no numbers, no UI labels, no borders or frame, no watermark. A polished game ability painting, not a flat vector logo.",
+      "file": "assets/commands/bloodlust.webp"
+    },
+    {
+      "id": "mark",
+      "kind": "command",
+      "prompt": "Use case: stylized-concept. Asset: a single square RPG command icon for the dark fantasy game Vaultbound. Command: Mark Prey. Subject: a drawn hunter's bow with a luminous green arrow aimed into a gold targeting ring, forest-green energy. Premium hand-painted fantasy ability art, dramatic clear central symbol, readable at 64 pixels, sculpted metal and rich painterly light, jewel colors on deep ink-navy background, bronze details matching a medieval town. Fill the square elegantly with one bold centered composition, no tiny scene or characters. Soft vignette at edges. No text, no numbers, no UI labels, no borders or frame, no watermark. A polished game ability painting, not a flat vector logo.",
+      "file": "assets/commands/mark.webp"
+    },
+    {
+      "id": "freeze",
+      "kind": "command",
+      "prompt": "Use case: stylized-concept. Asset: a single square RPG command icon for the dark fantasy game Vaultbound. Command: Time Freeze. Subject: an ornate brass hourglass encased in blue ice crystals, suspended violet sand and glacial cyan magical light. Premium hand-painted fantasy ability art, dramatic clear central symbol, readable at 64 pixels, sculpted metal and rich painterly light, jewel colors on deep ink-navy background, bronze details matching a medieval town. Fill the square elegantly with one bold centered composition, no tiny scene or characters. Soft vignette at edges. No text, no numbers, no UI labels, no borders or frame, no watermark. A polished game ability painting, not a flat vector logo.",
+      "file": "assets/commands/freeze.webp"
+    }
+  ],
+  "reusedLevelFive": [
+    {
+      "type": "knight",
+      "level": 5,
+      "file": "assets/town/levels/knight-5.webp",
+      "source": "assets/town/buildings-atlas.webp"
+    },
+    {
+      "type": "thief",
+      "level": 5,
+      "file": "assets/town/levels/thief-5.webp",
+      "source": "assets/town/buildings-atlas.webp"
+    },
+    {
+      "type": "bard",
+      "level": 5,
+      "file": "assets/town/levels/bard-5.webp",
+      "source": "assets/town/buildings-atlas.webp"
+    },
+    {
+      "type": "cleric",
+      "level": 5,
+      "file": "assets/town/levels/cleric-5.webp",
+      "source": "assets/town/buildings-atlas.webp"
+    },
+    {
+      "type": "barbarian",
+      "level": 5,
+      "file": "assets/town/levels/barbarian-5.webp",
+      "source": "assets/town/buildings-atlas.webp"
+    },
+    {
+      "type": "ranger",
+      "level": 5,
+      "file": "assets/town/levels/ranger-5.webp",
+      "source": "assets/town/buildings-atlas.webp"
+    },
+    {
+      "type": "mage",
+      "level": 5,
+      "file": "assets/town/levels/mage-5.webp",
+      "source": "assets/town/buildings-atlas.webp"
+    },
+    {
+      "type": "alchemist",
+      "level": 5,
+      "file": "assets/town/levels/alchemist-5.webp",
+      "source": "assets/town/buildings-atlas.webp"
+    },
+    {
+      "type": "tavern",
+      "level": 5,
+      "file": "assets/town/levels/tavern-5.webp",
+      "source": "assets/town/buildings-atlas.webp"
+    }
+  ]
+}

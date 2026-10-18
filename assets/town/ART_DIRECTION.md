@@ -1,11 +1,21 @@
 # Vaultbound town artwork
 
-Generated with the built-in image generation tool in one call on 2026-10-18.
+The current town uses 45 individual building images in `assets/town/levels/`: five distinct architectural stages for each of nine districts. Levels 1–4 were generated individually using the original master as a style reference; the existing fully developed buildings supply level 5. Earlier levels are complete modest buildings, with upper levels adding wings, towers, gardens, and defenses.
+
+Seven individual command paintings are saved in `assets/commands/`. Their subjects, colors, and silhouettes communicate the command's role. All 43 new generation prompts and all 52 final asset paths are recorded in [ART_PROMPTS.json](../ART_PROMPTS.json). Generation used the built-in image tool.
+
+`scripts/prepare-game-art.mjs` packages the generated images as transparent 512px building sprites and 256px command paintings. It reads a local generation journal, preserves the generated artwork and alpha, and compresses the delivered images to WebP.
+
+The town and battle screens use responsive HTML/CSS; battle simulation and recruitment remain in the original JavaScript game. Command artwork is always visible in the battle's docked command deck.
+
+## Original shared-atlas version
+
+The first artwork pass was generated with the built-in image generation tool in one call on 2026-10-18. The following assets are retained as the style reference and level-five source.
 
 - `buildings-master.png` is the unmodified, transparent generated sheet.
 - `buildings-atlas.webp` is the web-ready atlas: nine 512px cells, 1536×1536 overall, approximately 600 KB. It preserves transparency and gives every building safe padding.
 - Atlas order: Barracks, Thieves' Guild, Bard College / Temple, Fighting Pit, Hunter's Lodge / Mage Guild, Alchemist, Tavern.
-- Each building has one illustration, reused at all five levels. CSS shows a subdued outline and gradually reveals the finished artwork from its foundation upward. The highest level restores the complete silhouette and color.
+- The original version reused one illustration with a progressive CSS reveal. It has been superseded by the distinct architectural level images.
 - `src/town-view.js` supplies the accessible HTML interface. `town.css` supplies layout, atlas positioning, and reveal masks. No new runtime dependencies or game engine are required.
 
 To repeat the one-time packaging step:
