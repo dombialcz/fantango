@@ -6,6 +6,8 @@ A dark-fantasy daily logic game about a thief, a treasury, and a perfectly balan
 
 **Play Vaultbound:** [dombialcz.github.io/fantango/dungeon.html](https://dombialcz.github.io/fantango/dungeon.html)
 
+**Play Mastermind:** [dombialcz.github.io/fantango/mastermind.html](https://dombialcz.github.io/fantango/mastermind.html)
+
 Play by filling the 6×6 vault with coins and thieves:
 
 - every row and column contains three of each;
@@ -57,6 +59,10 @@ The Alchemist stocks each daily expedition with healing potions. Levels 1–3 pr
 The active party grows from four to eight slots over the campaign. Surviving heroes heal after each day, while defeated heroes are lost. Each campaign rolls one of three complete enemy rosters: Undead Uprising fields skeletons, zombies, bone mages, and necromancers; Demonic Invasion fields cultists, demons, warlocks, and archdemons; and the Assassins' Guild fields cutthroats, enforcers, marksmen, and teleporting assassins.
 
 Floor 10 is the victory milestone. It replaces the normal enemy group with the high-health Vault Tyrant, whose cleave damages every hero in the defending row. Defeating it marks the campaign victorious, but the player may continue to floors 11 and beyond until the current expedition ends or the ten-day limit expires, preserving the deepest floor as the run’s record.
+
+### Mastermind
+
+Mastermind is Vaultbound’s daily hero-code side game. Easy, Medium, and Hard use ordered parties of five, six, and seven classes, each with ten guesses. The party name identifies one triplet, an optional pair, and one exact singleton; class portraits and the decoded clue words remain visible while playing. Feedback reports how many heroes are in the correct position and how many are present in another position. A ten-row board keeps all attempts visible, and the interface can be switched between English and Polish. Daily answers are generated from the browser’s local date and each challenge’s difficulty, with progress saved locally.
 
 Heroes who retreat automatically are guaranteed to gain a level. When the player chooses Flee, each eligible survivor instead has an 80% level-up chance, reduced by 10 percentage points for every other fleeing hero, to a minimum of 0%.
 

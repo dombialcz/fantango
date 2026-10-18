@@ -64,6 +64,18 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 
 - Revisit the shared pacing coefficient after playtesting later floors and higher-level teams, where attack-speed scaling may shorten battles again.
 
+## 2026-10-18 — Vaultbound Mastermind
+
+- Original prompt: add a daily Mastermind/Code Breaker side game to Vaultbound using the existing hero portraits, with three local-date-seeded challenges of 5, 6, and 7 heroes and ten guesses each; use party names to hint at duplicate class counts.
+- Added `mastermind.html`, responsive styling, and a deterministic daily challenge generator over the seven existing hero classes and portrait assets.
+- Guesses are ordered lineups. Feedback counts exact-position matches and correct classes placed elsewhere, including duplicate-safe counting.
+- Party titles identify the triplet class, an optional pair class, and exactly one singleton class. The decoded clues are visible immediately; unmentioned singleton classes remain for the player to deduce.
+- Easy generates a triplet and two singles; Medium a triplet and three singles; Hard a triplet, a pair, and two singles. A class cannot appear four times, and no second pair/triplet is generated.
+- Added local per-difficulty progress, keyboard shortcuts, ten-guess win/loss handling, navigation from the Vaultbound screen, and README links/documentation.
+- Sized the lineup and history rows to fit seven-slot guesses on narrow phones and grouped the Vaultbound navigation links away from the campaign header.
+- Reproduced the reported stuck screen when Chrome opens the page as `file://`: browser security blocks the ES module, so the loading placeholder never changes. Added a visible launch notice with the `npm run serve` command and local URL for that case.
+- Served over local HTTP, verified all three daily challenge loads and a guess submits successfully with no browser console/page errors; reviewed desktop compact-height and portrait-phone layouts.
+
 ## Vaultbound battle pause
 
 - Added Pause/Resume buttons beside the battle-speed control on desktop, portrait, and compact layouts, plus a `P` keyboard shortcut.
@@ -145,3 +157,12 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Pilfer is limited to once per floor and generates one pending gold per living Thief, paid only after the party clears the floor.
 - Added a responsive command palette, meter/effect readout, target-selection state, distinct Freeze/Aegis/Hold/Bloodlust/Mark highlights, town command labels, and command state in `render_game_to_text`.
 - Added command-scaling unit tests and browser-tested all seven commands, pause behavior, target selection, delayed Pilfer payout, desktop/portrait layouts, effect timing, and console output.
+
+## 2026-10-18 — Mastermind UI redesign and Polish
+
+- Original prompt: add a Polish language and redesign the whole Mastermind UI to feel slicker and more fluid, with responsive mobile support.
+- Replaced the separate draft and guess history with a fixed ten-row board visible from the start; the active row is editable and future rows remain as placeholders.
+- Kept feedback count-only, using green exact-position and gold elsewhere markers at the end of submitted rows.
+- Redesigned the page with a Vaultbound-styled header, language toggle, difficulty cards, party-name clue cards, compact class picker, keyboard hints, and responsive desktop/phone layouts.
+- Added persistent English/Polish switching for page copy, class names, clue text, party titles, difficulty labels, date formatting, and screen-reader labels.
+- Visually reviewed English and Polish layouts at desktop and 320/390px mobile widths; the seven-slot board fits without horizontal overflow and all hero portraits load.

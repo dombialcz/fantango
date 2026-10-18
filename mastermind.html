@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Break the daily Vaultbound hero code in ten guesses." />
+    <meta name="theme-color" content="#101a23" />
+    <title>Mastermind — Vaultbound</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Marcellus&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="mastermind.css" />
+  </head>
+  <body>
+    <div class="ambient-glow ambient-glow-one" aria-hidden="true"></div>
+    <div class="ambient-glow ambient-glow-two" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <a class="brand-lockup" href="dungeon.html" aria-label="Vaultbound">
+        <span class="brand-mark" aria-hidden="true">V</span>
+        <span class="brand-name"><strong>VAULTBOUND</strong><small data-i18n="brandKicker">DAILY CHALLENGE</small></span>
+      </a>
+      <div class="topbar-actions">
+        <time class="date-pill" id="today-date"></time>
+        <div class="language-switch" role="group" aria-label="Language">
+          <button type="button" data-locale="en" aria-pressed="true">EN</button>
+          <button type="button" data-locale="pl" aria-pressed="false">PL</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="launch-warning" id="launch-warning" role="alert" hidden>
+        <strong>Start the game through a local server.</strong>
+        <span>Chrome blocks the game script when this file is opened directly. In the project folder, run <code>npm run serve</code>, then visit <code>http://localhost:4173/mastermind.html</code>.</span>
+      </aside>
+
+      <section class="intro-row">
+        <div>
+          <p class="eyebrow" data-i18n="gameKicker">THE DAILY HERO CODE</p>
+          <h1 data-i18n="gameTitle">Mastermind</h1>
+          <p class="intro-copy" data-i18n="gameSubtitle">Read the party name. Rebuild the formation.</p>
+        </div>
+        <a class="back-link" href="dungeon.html"><span aria-hidden="true">←</span><span data-i18n="backVaultbound">Back to Vaultbound</span></a>
+      </section>
+
+      <nav class="difficulty-tabs" aria-label="Daily challenge difficulty">
+        <button class="difficulty-tab" type="button" data-challenge="easy" aria-pressed="true">
+          <span class="difficulty-name" data-i18n="easy">Easy</span>
+          <span class="difficulty-meta"><span data-size="easy">5</span> <span data-i18n="heroes">heroes</span></span>
+          <span class="difficulty-result" aria-hidden="true"></span>
+        </button>
+        <button class="difficulty-tab" type="button" data-challenge="medium" aria-pressed="false">
+          <span class="difficulty-name" data-i18n="medium">Medium</span>
+          <span class="difficulty-meta"><span data-size="medium">6</span> <span data-i18n="heroes">heroes</span></span>
+          <span class="difficulty-result" aria-hidden="true"></span>
+        </button>
+        <button class="difficulty-tab" type="button" data-challenge="hard" aria-pressed="false">
+          <span class="difficulty-name" data-i18n="hard">Hard</span>
+          <span class="difficulty-meta"><span data-size="hard">7</span> <span data-i18n="heroes">heroes</span></span>
+          <span class="difficulty-result" aria-hidden="true"></span>
+        </button>
+      </nav>
+
+      <section class="mission-card" aria-labelledby="party-name">
+        <div class="mission-main">
+          <div class="mission-icon" aria-hidden="true"><span>✦</span></div>
+          <div class="mission-copy">
+            <p class="eyebrow" data-i18n="todaysParty">TODAY’S HIDDEN PARTY</p>
+            <h2 id="party-name">Loading today’s company…</h2>
+          </div>
+          <div class="mission-difficulty"><span class="status-dot" aria-hidden="true"></span><span id="mission-level">Easy</span></div>
+        </div>
+        <div class="clue-divider" aria-hidden="true"></div>
+        <div class="clue-area">
+          <div class="clue-heading">
+            <span class="clue-symbol" aria-hidden="true">⌕</span>
+            <div><h3 data-i18n="nameClues">Name clues</h3><p data-i18n="nameCluesHint">Each word reveals an exact class count.</p></div>
+          </div>
+          <div class="clue-parts" id="clue-parts" aria-live="polite"></div>
+        </div>
+        <p class="rule-note" id="rule-note">No prefix means no pair. No class appears four times; each named duplicate is exact, and every other hero is a singleton.</p>
+      </section>
+
+      <div class="play-layout">
+        <section class="board-panel" aria-labelledby="board-heading">
+          <div class="board-header">
+            <div class="board-title-group">
+              <div class="section-index">01</div>
+              <div><h2 id="board-heading" data-i18n="guessBoard">Guess board</h2><p id="board-subtitle" data-i18n="boardSubtitle">Build the party one row at a time.</p></div>
+            </div>
+            <div class="board-actions">
+              <span class="guess-counter" id="guess-counter">0 / 10</span>
+              <button class="icon-button clear-button" id="clear-button" type="button" aria-label="Clear current row" title="Clear current row"><span aria-hidden="true">↺</span></button>
+              <button class="submit-button" id="submit-button" type="button" disabled><span data-i18n="submitGuess">Check guess</span><span class="submit-arrow" aria-hidden="true">↗</span></button>
+            </div>
+          </div>
+          <div class="board-columns" aria-hidden="true"><span>#</span><span data-i18n="formation">FORMATION</span><span data-i18n="feedback">FEEDBACK</span></div>
+          <ol class="guess-board" id="guess-board" aria-label="Ten guess rows"></ol>
+          <div class="board-legend" aria-label="Feedback legend">
+            <span><i class="feedback-dot exact"></i><span data-i18n="exactLegend">Right class, right place</span></span>
+            <span><i class="feedback-dot misplaced"></i><span data-i18n="misplacedLegend">Right class, different place</span></span>
+          </div>
+        </section>
+
+        <aside class="picker-panel" aria-labelledby="picker-heading">
+          <div class="picker-panel-heading">
+            <div class="section-index">02</div>
+            <div><h2 id="picker-heading" data-i18n="chooseHeroes">Choose heroes</h2><p data-i18n="pickerSubtitle">Select a class to fill the next open place.</p></div>
+          </div>
+          <div class="hero-picker" id="hero-picker" role="group" aria-label="Hero classes"></div>
+          <div class="picker-footnote"><span class="keycap">1–7</span><span data-i18n="keyboardPick">quick pick</span><span class="footnote-separator">·</span><span class="keycap">↵</span><span data-i18n="keyboardSubmit">submit</span></div>
+          <p class="game-message" id="game-message" role="status" aria-live="polite"></p>
+          <div class="daily-note"><span class="daily-note-icon" aria-hidden="true">◷</span><span data-i18n="dailyNote">Three new formations arrive each day.</span></div>
+        </aside>
+      </div>
+
+      <footer class="page-footer">
+        <a href="index.html" data-i18n="playFantango">Play Fantango</a>
+        <span data-i18n="dailyFooter">A new code every day · Three challenges</span>
+      </footer>
+    </main>
+
+    <noscript>Mastermind needs JavaScript enabled to generate today’s party.</noscript>
+    <script>
+      if (window.location.protocol === "file:") {
+        document.querySelector("#launch-warning").hidden = false;
+        document.querySelector("#party-name").textContent = "Open Mastermind through the local server";
+        document.querySelector("#rule-note").textContent = "Chrome blocks JavaScript modules on directly opened files. Follow the steps in the notice above.";
+      }
+    </script>
+    <script type="module" src="src/mastermind-ui.js"></script>
+  </body>
+</html>
