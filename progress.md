@@ -87,3 +87,12 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Added an adjacent simplified odds readout such as `L2 40% → L3 20% → L4 10%`; day 1 clearly reports that no bonus rolls are available.
 - Added unit tests for the day 1–5 probability examples, sequential failure behavior, and the level-4 offer cap.
 - Browser-tested selection without recruitment, free hiring, active-bench placement, exact daily odds through day 5, forced level-4 offers, and desktop/portrait layouts with no console or page errors.
+
+## Vaultbound retreat level-up rebalance
+
+- Replaced guaranteed leveling for every survivor with retreat-based rewards: automatic retreats grant every eligible survivor a level, while player-triggered retreats roll independently for each hero.
+- Manual Flee starts at an 80% level-up chance and loses 10 percentage points for every other fleeing hero, with a 0% minimum (one hero 80%, four heroes 50%, eight heroes 10%).
+- Applied manual odds to both the in-battle Flee button and the post-floor Flee choice; the in-battle control continues to show its half-gold penalty alongside the level-up chance.
+- The result panel now reports the actual number of survivors who earned a level, and the next day upgrades only those heroes while healing all survivors.
+- Added unit tests for the complete party-size chance curve, the automatic 100% guarantee, and independent manual rolls.
+- Browser-tested forced all-success and all-failure manual retreats, post-floor retreat, automatic two-survivor retreat, next-day levels, and desktop/portrait/compact visuals with no console or page errors.

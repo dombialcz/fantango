@@ -1,4 +1,5 @@
 import { offerLevelChances, rollOfferLevel } from "./hero-offers.js";
+import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
 
 const canvas = document.querySelector("#dungeon-game");
 const context = canvas.getContext("2d");
@@ -230,6 +231,9 @@ function createCampaign() {
     combatEffects: [],
     expeditionStartCount: 0,
     expeditionStartIds: [],
+    retreatType: null,
+    retreatLevelChance: 0,
+    retreatLevelUpIds: [],
     floorReward: 0,
     resultTitle: "",
     resultCopy: "",
@@ -628,7 +632,7 @@ function updateBattle(milliseconds) {
   const enemiesLeft = livingEnemies().length;
   const heroesLeft = livingParty().length;
   if (enemiesLeft === 0) finishFloor();
-  else if (heroesLeft === 0) finishDay("The company was lost below. Tomorrow begins with fresh contracts.");
+  else if (heroesLeft === 0) finishDay("The company was lost below. Tomorrow begins with fresh contracts.", null, "none");
   else {
     const retreatAt = state.expeditionStartCount > 2 ? 2 : Math.max(0, state.expeditionStartCount - 1);
     if (heroesLeft <= retreatAt) finishDay("The party is defeated, remaining heroes flee.", "Party Defeated");
@@ -653,13 +657,33 @@ function continueExpedition() {
   prepareFloor();
 }
 
-function finishDay(reason = "The company returns to the surface with its survivors.", title = null) {
+function finishDay(reason = "The company returns to the surface with its survivors.", title = null, retreatType = "automatic") {
   clearCombatFeedback();
   state.party = livingParty();
+  resolveRetreatLevelUps(retreatType);
   state.resultTitle = title ?? (state.party.length ? "Expedition Ended" : "No One Returned");
   state.resultCopy = reason;
   state.message = reason;
   state.view = state.day >= 10 ? "campaign_end" : "day_result";
+}
+
+function resolveRetreatLevelUps(retreatType) {
+  state.retreatType = retreatType;
+  state.retreatLevelChance = retreatLevelChance(state.party.length, retreatType);
+  const eligibleIds = state.party
+    .filter((unit) => unit.hero.level < 5)
+    .map((unit) => unit.hero.id);
+  state.retreatLevelUpIds = rollRetreatLevelUps(eligibleIds, state.retreatLevelChance);
+}
+
+function manualFleeLevelChance() {
+  return retreatLevelChance(livingParty().length, "manual");
+}
+
+function retreatLevelResultText() {
+  const count = state.retreatLevelUpIds.length;
+  if (count === 0) return "no survivors gained a level";
+  return `${count} survivor${count === 1 ? "" : "s"} gained a level`;
 }
 
 function clearCombatFeedback() {
@@ -673,7 +697,7 @@ function clearCombatFeedback() {
 
 function fleeExpedition() {
   if (state.view !== "floor_result") return;
-  finishDay("The company flees with its gold and surviving heroes.");
+  finishDay("The company flees with its gold and surviving heroes.", null, "manual");
 }
 
 function midBattleFleeCost() {
@@ -689,6 +713,7 @@ function fleeMidBattle() {
       ? `The party abandons the fight and pays ${cost} gold to escape.`
       : "The party abandons the fight and escapes with nothing left to lose.",
     "Battle Abandoned",
+    "manual",
   );
 }
 
@@ -698,7 +723,7 @@ function advanceDay() {
   const survivors = state.party.map((unit) => unit.hero);
   const reserves = state.bench.filter((hero) => !state.expeditionStartIds.includes(hero.id));
   for (const hero of survivors) {
-    hero.level = Math.min(5, hero.level + 1);
+    if (state.retreatLevelUpIds.includes(hero.id)) hero.level = Math.min(5, hero.level + 1);
     hero.active = true;
   }
   for (const hero of reserves) hero.active = false;
@@ -713,8 +738,14 @@ function advanceDay() {
   state.party = [];
   state.enemies = [];
   state.expeditionStartIds = [];
+  const levelUps = state.retreatLevelUpIds.length;
+  state.retreatType = null;
+  state.retreatLevelChance = 0;
+  state.retreatLevelUpIds = [];
   state.view = "tavern";
-  state.message = `Day ${state.day}. Survivors return healed and one level stronger.`;
+  state.message = levelUps > 0
+    ? `Day ${state.day}. Survivors return healed; ${levelUps} gained a level.`
+    : `Day ${state.day}. Survivors return healed; no one gained a level.`;
 }
 
 function resetCampaign() {
@@ -1232,7 +1263,7 @@ function drawBattle() {
     : { x: WIDTH - 188, y: HEIGHT - 74, width: 154, height: 48 };
   drawButton(fleeRect, "FLEE", {
     danger: true,
-    sublabel: `lose ${midBattleFleeCost()} gold`,
+    sublabel: `-${midBattleFleeCost()}g • ${manualFleeLevelChance()}% level-up`,
     action: fleeMidBattle,
   });
   drawButton(pauseRect, state.battlePaused ? "RESUME" : "PAUSE", {
@@ -1426,7 +1457,7 @@ function drawOverlay() {
     const buttonWidth = (dialog.width - inset * 2 - gap) / 2;
     drawButton({ x: dialog.x + inset, y: buttonY, width: buttonWidth, height: portrait ? 68 : 58 }, "FLEE", {
       danger: true,
-      sublabel: "end the day safely",
+      sublabel: `${manualFleeLevelChance()}% level-up`,
       action: fleeExpedition,
     });
     drawButton({ x: dialog.x + inset + buttonWidth + gap, y: buttonY, width: buttonWidth, height: portrait ? 68 : 58 }, "CONTINUE", {
@@ -1437,7 +1468,7 @@ function drawOverlay() {
   } else if (state.view === "day_result") {
     drawButton({ x: dialog.x + 28, y: dialog.y + (portrait ? 126 : 214), width: dialog.width - 56, height: portrait ? 68 : 58 }, "NEXT DAY", {
       accent: true,
-      sublabel: `${state.party.length} survivors gain a level`,
+      sublabel: retreatLevelResultText(),
       action: advanceDay,
     });
   } else {
@@ -1554,6 +1585,7 @@ window.render_game_to_text = () => {
     battleSpeed: state.battleSpeed,
     battlePaused: state.battlePaused,
     midBattleFleeCost: state.view === "battle" ? midBattleFleeCost() : null,
+    manualFleeLevelChance: ["battle", "floor_result"].includes(state.view) ? manualFleeLevelChance() : null,
     battleTimeMs: Math.round(state.battleTime),
     combatEffects: state.combatEffects.map((effect) => ({
       sourceId: effect.sourceId,
@@ -1580,8 +1612,16 @@ window.render_game_to_text = () => {
     result: ["floor_result", "day_result", "campaign_end"].includes(state.view)
       ? { title: state.resultTitle, copy: state.resultCopy, floorReward: state.floorReward }
       : null,
+    retreatLeveling: ["day_result", "campaign_end"].includes(state.view)
+      ? {
+          type: state.retreatType,
+          chance: state.retreatLevelChance,
+          levelUpCount: state.retreatLevelUpIds.length,
+          levelUpHeroIds: state.retreatLevelUpIds,
+        }
+      : null,
     message: state.message,
-    controls: "Select an offer to inspect it, then use Hire to recruit it for free. Tap/click cards and buttons. Mid-battle Flee costs half your current gold, rounded up. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
+    controls: "Manual Flee gives each eligible survivor an 80% level-up roll, minus 10 points per other fleeing hero; automatic retreat guarantees it. Select an offer to inspect it, then use Hire to recruit it for free. Tap/click cards and buttons. Mid-battle Flee costs half your current gold, rounded up. R rerolls in the tavern; Enter starts or continues; P pauses; Space changes battle speed; F fullscreen.",
   });
 };
 
