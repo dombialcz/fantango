@@ -1,0 +1,54 @@
+import assert from 'node:assert/strict';
+import { chromium } from 'playwright';
+import { readFile, mkdir } from 'node:fs/promises';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+const errors = [];
+page.on('pageerror', e => errors.push(e.message));
+await page.addInitScript(() => { Math.random = () => .05; });
+await page.route('**/src/dungeon.js', async route => {
+  const source = await readFile(new URL('../src/dungeon.js', import.meta.url), 'utf8');
+  await route.fulfill({ contentType: 'text/javascript', body: source + '\nwindow.pauseTest = { get state() { return state; }, gainCommandMeter, render };' });
+});
+await page.goto(`${process.argv[2] ?? 'http://127.0.0.1:4175'}/dungeon.html`);
+await page.locator('.town-panorama [data-town-action="close"]').click();
+await page.locator('[data-roster-action="roll"]').click();
+await page.evaluate(() => window.advanceTime(1500));
+for (let i = 0; i < 4; i++) await page.locator('[data-hire]').first().click();
+await page.locator('[data-roster-action="start"]').click();
+await page.evaluate(() => {
+  const t = window.pauseTest;
+  t.state.commandMeter = 99.9;
+  t.gainCommandMeter(10);
+  t.render();
+});
+const state = () => page.evaluate(() => JSON.parse(render_game_to_text()));
+let s = await state();
+assert.equal(s.battlePaused, true);
+assert.equal(s.commands.meter, 100);
+assert.match(await page.locator('.battle-report > h2').innerText(), /Command full/);
+const frozen = { time: s.battleTimeMs, party: s.party, enemies: s.enemies };
+await page.evaluate(() => window.advanceTime(5000));
+s = await state();
+assert.deepEqual({ time: s.battleTimeMs, party: s.party, enemies: s.enemies }, frozen);
+await mkdir('output/command-autopause', { recursive: true });
+await page.screenshot({ path: 'output/command-autopause/full.png', fullPage: true });
+// Resuming at full must not immediately pause again.
+await page.locator('[data-battle-action="pause"]').click();
+await page.evaluate(() => window.advanceTime(500));
+s = await state();
+assert.equal(s.battlePaused, false);
+assert.ok(s.battleTimeMs > frozen.time);
+// Spending and refilling arms the next pause; commands remain usable while paused.
+await page.keyboard.press('1');
+assert.ok((await state()).commands.meter < 100);
+await page.evaluate(() => { window.pauseTest.state.holdLineMs = 0; window.pauseTest.gainCommandMeter(10000); window.pauseTest.render(); });
+assert.equal((await state()).battlePaused, true);
+await page.keyboard.press('1');
+assert.equal((await state()).battlePaused, true);
+assert.ok((await state()).commands.meter < 100);
+await page.keyboard.press('p');
+assert.equal((await state()).battlePaused, false);
+assert.deepEqual(errors, []);
+await browser.close();
+console.log('Command full pauses, freezes combat, permits commands, resumes at full, and pauses again after refilling: passed');

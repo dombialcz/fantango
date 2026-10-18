@@ -160,8 +160,8 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       root.querySelector(".battle-side--heroes h2 span").textContent = state.party.filter((unit) => unit.hp > 0).length;
       root.querySelector(".battle-side--enemies h2 span").textContent = state.enemies.filter((unit) => unit.hp > 0).length;
       const result = state.view !== "battle";
-      root.querySelector(".battle-report > h2").textContent = result ? state.resultTitle : state.targeting ? "Choose your target" : state.paused ? "Battle paused" : "Into the depths";
-      root.querySelector(".battle-report__copy").textContent = result ? state.resultCopy : state.targeting === "mark" ? "Select a highlighted enemy to mark." : state.targeting === "potion" ? "Select a wounded hero to heal." : state.paused ? "Take a breath. Your orders still work." : state.log[0] ?? "The company fights on.";
+      root.querySelector(".battle-report > h2").textContent = result ? state.resultTitle : state.targeting ? "Choose your target" : state.commandAutoPaused ? "Command full — battle paused" : state.paused ? "Battle paused" : "Into the depths";
+      root.querySelector(".battle-report__copy").textContent = result ? state.resultCopy : state.targeting === "mark" ? "Select a highlighted enemy to mark." : state.targeting === "potion" ? "Select a wounded hero to heal." : state.commandAutoPaused ? "Choose an order, then Resume or press P to continue." : state.paused ? "Take a breath. Your orders still work." : state.log[0] ?? "The company fights on.";
       const logSignature = JSON.stringify(state.log);
       const log = root.querySelector(".battle-log");
       if (log.dataset.signature !== logSignature) {

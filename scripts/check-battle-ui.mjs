@@ -116,6 +116,7 @@ try {
       assert.equal(after.commands.pilferUsed, true);
       await game.page.locator('[data-battle-action="pause"]').click();
       for (let step = 0; step < 450 && after.view === "battle"; step += 1) {
+        if (after.battlePaused) await game.page.locator('[data-battle-action="pause"]').click();
         await game.page.evaluate(() => window.advanceTime(200)); after = await game.state();
       }
       assert.equal(after.view, "floor_result");

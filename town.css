@@ -225,3 +225,24 @@ body.town-open > .sidegame-link { display: none; }
 .town-intro h1 { overflow-wrap: anywhere; }
 .town-traits { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 0; margin: 12px 0 0; list-style: none; color: #d7c599; font-size: 12px; line-height: 1.5; }
 .town-traits li::before { content: "✦ "; color: #bfa067; }
+
+.town-intro > div { flex: 1; }
+.town-title-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 9px 0 14px; }
+.town-title-row h1 { margin: 0; }
+.town-countdown { --deadline-color: #e1c183; flex: 0 0 220px; padding: 14px 18px; border-left: 2px solid var(--deadline-color); background: linear-gradient(90deg, #c59c4418, transparent); color: var(--deadline-color); }
+.town-countdown__label, .town-countdown__remaining { display: block; font: 9px/1.5 Arial, sans-serif; letter-spacing: .13em; }
+.town-countdown__day { margin: 3px 0; font: 18px/1.15 Georgia, serif; white-space: nowrap; }
+.town-countdown__day strong { font-size: 52px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.town-countdown__day > span { color: #b7b6aa; font-size: 22px; }
+.town-countdown__ticks { display: flex; gap: 4px; margin-top: 10px; }
+.town-countdown__ticks i { flex: 1; height: 4px; background: var(--deadline-color); opacity: .6; }
+.town-countdown__ticks i.is-spent { opacity: .16; }
+.town-countdown__ticks i.is-today { opacity: 1; box-shadow: 0 0 7px var(--deadline-color); }
+.town-countdown[data-urgency="urgent"] { --deadline-color: #eca374; }
+.town-countdown[data-urgency="last"] { --deadline-color: #f18d80; background: linear-gradient(90deg, #b939292a, transparent); }
+@media (max-width: 760px) {
+  .town-title-row { flex-wrap: wrap; gap: 14px; }
+  .town-title-row h1 { margin: 0; flex-basis: 100%; }
+  .town-countdown { flex-basis: auto; width: 100%; padding: 10px 14px; box-sizing: border-box; }
+  .town-countdown__day strong { font-size: 44px; }
+}

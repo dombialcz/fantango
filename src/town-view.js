@@ -70,10 +70,10 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
   root.innerHTML = `<div class="town-shell">
     <header class="town-header">
       <button class="town-brand" type="button" data-town-action="close" aria-label="Return to the contract reel">VAULTBOUND<span>TEN DAYS BELOW</span></button>
-      <div class="town-header__right"><span class="town-day"></span><span class="town-gold"></span><button class="town-return" type="button" data-town-action="close">Prepare company <span aria-hidden="true">→</span></button></div>
+      <div class="town-header__right"><span class="town-gold"></span><button class="town-return" type="button" data-town-action="close">Prepare company <span aria-hidden="true">→</span></button></div>
     </header>
     <nav class="campaign-steps" aria-label="Daily expedition"><span aria-current="step"><b>01</b> Town</span><button type="button" data-town-action="close"><b>02</b> Company</button><span><b>03</b> Dungeon</span></nav>
-    <div class="town-intro"><div><span class="town-eyebrow">YOUR CITY. THEIR LAST SAFE HAVEN.</span><h1></h1><p class="town-flavor"></p><ul class="town-traits"></ul></div><span class="town-campaign"></span></div>
+    <div class="town-intro"><div><span class="town-eyebrow">YOUR CITY. THEIR LAST SAFE HAVEN.</span><div class="town-title-row"><h1></h1><div class="town-countdown" role="timer" aria-live="off"><span class="town-countdown__label">THE TEN-DAY DEADLINE</span><div class="town-countdown__day">DAY <strong></strong><span> / 10</span></div><span class="town-countdown__remaining"></span><div class="town-countdown__ticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div><p class="town-flavor"></p><ul class="town-traits"></ul></div><span class="town-campaign"></span></div>
     <div class="town-panorama"><div><span class="town-eyebrow">BEFORE THE GATES OPEN</span><h2>A little hope, on the edge of the dark.</h2><p class="town-roll-status"></p></div><button type="button" data-town-action="close">Prepare your company <span aria-hidden="true">→</span></button></div>
     <div class="town-layout">
       <section class="town-districts" aria-label="Town districts">
@@ -164,10 +164,20 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
         }));
         traits.dataset.town = next.town.name;
       }
-      const nextSignature = JSON.stringify([next.day, next.gold, next.flavorName, next.message, next.buildings, next.rolledToday, next.town]);
+      const nextSignature = JSON.stringify([next.day, next.gold, next.flavorName, next.message, next.buildings, next.rolledToday, next.town, next.morale]);
       if (nextSignature === signature && wasVisible) return;
       signature = nextSignature;
-      root.querySelector(".town-day").textContent = `DAY ${next.day} / 10`;
+      root.querySelector(".town-panorama h2").textContent = next.morale.text;
+      root.querySelector(".town-panorama").dataset.morale = next.morale.tone;
+      const countdown = root.querySelector(".town-countdown");
+      countdown.dataset.urgency = next.day === 10 ? "last" : next.day >= 7 ? "urgent" : "steady";
+      countdown.setAttribute("aria-label", `Day ${next.day} of 10. ${next.day === 10 ? "Final day." : `${11 - next.day} days left, including today.`}`);
+      countdown.querySelector("strong").textContent = next.day;
+      countdown.querySelector(".town-countdown__remaining").textContent = next.day === 10 ? "FINAL DAY · NOW OR NEVER" : `${11 - next.day} DAYS LEFT · INCLUDING TODAY`;
+      countdown.querySelectorAll("i").forEach((tick, index) => {
+        tick.classList.toggle("is-spent", index < next.day - 1);
+        tick.classList.toggle("is-today", index === next.day - 1);
+      });
       updateGoldBalance(root.querySelector(".town-gold"), next.gold);
       root.querySelector(".town-campaign").textContent = next.flavorName;
       root.querySelector(".town-message").textContent = next.message;

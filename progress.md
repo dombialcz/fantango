@@ -223,6 +223,18 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Added unit coverage for all 378 mechanical combinations, class bonuses/stacking, roll pricing, and exact recruitment weights. All 23 unit tests pass. Added check-town-identity.mjs for live class/combat integration, Estate income, Crossing rolls/reset, campaign reset and four viewport layouts; passed. Recruitment browser regressions pass. Updated battle regression RNG setup for the four new name-generation draws.
 - Ran the skill Playwright client and visually inspected its town screenshot plus desktop/phone town and battle captures. No overflow at 320px, 390px, desktop, or short landscape. A concurrent Python server asset connection reset interrupted the first battle regression attempt; reran separately and all seven command cases passed.
 
+
+## 2026-10-18 — Full Command auto-pause
+
+- Combat pauses when Command crosses to 100; later units stop acting in that update. The report explains the pause and Resume/P. Commands and potions remain usable, and spending points does not automatically resume. Resuming with full Command avoids a repeated pause until the meter is spent and refilled. Floor/campaign transitions clear the reason.
+- Added check-command-autopause.mjs covering freeze, commands while paused, Resume/P, full-meter resume and repeat refill. It passes; all 23 unit tests pass. Visually inspected the paused fight screenshot and ran the web-game client.
+
+## 2026-10-18 — Prominent campaign countdown
+
+- Moved the town day indicator from the small header into a large deadline panel beside the town name. Phones place it directly under the name. Shows Day N / 10, remaining days explicitly including today, and ten marks distinguishing past days and today.
+- Gold changes to warm orange from day seven and red on the final day, with “FINAL DAY · NOW OR NEVER.” No animation or gameplay changes.
+- Extended live town checks for days 1/7/10, spent marks, final-day text and 320px overflow; passed. Inspected desktop final-day and small-phone screenshots. Ran the web-game client for an additional normal campaign capture.
+
 ## 2026-10-18 — Larger buildings and readable restoration feedback
 
 - Added a focused town-art.css presentation layer. District art frames roughly double on desktop (140→289px at 1440px; 115→235px at 1280px). Two-column tablet/phone grids grow frames from 71–95px to 119–150px on narrow phones, with substantially larger selected-building art in the inspector and mobile sheet.
@@ -230,3 +242,10 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Added presentation-only restoration feedback after a real level increase: wait for the new sprite to decode, briefly glow the building/card, and show a level badge on the district card. Ordinary inspection does not replay the effect; reset or another upgrade cancels old notices. No automatic scrolling or focus changes; reduced-motion users get static feedback.
 - Added scripts/check-town-art.mjs. It verifies larger art, separate/unclipped labels and prices, exact upgrade charges and new prices, rapid successive upgrades, reset/inspection behavior, and reduced motion. Painted-alpha bounds for all 45 sprites fit at desktop, laptop, tablet, 390px/320px phone, and short-landscape sizes; no roofs or foundations are clipped.
 - Ran and inspected the web-game client's town capture and dedicated gallery/detail/upgrade/max-level captures. Gold-spending and recruitment browser checks pass, and all 23 unit tests pass. Preserved the workspace's unrelated in-progress countdown and combat edits.
+
+## 2026-10-18 — Outcome-based daily town flavour
+
+- Kept the opening line; added unique hopeful/bleak lines for days 2–10. Hope requires a new campaign record in cleared floors, tracked separately from the floor entered and snapshotted before departure.
+- Recorded expedition outcomes at finishDay before resetting daily state. A manual retreat with a new record and all departing heroes alive triggers the clean-retreat line; fewer cleared floors than last expedition plus at least half the departing party lost triggers costly setback. Both require at least three departing heroes; reserves are excluded. Tyrant victory overrides subsequent setbacks. New campaign resets history.
+- Added pure outcome/text tests and check-town-morale.mjs to verify actual floor-clear → finish-day → next-morning integration for both daily tracks, both rare cases, victory, entered-but-uncleared floors, reset and mobile layout. All 27 unit tests and morale browser checks pass. Visually inspected setback desktop and victory phone screenshots; ran the skill client as well.
+- This delivery also includes the previously requested and tested full-Command auto-pause and prominent town countdown, pending locally since the previous town-name push.

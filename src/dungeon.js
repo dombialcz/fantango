@@ -1,3 +1,4 @@
+import { expeditionOutcome, townMorale } from "./town-morale.js";
 import { createTownIdentity, townHeroEffects, rollTownClass, townRollCost } from "./town-identity.js";
 import { offerLevelChances, rollOfferLevel } from "./hero-offers.js";
 import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
@@ -212,6 +213,9 @@ function createCampaign() {
     freeRerollsRemaining: town.settlement.freeRerolls ?? 0,
     flavorKey: randomItem(Object.keys(FLAVORS)),
     deepestFloor: 0,
+    expeditionRecordBefore: 0,
+    expeditionClearedFloor: 0,
+    lastExpedition: null,
     victoryAchieved: false,
     victoryDay: null,
     floor: 0,
@@ -228,6 +232,7 @@ function createCampaign() {
     battleTime: 0,
     battleSpeed: 1,
     battlePaused: false,
+    commandAutoPaused: false,
     commandMeter: COMMAND_START,
     commandTargeting: null,
     enemyFreezeMs: 0,
@@ -465,6 +470,8 @@ function startExpedition() {
   }
   state.selectedHeroId = null;
   state.selectedOfferId = null;
+  state.expeditionRecordBefore = state.deepestFloor;
+  state.expeditionClearedFloor = 0;
   state.floor = 1;
   state.party = buildParty(chosen);
   state.expeditionStartCount = state.party.length;
@@ -568,6 +575,7 @@ function generateEnemies(floor) {
 function prepareFloor() {
   state.view = "battle";
   state.battlePaused = false;
+  state.commandAutoPaused = false;
   state.potionTargeting = false;
   resetFloorCommands();
   state.enemies = generateEnemies(state.floor);
@@ -722,7 +730,13 @@ function markEnemy(target) {
 
 function gainCommandMeter(damage) {
   if (state.view !== "battle" || damage <= 0) return;
+  const previous = state.commandMeter;
   state.commandMeter = Math.min(COMMAND_MAX, state.commandMeter + damage * COMMAND_GAIN_PER_DAMAGE);
+  if (state.view === "battle" && previous < COMMAND_MAX && state.commandMeter === COMMAND_MAX) {
+    state.battlePaused = true;
+    state.commandAutoPaused = true;
+    logBattle("Command full. Battle paused — choose an order, then Resume.");
+  }
 }
 
 function unitsInRow(units, row) {
@@ -917,23 +931,25 @@ function updateBattle(milliseconds) {
   }
 
   for (const unit of [...livingParty()]) {
+    if (state.battlePaused) break;
     const interval = heroInterval(unit);
     if (!Number.isFinite(interval)) continue;
     unit.timer -= delta;
-    while (unit.timer <= 0 && unit.hp > 0 && livingEnemies().length) {
+    while (!state.battlePaused && unit.timer <= 0 && unit.hp > 0 && livingEnemies().length) {
       actHero(unit);
       unit.timer += interval;
     }
   }
 
-  if (livingEnemies().length && !enemiesFrozen) {
+  if (!state.battlePaused && livingEnemies().length && !enemiesFrozen) {
     for (const unit of [...livingEnemies()]) {
+      if (state.battlePaused) break;
       if (unit.type === "assassin" && unit.returnAt !== null && state.battleTime >= unit.returnAt) {
         unit.row = "back";
         unit.returnAt = null;
       }
       unit.timer -= delta;
-      while (unit.timer <= 0 && unit.hp > 0 && livingParty().length) {
+      while (!state.battlePaused && unit.timer <= 0 && unit.hp > 0 && livingParty().length) {
         actEnemy(unit);
         unit.timer += ENEMY_TYPES[unit.type].interval * COMBAT_INTERVAL_SCALE;
       }
@@ -963,6 +979,7 @@ function updateBattle(milliseconds) {
 }
 
 function finishFloor() {
+  state.expeditionClearedFloor = state.floor;
   clearCombatFeedback();
   state.view = "floor_result";
   state.floorReward = floorGoldReward(state.day);
@@ -998,6 +1015,15 @@ function finishDay(reason = "The company returns to the surface with its survivo
   state.pilferPending = 0;
   state.party = livingParty();
   resolveRetreatLevelUps(retreatType);
+  const expedition = {
+    clearedFloor: state.expeditionClearedFloor,
+    recordBefore: state.expeditionRecordBefore,
+    previousClearedFloor: state.lastExpedition?.clearedFloor ?? null,
+    departed: state.expeditionStartCount,
+    returned: state.party.length,
+    retreatType,
+  };
+  state.lastExpedition = { ...expedition, outcome: expeditionOutcome(expedition) };
   const campaignEnded = state.day >= 10;
   state.resultTitle = title ?? (campaignEnded && state.victoryAchieved
     ? "Campaign Victory"
@@ -1056,6 +1082,7 @@ function usePotionOn(unit) {
 
 function clearCombatFeedback() {
   state.battlePaused = false;
+  state.commandAutoPaused = false;
   state.potionTargeting = false;
   state.commandTargeting = null;
   state.combatEffects = [];
@@ -1153,6 +1180,7 @@ function render() {
     visible: townVisible,
     buildings: state.buildings,
     town: state.town,
+    morale: townMorale(state.day, state.lastExpedition, state.victoryAchieved),
     gold: state.gold,
     day: state.day,
     flavorName: currentFlavor().name,
@@ -1200,6 +1228,7 @@ function battlePresentation() {
     targeting: state.potionTargeting ? "potion" : state.commandTargeting,
     markedEnemyId: state.markedEnemyId,
     paused: state.battlePaused,
+    commandAutoPaused: state.commandAutoPaused,
     speed: state.battleSpeed,
     potions: state.potionsRemaining,
     potionHealPercent: Math.round(state.potionHealRatio * 100),
@@ -1225,7 +1254,9 @@ function battlePresentation() {
 }
 
 function toggleBattlePause() {
-  if (state.view === "battle") state.battlePaused = !state.battlePaused;
+  if (state.view !== "battle") return;
+  state.battlePaused = !state.battlePaused;
+  state.commandAutoPaused = false;
 }
 
 window.addEventListener("keydown", (event) => {
@@ -1326,6 +1357,8 @@ window.render_game_to_text = () => {
     nextRollCost: townRollCost(state),
     freeRerollsRemaining: state.freeRerollsRemaining,
     town: state.town,
+    morale: townMorale(state.day, state.lastExpedition, state.victoryAchieved),
+    lastExpedition: state.lastExpedition,
     dailyOfferCount: offerCount(state.day),
     tavernLevel: state.buildings.tavern.level,
     offerLevelChances: offerLevelChances(state.buildings.tavern.level),
@@ -1353,6 +1386,7 @@ window.render_game_to_text = () => {
     deepestFloor: state.deepestFloor,
     battleSpeed: state.battleSpeed,
     battlePaused: state.battlePaused,
+    commandAutoPaused: state.commandAutoPaused,
     commands: {
       meter: Math.floor(state.commandMeter),
       maximum: COMMAND_MAX,
@@ -1441,7 +1475,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Defeat the Vault Tyrant on floor 10 to win; Continue remains available afterward. All seven battle commands are visible from the start; click one or press 1–7. Damage fills Command, and matching living heroes determine command power. Mark Prey requires selecting an enemy. Potion requires selecting a wounded hero. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee costs half your gold. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
+    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Defeat the Vault Tyrant on floor 10 to win; Continue remains available afterward. All seven battle commands are visible from the start; click one or press 1–7. Combat auto-pauses when Command reaches full; choose an order, then Resume or press P. Damage fills Command, and matching living heroes determine command power. Mark Prey requires selecting an enemy. Potion requires selecting a wounded hero. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee costs half your gold. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
   });
 };
 

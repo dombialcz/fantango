@@ -98,6 +98,17 @@ for (const [name, viewport] of Object.entries({ desktop: { width: 1440, height: 
   assert.equal(await page.locator('.town-traits li').count(), 3);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
 }
+for (const day of [1, 7, 10]) {
+  await page.evaluate(day => { window.townTest.state.day = day; window.townTest.render(); }, day);
+  assert.equal(await page.locator('.town-countdown strong').innerText(), String(day));
+  assert.equal(await page.locator('.town-countdown .is-spent').count(), day - 1);
+  if (day === 10) assert.match(await page.locator('.town-countdown').innerText(), /FINAL DAY/);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({ path: `output/town-identity/countdown-${day}.png`, fullPage: true });
+}
+await page.setViewportSize({ width: 320, height: 740 });
+assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+await page.screenshot({ path: 'output/town-identity/countdown-phone.png', fullPage: true });
 assert.deepEqual(errors, []);
 await browser.close();
 console.log('Town generation, class effects, combat traits, free rerolls, daily income, reset and four layouts: passed');
