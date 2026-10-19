@@ -70,8 +70,9 @@ try {
     await page.screenshot({ path: `output/town-art-check/grid-${name}.png` });
     const detail = width <= 760 ? '.town-sheet' : '.town-inspector';
     await page.locator('[data-district="tavern"]').click();
-    const upgrade = page.locator(`${detail} [data-upgrade="tavern"]`);
+    const upgrade = page.locator(`${detail} [data-open-upgrade="tavern"]`);
     await upgrade.click();
+    await page.locator('.town-upgrade-dialog [data-upgrade="tavern"]').click();
     await waitForArt(page);
     await page.waitForFunction(() => document.querySelector('[data-district="tavern"] .town-art.is-restoring'));
     assert.equal(JSON.parse(await page.evaluate(() => window.render_game_to_text())).gold, 497);
@@ -81,6 +82,7 @@ try {
     assert.ok(selectedArtSize >= (width <= 760 ? 240 : 260));
     await page.screenshot({ path: `output/town-art-check/upgraded-${name}.png` });
     await upgrade.click();
+    await page.locator('.town-upgrade-dialog [data-upgrade="tavern"]').click();
     await waitForArt(page);
     await page.waitForFunction(() => document.querySelector('[data-district="tavern"] .town-art').dataset.restoration === 'RESTORED · LEVEL 3');
     assert.equal(JSON.parse(await page.evaluate(() => window.render_game_to_text())).gold, 491);
@@ -113,6 +115,7 @@ try {
       await page.evaluate(() => { window.artTest.state().buildings.tavern.level = 1; window.artTest.render(); });
       await page.locator('[data-district="tavern"]').click();
       await upgrade.click();
+    await page.locator('.town-upgrade-dialog [data-upgrade="tavern"]').click();
       await waitForArt(page);
       await page.waitForFunction(() => document.querySelector('[data-district="tavern"] .town-art.is-restoring'));
       await page.screenshot({ path: 'output/town-art-check/animated-upgrade.png' });

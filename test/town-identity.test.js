@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PREFIXES, SETTLEMENTS, GEOGRAPHIES, createTownIdentity, townHeroEffects, rollTownClass, townRollCost } from '../src/town-identity.js';
+import { PREFIXES, SETTLEMENTS, GEOGRAPHIES, PLACE_NAMES, createTownIdentity, townHeroEffects, rollTownClass, townRollCost } from '../src/town-identity.js';
 import { buildingEffects } from '../src/town.js';
 
 test('every town combination has three visible traits and a cosmetic place name', () => {
@@ -12,6 +12,20 @@ test('every town combination has three visible traits and a cosmetic place name'
     assert.equal(town.bonuses.length, 3);
     assert.equal(town.favoredClass, GEOGRAPHIES[g].classType);
   }
+});
+test('the complete town name pool avoids repeated terrain and redundant pairings', () => {
+  const names = new Set();
+  for (let p = 0; p < PREFIXES.length; p++) for (let s = 0; s < SETTLEMENTS.length; s++) for (let g = 0; g < GEOGRAPHIES.length; g++) for (let n = 0; n < PLACE_NAMES.length; n++) {
+    const rolls = [(p + .5) / PREFIXES.length, (s + .5) / SETTLEMENTS.length, (g + .5) / GEOGRAPHIES.length, (n + .5) / PLACE_NAMES.length];
+    const town = createTownIdentity(() => rolls.shift());
+    const words = town.name.toLowerCase().match(/[a-z]+/g);
+    const terrain = words.filter(word => /^(river|hill|mount|wood|road|fort|marsh|hold|hollow|spire|reach|haven|sanctum|market|estate|crossing)$/.test(word));
+    assert.equal(new Set(terrain).size, terrain.length, town.name);
+    assert.doesNotMatch(town.name, /\bWalled\b.*\bWalls\b|\bCrossing\b.*\bCrossroads\b|Oak[’']s/i);
+    assert.ok(town.name.includes(PLACE_NAMES[n]), town.name);
+    names.add(town.name);
+  }
+  assert.equal(names.size, PREFIXES.length * SETTLEMENTS.length * GEOGRAPHIES.length * PLACE_NAMES.length);
 });
 test('class traits affect only the matching class and stack with buildings', () => {
   for (const settlement of SETTLEMENTS.filter(s => s.classType)) {

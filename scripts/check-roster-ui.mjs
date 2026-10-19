@@ -25,7 +25,8 @@ try {
   assert.equal((await state()).view, "town");
   assert.equal((await state()).rolledToday, false);
   assert.equal((await state()).offerCount, 0);
-  await page.locator('.town-inspector [data-upgrade="tavern"]').click();
+  await page.locator('.town-inspector [data-open-upgrade="tavern"]').click();
+  await page.locator('.town-upgrade-dialog [data-upgrade="tavern"]').click();
   assert.equal((await state()).tavernLevel, 2);
   assert.equal((await state()).gold, 7);
   assert.equal((await state()).offerCount, 0);
@@ -125,7 +126,8 @@ try {
     await current.page.screenshot({ path: `output/roster-ui/town-${name}.png`, fullPage: true });
     if (width <= 760) {
       await current.page.locator('[data-district="tavern"]').click();
-      await current.page.locator('.town-sheet [data-upgrade="tavern"]').click();
+      await current.page.locator('.town-sheet [data-open-upgrade="tavern"]').click();
+      await current.page.locator('.town-upgrade-dialog [data-upgrade="tavern"]').click();
       assert.equal((await current.state()).tavernLevel, 2);
       await current.page.locator('[data-town-action="dismiss"]').click();
     }

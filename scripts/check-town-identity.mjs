@@ -33,7 +33,7 @@ const gold = (await state()).gold;
 await roll();
 assert.equal((await state()).gold, gold);
 assert.equal((await state()).nextRollCost, 0);
-assert.match(await page.locator('[data-roster-action="roll"]').innerText(), /CROSSING/);
+assert.match(await page.locator('[data-roster-action="roll"]').innerText(), /BONUS ROLL/);
 await roll();
 assert.equal((await state()).gold, gold);
 assert.equal((await state()).nextRollCost, 1);

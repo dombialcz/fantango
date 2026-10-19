@@ -1,0 +1,86 @@
+import assert from 'node:assert/strict';
+import { chromium } from 'playwright';
+import { mkdir } from 'node:fs/promises';
+const base = process.argv[2] ?? 'http://127.0.0.1:4192';
+const browser = await chromium.launch();
+const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+const errors = [];
+context.on('page', page => { page.on('pageerror', error => errors.push(error.message)); page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); }); });
+await mkdir('output/event-debug', { recursive: true });
+const empty = await context.newPage(); await empty.goto(`${base}/event-debug.html`);
+assert.equal(await empty.locator('#empty-state').isVisible(), true);
+assert.equal(await empty.evaluate(() => localStorage.length), 0);
+await empty.close();
+const game = await context.newPage(); await game.goto(`${base}/dungeon.html`);
+await game.locator('.chronicle-trigger').click();
+const popupPromise = context.waitForEvent('page');
+await game.getByRole('link', { name: 'Debug event schedule' }).click();
+const debug = await popupPromise; await debug.waitForLoadState();
+assert.equal(await debug.locator('.event-item').count(), 10);
+assert.equal(await debug.locator('#empty-state').isVisible(), false);
+await game.close();
+const writer = await context.newPage(); await writer.goto(`${base}/event-debug.html`);
+const fixture = await writer.evaluate(async () => {
+ const { CAMPAIGN_SAVE_KEY } = await import('./src/campaign-chronicle.js');
+ const { EVENT_BY_ID } = await import('./src/campaign-events.js');
+ const save = JSON.parse(localStorage.getItem(CAMPAIGN_SAVE_KEY));
+ const s = save.state;
+ s.day = 4; s.floor = 2; s.view = 'event'; s.dayOutlook = 'progress';
+ const ids = ['G01', 'W01', 'A01', 'G02', 'G03', 'G04', 'G05', 'G06', 'G07', 'W02'];
+ s.events.plan = ids.map((id, index) => ({ id, at: 3 + index * 2, outcomeRoll: .5, rewardRoll: .5, targetRoll: .5 }));
+ s.events.seed = 987654; s.events.clears = 5; s.events.next = 2; s.events.pending = { ...s.events.plan[1], result: null };
+ s.chronicle.push({ day: 2, floor: 2, category: 'event', text: `${EVENT_BY_ID.G01.title}. We helped the courier. Gained 2 gold.` });
+ localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(save));
+ return JSON.stringify(save);
+});
+await debug.waitForFunction(() => document.querySelector('#campaign-stats').innerText.includes('987654'));
+assert.equal(await debug.locator('.event-item').count(), 10);
+assert.equal(await debug.locator('[data-status="completed"]').count(), 1);
+assert.equal(await debug.locator('[data-status="awaiting-choice"]').count(), 1);
+assert.equal(await debug.locator('[data-status="next"]').count(), 1);
+assert.match(await debug.locator('#next-event').innerText(), /awaiting your choice/);
+const first = debug.locator('li[data-event="G01"]');
+if (await first.locator('details').getAttribute('open') === null) await first.locator('summary').click();
+assert.match(await first.innerText(), /Day 2 · Floor 2/);
+assert.match(await first.innerText(), /Recorded result.*helped the courier/s);
+const prisoner = debug.locator('li[data-event="A01"]');
+if (await prisoner.locator('details').getAttribute('open') === null) await prisoner.locator('summary').click();
+const selfish = prisoner.locator('.choice').nth(1);
+assert.match(await selfish.innerText(), /34% favourable chance · Would be unfavourable/);
+await debug.locator('#outlook').selectOption('bleak');
+assert.match(await selfish.innerText(), /66% favourable chance · Would be favourable/);
+await debug.locator('#outlook').selectOption('hopeful');
+assert.match(await selfish.innerText(), /Would be unfavourable/);
+await debug.locator('#refresh').click();
+assert.equal(await debug.evaluate(() => localStorage.getItem('vaultbound:campaign:v1')), fixture);
+await debug.evaluate(() => scrollTo(0, 0));
+await debug.screenshot({ path: 'output/event-debug/desktop.png' });
+// The inspector receives storage events, retains opened details, and shows actual results.
+await writer.evaluate(() => {
+ const key = 'vaultbound:campaign:v1', saved = JSON.parse(localStorage.getItem(key));
+ saved.state.events.pending.result = { choice: 'Distribute it evenly', text: 'A share for everyone.', consequence: 'Gained 3 gold.', effect: 'Shared gold', favourable: true };
+ localStorage.setItem(key, JSON.stringify(saved));
+});
+await debug.waitForFunction(() => document.querySelector('[data-status="revealed"]'));
+assert.match(await debug.locator('li[data-event="W01"]').innerText(), /Actual choice: Distribute it evenly/);
+assert.equal(await prisoner.locator('details').getAttribute('open'), '');
+for (const width of [390, 320]) {
+ await debug.setViewportSize({ width, height: 844 });
+ await debug.evaluate(() => scrollTo(0, 0));
+ assert.equal(await debug.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+ await debug.screenshot({ path: `output/event-debug/phone-${width}.png` });
+}
+// A saved battle is inspected without modifying its pause state or writing back.
+await writer.evaluate(() => {
+ const key = 'vaultbound:campaign:v1', saved = JSON.parse(localStorage.getItem(key));
+ saved.state.view = 'battle'; saved.state.battlePaused = false;
+ localStorage.setItem(key, JSON.stringify(saved));
+});
+await debug.waitForFunction(() => document.querySelector('#campaign-stats').innerText.includes('battle'));
+await debug.reload();
+assert.equal(await debug.evaluate(() => JSON.parse(localStorage.getItem('vaultbound:campaign:v1')).state.battlePaused), false);
+await writer.evaluate(() => localStorage.setItem('vaultbound:campaign:v1', 'bad-json'));
+await debug.waitForFunction(() => !document.querySelector('#empty-state').hidden);
+assert.deepEqual(errors, []);
+await context.close(); await browser.close();
+console.log('Debug link, empty state, all ten events, statuses/history, exact rolls, outlook previews, read-only storage, live updates and 320/390px layouts: passed');

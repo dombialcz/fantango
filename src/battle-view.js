@@ -235,6 +235,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       root.querySelector(".battle-resource strong").textContent = `${meter} / ${COMMAND_MAX}`;
       root.querySelector(".battle-resource__track i").style.width = `${state.meter}%`;
       const effectCopy = Object.entries(state.effects).filter(([, duration]) => duration > 0).map(([id, duration]) => `${BATTLE_COMMANDS[id].label} ${(duration / 1000).toFixed(1)}s`);
+      effectCopy.push(...(state.eventBonuses ?? []));
       if (state.pilferPending > 0) effectCopy.push(`Pilfer +${state.pilferPending}g pending`);
       root.querySelector(".battle-active-effects").textContent = effectCopy.join(" · ");
       for (const id of COMMAND_IDS) {

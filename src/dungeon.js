@@ -1,3 +1,6 @@
+import { createEventCampaign, EVENT_BY_ID, resolveEvent, applyEventEffect } from "./campaign-events.js";
+import { createEventView } from "./event-view.js";
+import { recordChronicle, saveCampaign, loadCampaign, archiveChronicle, createChronicleView } from "./campaign-chronicle.js";
 import { expeditionOutcome, townMorale } from "./town-morale.js";
 import { createTownIdentity, townHeroEffects, rollTownClass, townRollCost } from "./town-identity.js";
 import { offerLevelChances, rollOfferLevel } from "./hero-offers.js";
@@ -215,13 +218,18 @@ function rollHeroes(count, tavernLevel = 1) {
 function createCampaign() {
   const buildings = createTownBuildings();
   const town = createTownIdentity();
+  const flavorKey = randomItem(Object.keys(FLAVORS));
+  const seed = crypto.getRandomValues(new Uint32Array(1))[0];
   return {
     view: "town",
     day: 1,
     gold: 10 + (town.prefix.gold ?? 0) + (town.settlement.dailyGold ?? 0),
     town,
     freeRerollsRemaining: town.settlement.freeRerolls ?? 0,
-    flavorKey: randomItem(Object.keys(FLAVORS)),
+    flavorKey,
+    events: createEventCampaign(flavorKey, seed),
+    dayOutlook: "opening",
+    chronicle: [{ day: 1, floor: null, category: "dawn", text: `A little hope, on the edge of the dark. ${town.name} faces ${FLAVORS[flavorKey].name}.` }],
     bossType: null,
     backdrop: createBackdropDepth(),
     graves: [],
@@ -278,7 +286,50 @@ function createCampaign() {
   };
 }
 
-let state = createCampaign();
+const savedCampaign = loadCampaign();
+let state = savedCampaign?.state ?? createCampaign();
+if (savedCampaign) { nextHeroId = savedCampaign.nextHeroId; nextEnemyId = savedCampaign.nextEnemyId; }
+function remember(category, text, floor = null) { recordChronicle(state, category, text, floor); }
+function persist() { saveCampaign(state, nextHeroId, nextEnemyId); }
+const eventView = createEventView({
+  root: document.querySelector("#event-screen"),
+  onChoice: chooseCampaignEvent,
+  onContinue: () => {
+    if (state.view !== "event" || !state.events.pending?.result) return;
+    state.events.pending = null;
+    state.view = "floor_result";
+    persist(); render();
+    document.querySelector('[data-battle-action="continue"]')?.focus();
+  },
+});
+const chronicleView = createChronicleView({ getState: () => state, onOpen: () => {
+  if (state.view === "battle") { state.battlePaused = true; state.commandAutoPaused = false; render(); }
+  persist();
+} });
+function chooseCampaignEvent(choiceIndex) {
+  if (state.view !== "event" || !state.events.pending || state.events.pending.result) return;
+  const pending = state.events.pending;
+  const result = resolveEvent(pending, choiceIndex, state.dayOutlook);
+  if (!result) return;
+  if (["Restore", "Shared care", "Feast"].includes(result.effect) && livingParty().every(unit => unit.hp === unit.maxHp)) {
+    result.text = "The company needs no further healing. A contribution to the town treasury takes the place of unused care and supplies.";
+  }
+  if (result.effect === "Lost purse" && state.gold === 0) {
+    result.text = "There is nothing left to steal, but the dispute shakes the company’s confidence.";
+  }
+  if (state.day === 10 && ["One contract favour", "Two contract favours"].includes(result.effect)) {
+    result.text += " With no time for further contracts, the introduction is exchanged for an immediate payment.";
+  }
+  result.consequence = applyEventEffect(state, result.effect, pending);
+  pending.result = result;
+  remember("event", `${EVENT_BY_ID[pending.id].title}. We chose: ${result.choice} ${result.text} ${result.consequence} [Campaign clear ${state.events.clears}]`, state.floor);
+  persist(); render();
+}
+// Save after actions and once a second in combat. A reload resumes combat paused.
+document.addEventListener("click", () => queueMicrotask(persist));
+document.addEventListener("keydown", () => queueMicrotask(persist));
+window.addEventListener("pagehide", persist);
+setInterval(persist, 1000);
 
 const townView = createTownView({
   root: document.querySelector("#town-screen"),
@@ -384,6 +435,7 @@ function upgradeTownBuilding(type, path = null) {
   }
   state.gold -= cost;
   building.level += 1;
+  remember("upgrade", `${definition.name} upgraded to level ${building.level}${path ? `; chose ${definition[path].label}` : ""}. Spent ${cost} gold.`);
   if (definition.utility) {
     state.message = `${definition.name} reaches level ${building.level}: ${definition.core(building.level)}.`;
   } else {
@@ -406,6 +458,7 @@ function recruitOffer(index) {
   }
   hero.active = activeBench().length < teamCapacity(state.day);
   state.bench.push(hero);
+  remember("hire", `${hero.name}, a level ${hero.level} ${HERO_TYPES[hero.type].label}, joined the company.`);
   state.offers.splice(index, 1);
   state.selectedHeroId = hero.id;
   state.selectedOfferId = null;
@@ -429,7 +482,11 @@ function rerollOffers() {
     return;
   }
   state.gold -= cost;
-  if (state.rolledToday && state.freeRerollsRemaining > 0) state.freeRerollsRemaining -= 1;
+  remember("roll", `Reviewed ${offerCount(state.day)} contracts; spent ${cost} gold.`);
+  if (state.rolledToday && state.freeRerollsRemaining > 0) {
+    state.freeRerollsRemaining -= 1;
+    if (state.eventRerollsRemaining > 0) { state.eventRerollsRemaining -= 1; remember("favour", "Used one event contract favour for a free reroll."); }
+  }
   else if (cost > 0) state.rerollCost += 1;
   state.rolledToday = true;
   state.rollRemainingMs = 1300;
@@ -447,6 +504,7 @@ function toggleSelectedActive() {
   }
   hero.active = !hero.active;
   state.message = hero.active ? `${hero.name} joins the expedition.` : `${hero.name} waits on the bench.`;
+  remember("company", state.message);
 }
 
 function upgradeSelected() {
@@ -463,6 +521,7 @@ function upgradeSelected() {
   }
   state.gold -= cost;
   hero.level += 1;
+  remember("training", `${hero.name} trained to level ${hero.level}. Spent ${cost} gold.`);
   state.message = `${hero.name} rises to level ${hero.level}.`;
 }
 
@@ -470,6 +529,7 @@ function dismissSelected() {
   const hero = selectedHero();
   if (!hero) return;
   state.bench = state.bench.filter((candidate) => candidate.id !== hero.id);
+  remember("dismissal", `${hero.name} left the company.`);
   state.selectedHeroId = null;
   state.message = `${hero.name} leaves the company.`;
 }
@@ -490,6 +550,7 @@ function startExpedition() {
   state.party = buildParty(chosen);
   state.expeditionStartCount = state.party.length;
   state.expeditionStartIds = chosen.map((hero) => hero.id);
+  remember("departure", `${chosen.length} heroes descended: ${chosen.map(h => `${h.name} (${HERO_TYPES[h.type].label}, L${h.level})`).join(", ")}.`);
   const supplies = alchemistSupplies(state.buildings.alchemist.level);
   state.potionsRemaining = supplies.count;
   state.potionHealRatio = supplies.healRatio;
@@ -628,7 +689,12 @@ function livingEnemies() {
 }
 
 function resetFloorCommands() {
-  state.commandMeter = COMMAND_START;
+  state.commandMeter = state.events.nextCommand ?? COMMAND_START;
+  state.events.activeAttack = state.events.nextAttack;
+  if (state.events.nextCommand !== null) remember("effect", `Event consequence took effect: battle begins with ${state.events.nextCommand} Command.`, state.floor);
+  if (state.events.nextAttack !== 1) remember("effect", `Event consequence took effect: ${Math.round((state.events.nextAttack - 1) * 100)}% attack damage this battle.`, state.floor);
+  state.events.nextCommand = null;
+  state.events.nextAttack = 1;
   state.commandTargeting = null;
   state.enemyFreezeMs = 0;
   state.divineAegisMs = 0;
@@ -802,6 +868,7 @@ function rememberFallenHero(unit, source) {
   const recorded = recordFallenHero(state.graves, unit, source, { day: state.day, floor: state.floor,
     campaignKey: state.flavorKey, campaignName: currentFlavor().name });
   if (!recorded) return;
+  remember("death", `${unit.label}, ${HERO_TYPES[unit.type].label}, fell. The Cemetery remembers them.`, state.floor);
   for (const ally of livingParty()) {
     ally.baseMaxHp ??= ally.maxHp / (1 + (ally.cemeteryBonusPercent ?? 0) / 100);
     ally.maxHp = cemeteryMaxHp(ally.baseMaxHp, state.graves);
@@ -881,7 +948,7 @@ function heroInterval(unit) {
 }
 
 function heroCommandDamageMultiplier(unit) {
-  return unit.row === "front" && state.holdLineMs > 0 ? 1 + state.holdDamageBonus : 1;
+  return (unit.row === "front" && state.holdLineMs > 0 ? 1 + state.holdDamageBonus : 1) * state.events.dayPower * state.events.activeAttack;
 }
 
 function actHero(unit) {
@@ -930,7 +997,7 @@ function actHero(unit) {
     const damaged = livingParty().filter((ally) => ally.id !== unit.id && ally.hp < ally.maxHp);
     if (damaged.length) {
       const ally = randomItem(damaged);
-      const amount = Math.max(1, Math.round(unit.power * unit.healRatio * COMBAT_DAMAGE_SCALE));
+      const amount = Math.max(1, Math.round(unit.power * unit.healRatio * COMBAT_DAMAGE_SCALE * state.events.dayPower));
       ally.hp = Math.min(ally.maxHp, ally.hp + amount);
       addCombatEffect(unit, ally, "heal");
       logBattle(`${unit.label} restores ${amount} health to ${ally.label}.`);
@@ -1091,7 +1158,11 @@ function finishFloor() {
   state.floorReward = floorGoldReward(state.day);
   state.floorPilferGold = state.pilferPending;
   state.gold += state.floorReward + state.floorPilferGold;
+  const newRecord = state.floor > state.deepestFloor;
   state.deepestFloor = Math.max(state.deepestFloor, state.floor);
+  remember("floor", `Cleared floor ${state.floor}. ${livingParty().length} survived; gained ${state.floorReward + state.floorPilferGold} gold.${newRecord ? " A new depth record." : ""}`, state.floor);
+  if (state.events.activeAttack !== 1) remember("effect", "The event attack modifier expired with the battle.", state.floor);
+  state.events.activeAttack = 1;
   const survivorCount = livingParty().length;
   const survivorCopy = `${survivorCount} ${survivorCount === 1 ? "hero remains" : "heroes remain"}`;
   if (isBossFloor(state.floor)) {
@@ -1108,6 +1179,15 @@ function finishFloor() {
     state.resultCopy = `${survivorCopy}. The vault yields ${state.floorReward} gold for day ${state.day}.${lootCopy}`;
     state.message = "Take the winnings and flee, or press deeper with your current health.";
   }
+  if (state.victoryDay === state.day && isBossFloor(state.floor)) remember("victory", `${BOSS_DEFINITIONS[state.bossType].label} was defeated. Victory is secured.`, state.floor);
+  state.events.clears += 1;
+  const scheduled = state.events.plan[state.events.next];
+  if (scheduled && state.events.clears >= scheduled.at) {
+    state.events.pending = { ...scheduled, result: null };
+    state.events.next += 1;
+    state.view = "event";
+  }
+  persist();
 }
 
 function continueExpedition() {
@@ -1142,6 +1222,13 @@ function finishDay(reason = "The company returns to the surface with its survivo
     : reason;
   state.message = reason;
   state.view = campaignEnded ? "campaign_end" : "day_result";
+  remember("return", `${reason} ${state.party.length} of ${state.expeditionStartCount} heroes returned; ${state.gold} gold in the treasury.`, state.floor);
+  if (state.events.activeAttack !== 1) remember("effect", "The event attack modifier expired with the battle.", state.floor);
+  state.events.activeAttack = 1;
+  if (state.events.dayPower !== 1) remember("effect", "The shared-cache damage and healing bonus ended with the day.");
+  state.events.dayPower = 1;
+  if (campaignEnded) remember("ending", state.resultCopy);
+  persist();
 }
 
 function resolveRetreatLevelUps(retreatType) {
@@ -1185,6 +1272,7 @@ function usePotionOn(unit) {
   state.potionsRemaining -= 1;
   state.potionTargeting = false;
   logBattle(`A potion restores ${restored} health to ${unit.label}.`);
+  remember("potion", `A potion restored ${restored} HP to ${unit.label}.`, state.floor);
 }
 
 function clearCombatFeedback() {
@@ -1227,13 +1315,19 @@ function fleeMidBattle() {
 
 function advanceDay() {
   if (state.view !== "day_result") return;
+  if (state.eventRerollsRemaining > 0) remember("favour", `${state.eventRerollsRemaining} unused event contract favour(s) expired.`);
   state.day += 1;
   state.gold += state.town.settlement.dailyGold ?? 0;
-  state.freeRerollsRemaining = state.town.settlement.freeRerolls ?? 0;
+  state.eventRerollsRemaining = state.events.nextDayRerolls;
+  state.freeRerollsRemaining = (state.town.settlement.freeRerolls ?? 0) + state.events.nextDayRerolls;
+  state.events.nextDayRerolls = 0;
+  const morning = townMorale(state.day, state.lastExpedition, state.victoryAchieved);
+  state.dayOutlook = morning.tone;
+  remember("dawn", morning.text);
   const survivors = state.party.map((unit) => unit.hero);
   const reserves = state.bench.filter((hero) => !state.expeditionStartIds.includes(hero.id));
   for (const hero of survivors) {
-    if (state.retreatLevelUpIds.includes(hero.id)) hero.level = Math.min(5, hero.level + 1);
+    if (state.retreatLevelUpIds.includes(hero.id)) { hero.level = Math.min(5, hero.level + 1); remember("level", `${hero.name} returned at level ${hero.level}.`); }
     hero.active = true;
   }
   for (const hero of reserves) hero.active = false;
@@ -1256,15 +1350,20 @@ function advanceDay() {
   state.retreatLevelChance = 0;
   state.retreatLevelUpIds = [];
   state.view = "town";
+  if (state.town.settlement.dailyGold) remember("income", "The Estate yielded 1 gold.");
+  if (state.eventRerollsRemaining) remember("favour", `${state.eventRerollsRemaining} extra free reroll(s) available today from yesterday’s encounters.`);
   state.message = levelUps > 0
     ? `Day ${state.day}. Survivors return healed; ${levelUps} gained a level. Floors now yield ${floorGoldReward(state.day)} gold.`
     : `Day ${state.day}. Survivors return healed; no one gained a level. Floors now yield ${floorGoldReward(state.day)} gold.`;
+  persist();
 }
 
 function resetCampaign() {
+  archiveChronicle(state);
   nextHeroId = 1;
   nextEnemyId = 1;
   state = createCampaign();
+  persist();
 }
 
 function update(milliseconds) {
@@ -1289,6 +1388,7 @@ function configureLayout(force = false) {
 }
 
 function render() {
+  eventView.render(state);
   const townVisible = state.view === "town";
   townView.render({
     visible: townVisible,
@@ -1326,6 +1426,7 @@ function render() {
     potions: alchemistSupplies(state.buildings.alchemist.level).count, buildings: state.buildings, message: state.message,
     cemeteryBonusPercent: state.graves.length,
   } : { visible: false });
+  chronicleView.place(state.view);
   canvas.hidden = true;
 }
 
@@ -1346,6 +1447,12 @@ function battlePresentation() {
     log: state.battleLog,
     combatEffects: state.combatEffects,
     meter: state.commandMeter,
+    eventBonuses: [
+      ...(state.events.dayPower !== 1 ? ["Shared cache: +5% damage and healing today"] : []),
+      ...(state.events.activeAttack !== 1 ? [`Event: ${Math.round((state.events.activeAttack - 1) * 100)}% attack damage this battle`] : []),
+      ...(state.events.nextCommand !== null ? [`Next battle: ${state.events.nextCommand} starting Command`] : []),
+      ...(state.events.nextAttack !== 1 ? [`Next battle: ${Math.round((state.events.nextAttack - 1) * 100)}% attack damage`] : []),
+    ],
     targeting: state.potionTargeting ? "potion" : state.commandTargeting,
     markedEnemyId: state.markedEnemyId,
     paused: state.battlePaused,
@@ -1457,6 +1564,8 @@ window.render_game_to_text = () => {
     game: "Vaultbound",
     layout: layoutMode,
     view: state.view,
+    events: { clears: state.events.clears, encountered: state.events.next, pending: state.events.pending, dayPower: state.events.dayPower, nextCommand: state.events.nextCommand, nextAttack: state.events.nextAttack, activeAttack: state.events.activeAttack, nextDayRerolls: state.events.nextDayRerolls },
+    chronicle: state.chronicle.slice(-12),
     townPresentation: state.view === "town" ? townView.snapshot() : null,
     day: state.day,
     daysTotal: 10,

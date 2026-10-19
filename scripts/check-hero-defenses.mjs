@@ -139,7 +139,8 @@ try {
   await page.setViewportSize({width:1440,height:1000});await stage();
   await page.evaluate(()=>{const {state,render}=window.defenseTest;state.view='town';state.gold=100;render();});
   await page.locator('[data-district="thief"]').click();
-  const evasionUpgrade=page.locator('.town-inspector [data-upgrade="thief"][data-path="pathA"]');
+  await page.locator('.town-inspector [data-open-upgrade="thief"]').click();
+  const evasionUpgrade=page.locator('.town-upgrade-dialog [data-upgrade="thief"][data-path="pathA"]');
   assert.match(await evasionUpgrade.textContent(),/EVASION/);assert.match(await evasionUpgrade.textContent(),/\+5% dodge/);
   await evasionUpgrade.click();
   assert.deepEqual(await page.evaluate(()=>{

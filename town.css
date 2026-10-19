@@ -161,6 +161,14 @@ body.town-open > .sidegame-link { display: none; }
 .town-upgrade:disabled { background: #7684900a; border-color: #9da7af25; color: #808b93; }
 .town-upgrade:disabled small { color: #737f87; }
 .town-upgrades__help { margin: 12px 0 0; color: #839099; font-size: 11px; line-height: 1.6; }
+.town-building-flavor { margin: 14px 0 18px; padding-left: 14px; border-left: 2px solid #c9ae7760; color: #c5bea9; font: italic 14px/1.7 Georgia, serif; }
+.town-upgrade-dialog { box-sizing: border-box; width: min(440px, calc(100% - 32px)); max-height: calc(100dvh - 32px); padding: 25px; overflow-y: auto; border: 1px solid #c9ae7780; border-radius: 10px; background: #141e27; color: #eee7d7; box-shadow: 0 20px 80px #0009; }
+.town-upgrade-dialog::backdrop { background: #03080cbf; backdrop-filter: blur(4px); }
+.town-upgrade-dialog h2 { margin: 9px 0 14px; font: 24px/1.2 Georgia, serif; }
+.town-upgrade-dialog__benefit { color: #d4c49e; font: 12px/1.6 Georgia, serif; }
+.town-upgrade-cancel { display: block; width: 100%; min-height: 44px; margin-top: 18px; border: 1px solid #a0a5a650; border-radius: 5px; background: transparent; color: #d5cfbf; font: 12px Georgia, serif; }
+.town-upgrade-cancel:hover { background: #ffffff0a; }
+.town-upgrade-dialog button:focus-visible { outline: 2px solid #e3cc9e; outline-offset: 3px; }
 .town-complete { margin: 8px 0; color: #aec3aa; font-size: 13px; line-height: 1.6; }
 .town-footer { display: flex; justify-content: space-between; align-items: center; gap: 24px; border-top: 1px solid var(--town-line); margin-top: 28px; padding: 20px 0 28px; }
 .town-message { margin: 0; color: #a0aaa9; font-size: 12px; line-height: 1.6; }

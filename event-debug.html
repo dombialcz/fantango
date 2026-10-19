@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#101c25"/>
+  <title>Vaultbound — Event debug</title>
+  <link rel="stylesheet" href="event-debug.css"/>
+</head>
+<body>
+  <main>
+    <header class="debug-header"><div><span class="eyebrow">VAULTBOUND · DEVELOPER VIEW</span><h1>Event schedule</h1></div><a href="dungeon.html">Return to the game →</a></header>
+    <p class="debug-intro">The pre-generated encounters for the current saved campaign. Trigger counts follow total floor clears across all days, including repeated floors.</p>
+    <section id="empty-state" hidden><h2>No saved campaign yet</h2><p>Open Vaultbound and start a campaign on this browser and site, then return here.</p><a href="dungeon.html">Open Vaultbound →</a></section>
+    <section id="campaign" hidden>
+      <div class="campaign-summary"><span class="eyebrow" id="campaign-flavor"></span><h2 id="town-name"></h2><dl id="campaign-stats"></dl><p id="next-event" role="status"></p></div>
+      <div class="debug-controls"><label>Preview outlook <select id="outlook"><option value="current">Current morning</option><option value="hopeful">Hopeful</option><option value="bleak">Bleak</option></select></label><button type="button" id="refresh">Refresh saved run</button><span id="save-status" role="status"></span></div>
+      <p class="preview-note">Choice previews use the selected outlook, today’s rewards and current party. Future days may change the odds, gold values and targets. Resolved choices retain their actual recorded result. This page cannot alter your run.</p>
+      <ol id="event-schedule" aria-label="Scheduled campaign events"></ol>
+    </section>
+    <footer>Open from <strong>Chronicle → Debug event schedule</strong>. Updates when the game saves in another tab on this site.</footer>
+    <noscript>JavaScript is needed to read this browser’s saved campaign.</noscript>
+  </main>
+  <script type="module" src="src/event-debug.js"></script>
+</body>
+</html>

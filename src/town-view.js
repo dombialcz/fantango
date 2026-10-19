@@ -1,6 +1,7 @@
 import { BUILDING_DEFINITIONS, buildingUpgradeCost } from "./town.js";
 import { goldAmount, goldPrice, updateGoldBalance } from "./gold-ui.js";
 import { observeTownRestoration } from "./town-art-feedback.js";
+import { createBuildingFlavor } from "./building-flavor.js";
 import { CEMETERY } from "./cemetery.js";
 
 const DISTRICT_ORDER = ["knight", "ranger", "mage", "thief", "tavern", "cleric", "barbarian", "bard", "alchemist", "cemetery"];
@@ -41,8 +42,8 @@ function upgradeButton(type, building, gold, path = null) {
   </button>`;
 }
 
-function inspectorMarkup(type, snapshot) {
-  if (type === "cemetery") return cemeteryMarkup(snapshot);
+function inspectorMarkup(type, snapshot, flavor) {
+  if (type === "cemetery") return cemeteryMarkup(snapshot, flavor);
   const definition = BUILDING_DEFINITIONS[type];
   const district = DISTRICTS[type];
   const building = snapshot.buildings[type];
@@ -53,20 +54,21 @@ function inspectorMarkup(type, snapshot) {
       ${artMarkup(type, building.level)}
     </div>
     <div class="town-inspector__body">
-      <div class="town-inspector__heading"><h2>${definition.name}</h2><span class="town-level-badge">LV ${building.level}</span></div>
+      <div class="town-inspector__heading"><h2 tabindex="-1">${definition.name}</h2><span class="town-level-badge">LV ${building.level}</span></div>
       <p class="town-inspector__tagline">${district.title}</p>
+      <p class="town-building-flavor">${escape(flavor)}</p>
       <div class="town-restoration"><span>${STAGES[building.level - 1]}</span>${levelPips(building.level)}</div>
       <p class="town-inspector__copy">${district.copy}</p>
       <div class="town-benefit"><span class="town-eyebrow">CURRENT BENEFIT</span><strong>${definition.core(building.level)}</strong>${pathCopy}</div>
       <div class="town-command-note"><span class="town-eyebrow">${definition.commandLabel ?? (type === "alchemist" ? "HEALING SUPPLIES" : "THE CONTRACT REEL")}</span><p>${district.command}</p></div>
-      <div class="town-upgrades"><div class="town-upgrades__heading"><span>${cost === null ? "District complete" : definition.utility ? "Next improvement" : "Choose an improvement"}</span><small>${cost === null ? "LEVEL 5 / 5" : `LEVEL ${building.level + 1}`}</small></div>
-        ${cost === null ? `<p class="town-complete">Fully restored. Your company has the best this district can offer.</p>` : definition.utility ? upgradeButton(type, building, snapshot.gold) : upgradeButton(type, building, snapshot.gold, "pathA") + upgradeButton(type, building, snapshot.gold, "pathB")}
-        ${cost !== null ? `<p class="town-upgrades__help gold-purchase-note">${snapshot.gold < cost ? `Need ${cost - snapshot.gold} more gold to purchase this upgrade.` : `Each upgrade spends ${cost} gold immediately. ${definition.utility ? "Applies to future supplies or contracts." : "Choose one bonus for every hero of this class."}`}</p>` : ""}
+      <div class="town-upgrades"><div class="town-upgrades__heading"><span>${cost === null ? "District complete" : "Next improvement"}</span><small>${cost === null ? "LEVEL 5 / 5" : `LEVEL ${building.level + 1}`}</small></div>
+        ${cost === null ? `<p class="town-complete">Fully restored. Your company has the best this district can offer.</p>` : `<button class="town-upgrade" type="button" data-open-upgrade="${type}" aria-haspopup="dialog"><span><strong>UPGRADE</strong><small>View level ${building.level + 1} improvements</small></span>${goldPrice(cost, "COST")}</button>`}
+        ${cost !== null ? `<p class="town-upgrades__help gold-purchase-note">${snapshot.gold < cost ? `Need ${cost - snapshot.gold} more gold to purchase this upgrade.` : `Choose an improvement in the upgrade dialog. ${definition.utility ? "Applies to future supplies or contracts." : "Choose one bonus for every hero of this class."}`}</p>` : ""}
       </div>
     </div>`;
 }
 
-function cemeteryMarkup(snapshot) {
+function cemeteryMarkup(snapshot, flavor) {
   const graves = snapshot.graves ?? [];
   const entries = [...graves].reverse().map(grave => `<li class="cemetery-grave" data-grave="${escape(grave.heroId)}">
     <img src="assets/heroes/${escape(grave.class)}.png" alt="" loading="lazy"/>
@@ -78,6 +80,7 @@ function cemeteryMarkup(snapshot) {
     <div class="town-inspector__body cemetery-inspector">
       <div class="town-inspector__heading"><h2>Cemetery</h2><span class="town-level-badge">MEMORIAL</span></div>
       <p class="town-inspector__tagline">Their names remain. Their courage carries on.</p>
+      <p class="town-building-flavor">${escape(flavor)}</p>
       <div class="town-benefit cemetery-benefit"><span class="town-eyebrow">LEGACY OF THE FALLEN</span><strong>+${graves.length}% maximum health</strong><p>${graves.length} fallen ${graves.length === 1 ? "hero" : "heroes"} · All living heroes benefit.</p></div>
       <p class="cemetery-rules">Each hero lost in combat grants +1% maximum health to the living, including future recruits. The bonus stacks additively, on top of town and Bard bonuses. It does not restore current HP. No upgrades or gold required.</p>
       <div class="cemetery-register-heading"><h3>Book of the Fallen</h3><span>${graves.length} remembered</span></div>
@@ -87,6 +90,8 @@ function cemeteryMarkup(snapshot) {
 }
 
 export function createTownView({ root, onUpgrade, onClose, onReset }) {
+  const flavor = createBuildingFlavor();
+  const levels = new Map();
   let selectedType = "tavern";
   let snapshot = null;
   let signature = "";
@@ -114,9 +119,11 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
       <aside class="town-inspector" aria-label="Selected district"></aside>
     </div>
     <footer class="town-footer"><p class="town-message" role="status" aria-live="polite"></p><button type="button" data-town-action="reset">New campaign</button></footer>
+    <dialog class="town-upgrade-dialog" aria-labelledby="town-upgrade-title" aria-describedby="town-upgrade-flavor"></dialog>
     <dialog class="town-sheet" aria-label="District details"><button type="button" class="town-sheet__close" data-town-action="dismiss" aria-label="Close district details">Close <span aria-hidden="true">×</span></button><div class="town-sheet__content"></div></dialog>
   </div>`;
 
+  const upgradeDialog = root.querySelector(".town-upgrade-dialog");
   const inspector = root.querySelector(".town-inspector");
   const sheet = root.querySelector(".town-sheet");
   const sheetContent = root.querySelector(".town-sheet__content");
@@ -126,7 +133,8 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
   function updateInspector() {
     if (!snapshot) return;
     const activePath = root.contains(document.activeElement) ? document.activeElement.dataset.path : null;
-    const markup = inspectorMarkup(selectedType, snapshot);
+    const passage = flavor.current(selectedType) || flavor.next(selectedType);
+    const markup = inspectorMarkup(selectedType, snapshot, passage);
     inspector.innerHTML = markup;
     sheetContent.innerHTML = markup;
     if (activePath !== null && activePath !== undefined) {
@@ -134,6 +142,31 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
       container.querySelector(`[data-path="${activePath}"]`)?.focus({ preventScroll: true });
     }
   }
+
+  function closeUpgrade() {
+    upgradeDialog.close();
+    // A purchase rebuilds the inspector; restore focus to the replacement button.
+    const container = sheet.open ? sheetContent : inspector;
+    (container.querySelector("[data-open-upgrade]") ?? container.querySelector(".town-inspector__heading h2") ?? mobileTrigger)?.focus({ preventScroll: true });
+  }
+
+  function openUpgrade(trigger) {
+    const type = trigger.dataset.openUpgrade;
+    const building = snapshot.buildings[type];
+    const definition = BUILDING_DEFINITIONS[type];
+    const cost = buildingUpgradeCost(building.level);
+    if (cost === null) return;
+    upgradeDialog.dataset.type = type;
+    upgradeDialog.innerHTML = `<span class="town-eyebrow">LEVEL ${building.level} → ${building.level + 1}</span>
+      <h2 id="town-upgrade-title">Upgrade ${escape(definition.name)}</h2>
+      <p class="town-building-flavor" id="town-upgrade-flavor">${escape(flavor.current(type))}</p>
+      <p class="town-upgrade-dialog__benefit">Next level: ${escape(definition.core(building.level + 1))}</p>
+      <div class="town-upgrade-options">${definition.utility ? upgradeButton(type, building, snapshot.gold) : upgradeButton(type, building, snapshot.gold, "pathA") + upgradeButton(type, building, snapshot.gold, "pathB")}</div>
+      <p class="town-upgrades__help">${snapshot.gold < cost ? `Need ${cost - snapshot.gold} more gold.` : `Choose ${definition.utility ? "Upgrade" : "one improvement"} to spend ${cost} gold.`}</p>
+      <button type="button" class="town-upgrade-cancel" data-town-action="cancel-upgrade" autofocus>Cancel</button>`;
+    upgradeDialog.showModal();
+  }
+  upgradeDialog.addEventListener("cancel", event => { event.preventDefault(); closeUpgrade(); });
 
   function dismissSheet() {
     if (sheet.open) sheet.close();
@@ -144,6 +177,7 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
     const districtButton = event.target.closest("[data-district]");
     if (districtButton) {
       selectedType = districtButton.dataset.district;
+      flavor.next(selectedType);
       cards.forEach((card) => card.setAttribute("aria-pressed", String(card.dataset.district === selectedType)));
       updateInspector();
       if (mobile.matches) {
@@ -152,12 +186,22 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
       }
       return;
     }
+    const openButton = event.target.closest("[data-open-upgrade]");
+    if (openButton) { openUpgrade(openButton); return; }
     const upgrade = event.target.closest("[data-upgrade]");
-    if (upgrade && !upgrade.disabled) {
-      onUpgrade(upgrade.dataset.upgrade, upgrade.dataset.path || null);
+    if (upgrade && !upgrade.disabled && upgradeDialog.open) {
+      const type = upgrade.dataset.upgrade;
+      const previousLevel = snapshot.buildings[type].level;
+      onUpgrade(type, upgrade.dataset.path || null);
+      if (snapshot.buildings[type].level > previousLevel) closeUpgrade();
       return;
     }
     const action = event.target.closest("[data-town-action]")?.dataset.townAction;
+    if (action === "cancel-upgrade") { closeUpgrade(); return; }
+    if (event.target === upgradeDialog) {
+      const bounds = upgradeDialog.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeUpgrade();
+    }
     if (action === "dismiss") dismissSheet();
     if (action === "close") onClose();
     if (action === "reset") onReset();
@@ -174,9 +218,14 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
       root.hidden = !next.visible;
       document.body.classList.toggle("town-open", next.visible);
       if (!next.visible) {
+        if (upgradeDialog.open) upgradeDialog.close();
         if (sheet.open) sheet.close();
         if (wasVisible) window.scrollTo(0, 0);
         return;
+      }
+      for (const [type, building] of Object.entries(next.buildings)) {
+        if (levels.has(type) && building.level > levels.get(type)) flavor.next(type);
+        levels.set(type, building.level);
       }
       snapshot = next;
       root.querySelector("h1").textContent = next.town.name;
@@ -237,7 +286,7 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
       updateInspector();
     },
     snapshot() {
-      return { selectedDistrict: selectedType, detailDialogOpen: sheet.open, artworkStages: STAGES };
+      return { selectedDistrict: selectedType, detailDialogOpen: sheet.open, upgradeDialogOpen: upgradeDialog.open, buildingFlavor: flavor.current(selectedType), artworkStages: STAGES };
     },
   };
 }
