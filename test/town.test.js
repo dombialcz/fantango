@@ -47,9 +47,9 @@ test("class specialization picks stack independently", () => {
 
 test("rogues replace class crit bonuses with dodge, while Rangers keep crit", () => {
   const rogue = buildingEffects("thief", {level: 5, pathA: 4, pathB: 0});
-  assert.equal(rogue.evasionChance, .4);
+  assert.ok(Math.abs(rogue.evasionChance - .3) < Number.EPSILON);
   assert.equal(rogue.critChance, 0);
-  assert.equal(buildingEffects("thief").evasionChance, .2);
+  assert.equal(buildingEffects("thief").evasionChance, .1);
   assert.equal(buildingEffects("knight").damageReduction, .2);
   assert.equal(buildingEffects("ranger", {level:5,pathA:4}).critChance, .2);
 });

@@ -136,9 +136,10 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
     card.querySelector(".battle-unit__info small").textContent = isHero ? `${definition.label} · L${unit.hero.level}` : unit.boss ? "FLOOR 10 · BOSS" : definition.label;
     card.querySelector(".battle-unit__health i").style.width = `${Math.max(0, unit.hp / unit.maxHp) * 100}%`;
     card.querySelector(".battle-unit__hp").textContent = `${Math.ceil(unit.hp)} / ${unit.maxHp} HP`;
-    card.querySelector(".battle-unit__status").textContent = frozen ? "FROZEN" : unit.evadeFlash > 0 ? "EVADE" : unit.interceptFlash > 0 ? "INTERCEPT" : isHero && state.effects.aegis > 0 ? "AEGIS" : state.markedEnemyId === unit.id ? "MARKED" : unit.empowered ? "EMPOWERED" : "";
-    card.title = definition.summary ?? definition.label;
-    card.setAttribute("aria-label", `${unit.label}${unit.boss ? ", final boss" : ""}, ${definition.label}, ${Math.ceil(unit.hp)} of ${unit.maxHp} health${frozen ? ", frozen" : ""}${targetable ? ", select target" : ""}`);
+    card.querySelector(".battle-unit__status").textContent = frozen ? "FROZEN" : unit.evadeFlash > 0 ? "EVADE" : unit.interceptFlash > 0 ? "INTERCEPT" : isHero && state.effects.aegis > 0 ? "AEGIS" : state.markedEnemyId === unit.id ? "MARKED" : unit.empowered ? "EMPOWERED" : unit.crowdingPenaltyPercent ? "CROWDED −20%" : "";
+    const crowdingNote = unit.crowdingPenaltyPercent ? " −20% maximum health and damage: three or more of this class departed together. Applies for the whole expedition." : "";
+    card.title = (definition.summary ?? definition.label) + crowdingNote;
+    card.setAttribute("aria-label", `${unit.label}${unit.boss ? ", final boss" : ""}, ${definition.label}, ${Math.ceil(unit.hp)} of ${unit.maxHp} health${crowdingNote}${frozen ? ", frozen" : ""}${targetable ? ", select target" : ""}`);
     const row = rows.get(`${unit.side}-${unit.row}`);
     if (card.parentElement !== row) row.append(card);
   }

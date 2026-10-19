@@ -4,6 +4,7 @@ import { recordChronicle, saveCampaign, loadCampaign, archiveChronicle, createCh
 import { expeditionOutcome, townMorale } from "./town-morale.js";
 import { createTownIdentity, townHeroEffects, rollTownClass, townRollCost } from "./town-identity.js";
 import { offerLevelChances, rollOfferLevel } from "./hero-offers.js";
+import { classCounts, recordClassSelection, classSelectionBonus, boostedOfferLevel, classCrowdingMultiplier } from "./class-balance.js";
 import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
 import { BOSS_FLOOR, floorGoldReward, isBossFloor } from "./dungeon-progression.js";
 import { enemyTypeForRoll, FLAVOR_ROSTERS } from "./enemy-rosters.js";
@@ -202,11 +203,15 @@ function offerLevelOddsText() {
 
 function makeHero(type = randomItem(HERO_KEYS), tavernLevel = 1) {
   const names = HERO_NAMES[type];
+  const name = randomItem(names);
+  const rolledLevel = rollOfferLevel(tavernLevel);
+  const level = boostedOfferLevel(rolledLevel, type, selectionBonus());
   return {
     id: nextHeroId++,
     type,
-    name: randomItem(names),
-    level: rollOfferLevel(tavernLevel),
+    name,
+    level,
+    selectionLevelBonus: level - rolledLevel,
     active: false,
   };
 }
@@ -233,6 +238,7 @@ function createCampaign() {
     bossType: null,
     backdrop: createBackdropDepth(),
     graves: [],
+    selectionHistory: [],
     deepestFloor: 0,
     expeditionRecordBefore: 0,
     expeditionClearedFloor: 0,
@@ -288,6 +294,7 @@ function createCampaign() {
 
 const savedCampaign = loadCampaign();
 let state = savedCampaign?.state ?? createCampaign();
+state.selectionHistory ??= []; // Saves made before class balancing have no selection history.
 if (savedCampaign) { nextHeroId = savedCampaign.nextHeroId; nextEnemyId = savedCampaign.nextEnemyId; }
 function remember(category, text, floor = null) { recordChronicle(state, category, text, floor); }
 function persist() { saveCampaign(state, nextHeroId, nextEnemyId); }
@@ -403,6 +410,10 @@ function currentFlavor() {
 
 function activeBench() {
   return state.bench.filter((hero) => hero.active);
+}
+
+function selectionBonus() {
+  return classSelectionBonus(state.selectionHistory, state.day, HERO_KEYS);
 }
 
 function selectedHero() {
@@ -548,6 +559,7 @@ function startExpedition() {
   state.floor = 1;
   state.backdrop = createBackdropDepth();
   state.party = buildParty(chosen);
+  state.selectionHistory = recordClassSelection(state.selectionHistory, state.day, chosen, HERO_KEYS);
   state.expeditionStartCount = state.party.length;
   state.expeditionStartIds = chosen.map((hero) => hero.id);
   remember("departure", `${chosen.length} heroes descended: ${chosen.map(h => `${h.name} (${HERO_TYPES[h.type].label}, L${h.level})`).join(", ")}.`);
@@ -557,6 +569,8 @@ function startExpedition() {
   state.potionTargeting = false;
   state.battleLog = [];
   prepareFloor();
+  const crowded = Object.entries(classCounts(chosen, HERO_KEYS)).filter(([, count]) => count > 2);
+  for (const [type, count] of crowded) logBattle(`${count} ${HERO_TYPES[type].label}s: all take −20% health and damage for this expedition.`);
 }
 
 function heroEffects(type) {
@@ -564,6 +578,7 @@ function heroEffects(type) {
 }
 
 function buildParty(heroes) {
+  const counts = classCounts(heroes, HERO_KEYS);
   const buffAmounts = new Map(heroes.map((hero) => [hero.id, 0]));
   for (const bard of heroes.filter((hero) => hero.type === "bard")) {
     const effects = heroEffects("bard");
@@ -580,7 +595,8 @@ function buildParty(heroes) {
     const effects = heroEffects(hero.type);
     const buffAmount = buffAmounts.get(hero.id) ?? 0;
     const power = heroPower(hero.level) * (1 + buffAmount);
-    const baseMaxHp = power * definition.hp * effects.healthMultiplier;
+    const crowdingMultiplier = classCrowdingMultiplier(counts[hero.type]);
+    const baseMaxHp = power * definition.hp * effects.healthMultiplier * crowdingMultiplier;
     const maxHp = cemeteryMaxHp(baseMaxHp, state.graves);
     return {
       id: `hero-${hero.id}`,
@@ -592,7 +608,8 @@ function buildParty(heroes) {
       power,
       bardBuffPercent: Math.round(buffAmount * 100),
       buildingSpeed: effects.speedMultiplier,
-      damageMultiplier: effects.damageMultiplier,
+      damageMultiplier: effects.damageMultiplier * crowdingMultiplier,
+      crowdingPenaltyPercent: crowdingMultiplier < 1 ? 20 : 0,
       damageReduction: effects.damageReduction,
       critChance: effects.critChance,
       evasionChance: effects.evasionChance,
@@ -1404,27 +1421,33 @@ function render() {
   });
   const battleVisible = ["battle", "floor_result", "day_result", "campaign_end"].includes(state.view);
   battleView.render(battleVisible ? battlePresentation() : { visible: false });
-  const presentHero = (hero) => {
+  const activeCounts = classCounts(activeBench(), HERO_KEYS);
+  const presentHero = (hero, offered = false) => {
     const definition = HERO_TYPES[hero.type];
     const effects = heroEffects(hero.type);
     const power = heroPower(hero.level);
+    const prospectiveActive = offered && activeBench().length < teamCapacity(state.day);
+    const crowdingCount = activeCounts[hero.type] + (prospectiveActive ? 1 : 0);
+    const crowdingMultiplier = hero.active || prospectiveActive ? classCrowdingMultiplier(crowdingCount) : 1;
     let summary = definition.summary;
     if (hero.type === "mage") summary = `Strikes up to ${effects.mageTargets} different enemies per attack, starting in the back row. Spell targets come from the Mage Guild.`;
     if (hero.type === "bard") summary = `Gives ${effects.bardTargets} random non-bard ${effects.bardTargets === 1 ? "ally" : "allies"} +${Math.round(effects.bardBuff * 100)}% power at expedition start.`;
     if (hero.type === "thief") summary += ` ${Math.round(effects.evasionChance * 100)}% dodge chance, including town bonuses.`;
     if (hero.type === "knight") summary += ` ${Math.round(totalDamageReduction(effects.damageReduction, 0, state.town.prefix.enemyDamage ?? 1) * 100)}% damage reduction, including town bonuses.`;
-    return { ...hero, power, health: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier, state.graves), damage: Math.round(power * definition.damage * effects.damageMultiplier), summary };
+    return { ...hero, power, health: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier * crowdingMultiplier, state.graves), damage: Math.round(power * definition.damage * effects.damageMultiplier * crowdingMultiplier), crowdingPenaltyPercent: crowdingMultiplier < 1 ? 20 : 0, prospectiveActive, summary };
   };
   rosterView.render(state.view === "tavern" ? {
     visible: true, day: state.day, gold: state.gold, flavor: currentFlavor().name,
     rolledToday: state.rolledToday, rollRemainingMs: state.rollRemainingMs,
     rerollCost: state.rerollCost, nextRollCost: townRollCost(state), freeRerollsRemaining: state.freeRerollsRemaining, dailyOffers: offerCount(state.day),
     tavernLevel: state.buildings.tavern.level, odds: offerLevelOddsText().replace(/^Tavern L\d+: /, ""),
-    offers: state.rollRemainingMs > 0 ? [] : state.offers.map(presentHero),
-    bench: state.bench.map(presentHero), selectedHeroId: state.selectedHeroId, selectedOfferId: state.selectedOfferId,
+    offers: state.rollRemainingMs > 0 ? [] : state.offers.map(hero => presentHero(hero, true)),
+    bench: state.bench.map(hero => presentHero(hero)), selectedHeroId: state.selectedHeroId, selectedOfferId: state.selectedOfferId,
     activeCount: activeBench().length, teamCapacity: teamCapacity(state.day), benchCapacity: benchLimit(),
     potions: alchemistSupplies(state.buildings.alchemist.level).count, buildings: state.buildings, message: state.message,
     cemeteryBonusPercent: state.graves.length,
+    selectionBonus: selectionBonus(),
+    crowdedClasses: Object.entries(activeCounts).filter(([, count]) => count > 2).map(([type, count]) => ({type, count})),
   } : { visible: false });
   chronicleView.place(state.view);
   canvas.hidden = true;
@@ -1558,6 +1581,7 @@ window.render_game_to_text = () => {
     level: hero.level,
     power: heroPower(hero.level),
     active: hero.active,
+    selectionLevelBonus: hero.selectionLevelBonus ?? 0,
   });
   return JSON.stringify({
     coordinateSystem: "Town, recruitment, and battle use responsive HTML controls. Daily flow: town → company → dungeon. All seven battle commands are visible from the start.",
@@ -1593,6 +1617,8 @@ window.render_game_to_text = () => {
     dailyOfferCount: offerCount(state.day),
     tavernLevel: state.buildings.tavern.level,
     offerLevelChances: offerLevelChances(state.buildings.tavern.level),
+    classBalance: { selectionHistory: state.selectionHistory, offerBonus: selectionBonus(),
+      crowding: { threshold: 3, healthMultiplier: .8, damageMultiplier: .8, fixedForExpedition: true } },
     offerCount: state.offers.length,
     offers: state.rollRemainingMs > 0 ? [] : state.offers.map(summarizeHero),
     bench: state.bench.map(summarizeHero),
@@ -1683,6 +1709,7 @@ window.render_game_to_text = () => {
       interceptChance: unit.type === "knight" ? .5 : 0,
       effectiveDamageReduction: damageReductionFor(unit),
       cemeteryBonusPercent: unit.cemeteryBonusPercent,
+      crowdingPenaltyPercent: unit.crowdingPenaltyPercent ?? 0,
       damageMultiplier: unit.damageMultiplier,
       damageReduction: unit.damageReduction,
       healRatio: unit.healRatio,

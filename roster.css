@@ -107,6 +107,17 @@ body.roster-open > .back-link, body.roster-open > .sidegame-link { display: none
 .hero-stats b { display: block; font: 22px Georgia, serif; color: #d9c8a4; margin-bottom: 6px; }
 .hero-behavior { color: #c3c6ba; font-size: 13px; line-height: 1.65; }
 .hero-town-bonus { color: #7d919a; font: 9px/1.6 Arial, sans-serif; }
+.reel-variety { margin-top: 14px; padding-top: 12px; border-top: 1px solid #9dbf9d30; overflow-wrap: anywhere; }
+.reel-variety strong, .reel-variety span, .reel-variety small { display: block; }
+.reel-variety strong { color: #abc8a3; font: 9px/1.5 Arial, sans-serif; }
+.reel-variety span { color: #d0dfbd; font: 12px/1.6 Georgia, serif; margin: 6px 0; }
+.reel-variety small { color: #97a99d; font: 9px/1.6 Arial, sans-serif; }
+.contract-variety { color: #c5dfab; font: 8px/1.4 Arial, sans-serif; padding-top: 7px; }
+.company-balance { margin: -7px 0 17px; color: #9aa7a4; font: 11px/1.6 Arial, sans-serif; overflow-wrap: anywhere; }
+.company-balance.has-penalty, .hero-balance-note { border: 1px solid #d29b6355; background: #35261960; padding: 10px; border-radius: 4px; color: #e1b989; font: 11px/1.6 Arial, sans-serif; }
+.company-hero.is-crowded { border-color: #bb875c80; }
+.company-hero__copy .company-crowding { color: #e4b284; font: 8px/1.5 Arial, sans-serif; }
+@media (max-width: 760px) { .reel-variety { grid-column: 1 / -1; } }
 .hero-contract-note { font-size: 12px; line-height: 1.7; color: #b5aa8f; padding-top: 10px; }
 .hero-management { display: grid; gap: 8px; padding-top: 10px; }
 .hero-management button { display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 8px 12px; color: #dec69a; border: 1px solid #c7a36670; border-radius: 4px; background: #ad854426; font-size: 12px; }

@@ -21,7 +21,7 @@ test("offer level chances follow Tavern level and halving", () => {
   ]);
 });
 
-test("contract generation uses sequential rolls and never offers level 5", () => {
+test("base Tavern rolls use sequential rolls and stop at level 4 before class bonuses", () => {
   assert.equal(rollOfferLevel(1, () => 0), 1);
   assert.equal(rollOfferLevel(4, () => 0), 3);
   assert.equal(rollOfferLevel(5, () => 0), 4);

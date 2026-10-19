@@ -15,6 +15,7 @@ try {
     await route.fulfill({ response, body: `${await response.text()}
       window.bossTest = { get state() { return state; }, resetCampaign, finishDay, advanceDay, makeEnemy, generateEnemies, actEnemy, actHero, dealDamage, updateBattle, enemyInterval, enemyEmpowered, continueExpedition, render,
         stage(flavor, type) {
+          state.events.clears=0; state.events.next=0; state.events.pending=null; state.events.plan.forEach(event=>event.at=9999);
           state.flavorKey = flavor; state.bossType = type; state.floor = 10;
           state.party = buildParty(['knight', 'cleric', 'ranger', 'mage'].map((type, index) => ({ id: 500 + index, name: HERO_TYPES[type].label, type, level: 5, active: true })));
           state.expeditionStartCount = 4; state.commandMeter = 0;

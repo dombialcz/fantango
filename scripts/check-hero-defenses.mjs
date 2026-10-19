@@ -47,15 +47,15 @@ try {
     const damage=dealDamage(rogue,100,state.enemies[0]);return {damage,knight:knight.hp,rogue:rogue.hp};
   }),{damage:25,knight:100,rogue:35});
 
-  for(const roll of [.19999,.2]) {
+  for(const roll of [.09999,.1]) {
     await stage();
     const result=await page.evaluate(roll=>{
       const {state,dealDamage,render}=window.defenseTest;state.party[0].frozenMs=1000;Math.random=()=>roll;
       const damage=dealDamage(state.party[1],100,state.enemies[0]);render();
       return {damage,hp:state.party[1].hp,meter:state.commandMeter,intercept:state.party[0].interceptFlash??0};
     },roll);
-    assert.equal(result.damage,roll<.2?0:25);assert.equal(result.hp,roll<.2?60:35);assert.equal(result.intercept,0);
-    if(roll<.2){assert.equal(result.meter,0);assert.equal(await page.locator('[data-unit-type="thief"] .battle-unit__status').textContent(),'EVADE');await page.screenshot({path:'output/hero-defenses/dodge.png'});}
+    assert.equal(result.damage,roll<.1?0:25);assert.equal(result.hp,roll<.1?60:35);assert.equal(result.intercept,0);
+    if(roll<.1){assert.equal(result.meter,0);assert.equal(await page.locator('[data-unit-type="thief"] .battle-unit__status').textContent(),'EVADE');await page.screenshot({path:'output/hero-defenses/dodge.png'});}
   }
 
   await stage();
@@ -122,7 +122,7 @@ try {
     state.selectedOfferId=90;render();
   });
   assert.match(await page.locator('[data-offer="90"] small').textContent(),/Front row/);
-  assert.match(await page.locator('.hero-behavior').textContent(),/38% dodge/);
+  assert.match(await page.locator('.hero-behavior').textContent(),/28% dodge/);
   await page.screenshot({path:'output/hero-defenses/rogue-roster.png',fullPage:true});
   await page.locator('[data-offer="91"]').click();
   assert.match(await page.locator('.hero-behavior').textContent(),/50% chance to intercept/);
@@ -146,7 +146,7 @@ try {
   assert.deepEqual(await page.evaluate(()=>{
     const {state,buildParty}=window.defenseTest;const rogue=buildParty([{id:1,type:'thief',name:'Nyx',level:1}])[0];
     return {gold:state.gold,dodge:rogue.evasionChance,crit:rogue.critChance,row:rogue.row};
-  }),{gold:97,dodge:.25,crit:0,row:'front'});
+  }),{gold:97,dodge:.1+.05,crit:0,row:'front'});
   await page.screenshot({path:'output/hero-defenses/guild-upgrade.png',fullPage:true});
   await page.locator('[data-district="knight"]').click();
   assert.match(await page.locator('.town-inspector .town-benefit').textContent(),/20% damage reduction/);

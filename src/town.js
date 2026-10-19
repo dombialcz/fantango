@@ -13,7 +13,7 @@ export const BUILDING_DEFINITIONS = {
     name: "Thieves’ Guild",
     classLabel: "Thief",
     commandLabel: "PILFER",
-    core: (level) => `20% base dodge · +${(level - 1) * 15}% damage to wounded foes`,
+    core: (level) => `10% base dodge · +${(level - 1) * 15}% damage to wounded foes`,
     pathA: { label: "EVASION", short: "+5% dodge" },
     pathB: { label: "HASTE", short: "+10% speed" },
   },
@@ -130,7 +130,7 @@ export function buildingEffects(type, building) {
     effects.speedMultiplier += pathB * 0.1;
   } else if (type === "thief") {
     effects.executeBonus = (level - 1) * 0.15;
-    effects.evasionChance = .2 + pathA * 0.05;
+    effects.evasionChance = .1 + pathA * 0.05;
     effects.speedMultiplier += pathB * 0.1;
   } else if (type === "bard") {
     effects.bardBuff = 0.2 + (level - 1) * 0.05;
