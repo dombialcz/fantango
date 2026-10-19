@@ -27,7 +27,9 @@ for (const c of cases) {
     const heroes = Array.from({ length: 4 }, (_, i) => ({ id: i + 1, type: 'knight', level: 1, name: `Hero ${i}` }));
     s.bench = heroes; s.party = t.buildParty(heroes); s.expeditionStartIds = heroes.map(h => h.id); s.expeditionStartCount = 4;
     s.party.forEach((h, i) => { if (i >= c.returned) h.hp = 0; });
-    s.floor = c.cleared; s.view = 'battle'; t.finishFloor();
+    s.floor = c.cleared; s.view = 'battle';
+    if (c.cleared === 10) { s.flavorKey = 'demons'; s.bossType = 'vaultTyrant'; }
+    t.finishFloor();
     // Entering an uncleared next floor must not count as progress.
     s.floor = c.cleared + 1;
     t.finishDay('Returned.', null, c.manual ? 'manual' : 'automatic');

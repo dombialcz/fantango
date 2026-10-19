@@ -4,6 +4,7 @@ import { offerLevelChances, rollOfferLevel } from "./hero-offers.js";
 import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
 import { BOSS_FLOOR, floorGoldReward, isBossFloor } from "./dungeon-progression.js";
 import { enemyTypeForRoll, FLAVOR_ROSTERS } from "./enemy-rosters.js";
+import { BOSS_DEFINITIONS, BOSS_RULES, rollCampaignBoss } from "./bosses.js";
 import { createTownView } from "./town-view.js";
 import { createBattleView } from "./battle-view.js";
 import { createRosterView } from "./roster-view.js";
@@ -132,6 +133,7 @@ const FLAVORS = {
     name: "Assassins’ Guild",
     description: "Cutthroats and enforcers screen marksmen while assassins blink through the lines.",
   },
+  orcs: { name: "Orc Warband", description: "Green-skinned goblins and orcs march beneath the warlord's burning banner." },
 };
 
 const ENEMY_TYPES = {
@@ -147,7 +149,11 @@ const ENEMY_TYPES = {
   enforcer: { label: "Enforcer", row: "front", hp: 165, damage: 38, interval: 1600, color: "#705d55", glyph: "E" },
   marksman: { label: "Marksman", row: "back", hp: 70, damage: 40, interval: 1350, color: "#687c94", glyph: "M" },
   assassin: { label: "Assassin", row: "back", hp: 72, damage: 55, interval: 780, color: "#53627d", glyph: "A" },
-  vaultTyrant: { label: "Vault Tyrant", row: "front", hp: 750, damage: 65, interval: 1800, color: "#b85c4d", glyph: "V" },
+  goblin: { label: "Goblin", row: "front", hp: 42, damage: 16, interval: 1050, color: "#7f9a53", glyph: "G" },
+  orc: { label: "Orc", row: "front", hp: 175, damage: 32, interval: 1950, color: "#66804a", glyph: "O" },
+  goblinArcher: { label: "Goblin Archer", row: "back", hp: 58, damage: 38, interval: 1500, color: "#85954e", glyph: "G" },
+  orcShaman: { label: "Orc Hexer", row: "back", hp: 95, damage: 42, interval: 1800, color: "#718c5d", glyph: "H" },
+  ...BOSS_DEFINITIONS,
 };
 
 function randomItem(items) {
@@ -212,6 +218,7 @@ function createCampaign() {
     town,
     freeRerollsRemaining: town.settlement.freeRerolls ?? 0,
     flavorKey: randomItem(Object.keys(FLAVORS)),
+    bossType: null,
     deepestFloor: 0,
     expeditionRecordBefore: 0,
     expeditionClearedFloor: 0,
@@ -545,6 +552,8 @@ function makeEnemy(type, floor = state.floor) {
     side: "enemy",
     type,
     label: definition.label,
+    boss: Boolean(BOSS_DEFINITIONS[type]),
+    attacks: 0,
     row: definition.row,
     maxHp,
     hp: maxHp,
@@ -557,7 +566,11 @@ function makeEnemy(type, floor = state.floor) {
 }
 
 function generateEnemies(floor) {
-  if (isBossFloor(floor)) return [makeEnemy("vaultTyrant", floor)];
+  if (isBossFloor(floor)) {
+    state.bossType ??= rollCampaignBoss(state.flavorKey);
+    const definition = BOSS_DEFINITIONS[state.bossType];
+    return [state.bossType, ...(definition.escorts ?? [])].map(type => makeEnemy(type, floor));
+  }
   const roster = FLAVOR_ROSTERS[state.flavorKey];
   const total = Math.min(2 + Math.ceil(floor * 0.58), 10);
   const enemies = [];
@@ -583,12 +596,13 @@ function prepareFloor() {
   state.combatEffects = [];
   state.party.forEach((hero, index) => {
     hero.timer = 650 + index * 420 + Math.random() * 220;
+    hero.frozenMs = 0;
   });
   state.battleLog = isBossFloor(state.floor)
-    ? ["The Vault Tyrant bars the road to victory."]
+    ? [`${BOSS_DEFINITIONS[state.bossType].label} bars the road to victory.`]
     : [`Floor ${state.floor}: ${state.enemies.length} enemies close in.`];
   state.message = isBossFloor(state.floor)
-    ? "Boss floor: defeat the Vault Tyrant to claim victory."
+    ? `Boss floor: defeat ${BOSS_DEFINITIONS[state.bossType].label} and any guards to claim victory.`
     : "The battle runs on its own. Watch the rows and health bars.";
 }
 
@@ -768,6 +782,11 @@ function addCombatEffect(source, target, kind = "attack") {
 
 function dealDamage(target, amount, source) {
   if (!target || target.hp <= 0) return;
+  if (target.type === "shadowAssassin" && target.side === "enemy" && Math.random() < BOSS_RULES.evasion) {
+    target.evadeFlash = 700;
+    logBattle("The Shadow Assassin evades the hit.");
+    return 0;
+  }
   const sourceLabel = typeof source === "string" ? source : source.label;
   if (target.side === "hero" && state.divineAegisMs > 0) {
     target.flash = 240;
@@ -825,7 +844,7 @@ function heroCommandDamageMultiplier(unit) {
 }
 
 function actHero(unit) {
-  if (unit.hp <= 0 || unit.type === "bard") return;
+  if (unit.hp <= 0 || unit.type === "bard" || unit.frozenMs > 0) return;
   const definition = HERO_TYPES[unit.type];
   const enemies = livingEnemies();
   if (!enemies.length) return;
@@ -859,12 +878,12 @@ function actHero(unit) {
   const executeMultiplier = unit.type === "thief" && target.hp <= target.maxHp * 0.5
     ? 1 + unit.executeBonus
     : 1;
-  dealDamage(
+  const dealt = dealDamage(
     target,
     unit.power * definition.damage * unit.damageMultiplier * executeMultiplier * heroCommandDamageMultiplier(unit),
     unit,
   );
-  if (target.hp > 0) logBattle(`${unit.label} strikes ${target.label}.`);
+  if (dealt > 0 && target.hp > 0) logBattle(`${unit.label} strikes ${target.label}.`);
 
   if (unit.type === "cleric") {
     const damaged = livingParty().filter((ally) => ally.id !== unit.id && ally.hp < ally.maxHp);
@@ -878,10 +897,50 @@ function actHero(unit) {
   }
 }
 
+function enemyEmpowered(unit) {
+  return unit.side === "enemy" && unit.type !== "guildMaster"
+    && livingEnemies().some(enemy => enemy.type === "guildMaster");
+}
+
+function enemyInterval(unit) {
+  return ENEMY_TYPES[unit.type].interval * COMBAT_INTERVAL_SCALE / (enemyEmpowered(unit) ? BOSS_RULES.allySpeed : 1);
+}
+
 function actEnemy(unit) {
   if (unit.hp <= 0) return;
   const heroes = livingParty();
   if (!heroes.length) return;
+  unit.attacks = (unit.attacks ?? 0) + 1;
+  const skill = BOSS_DEFINITIONS[unit.type]?.skill;
+  const attackDamage = unit.damage * (enemyEmpowered(unit) ? BOSS_RULES.allyDamage : 1);
+
+  if (skill === "freeze" && unit.attacks % BOSS_RULES.freezeEvery === 0) {
+    for (const hero of heroes) {
+      hero.frozenMs = BOSS_RULES.freezeMs;
+      addCombatEffect(unit, hero, "freeze");
+    }
+    logBattle("The Evil Spirit freezes the company for 2 seconds.");
+    return;
+  }
+  if (skill === "summon" && unit.attacks % BOSS_RULES.summonEvery === 0 && livingEnemies().length < BOSS_RULES.enemyCap) {
+    const summoned = makeEnemy(randomItem(["skeleton", "zombie", "boneMage"]));
+    state.enemies.push(summoned);
+    addCombatEffect(unit, summoned, "summon");
+    logBattle(`The Lich summons a ${summoned.label}.`);
+    return;
+  }
+  if (skill === "heal") {
+    const wounded = livingEnemies().filter(ally => ally.id !== unit.id && ally.hp < ally.maxHp)
+      .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
+    if (wounded.length) {
+      const ally = wounded[0];
+      const amount = Math.min(ally.maxHp - ally.hp, Math.round(ally.maxHp * BOSS_RULES.healRatio));
+      ally.hp += amount;
+      ally.potionFlash = 700;
+      addCombatEffect(unit, ally, "heal");
+      logBattle(`The Elder Shaman heals ${ally.label} for ${amount} HP.`);
+    }
+  }
 
   if (unit.type === "necromancer" && livingEnemies().length < 14) {
     state.enemies.push(makeEnemy("skeleton"));
@@ -889,31 +948,31 @@ function actEnemy(unit) {
     return;
   }
 
-  if (unit.type === "vaultTyrant") {
+  if (skill === "rowAttack") {
     const front = unitsInRow(heroes, "front");
     const targets = front.length ? front : unitsInRow(heroes, "back");
-    const damage = targets.reduce((total, target) => total + dealDamage(target, unit.damage, unit), 0);
+    const damage = targets.reduce((total, target) => total + dealDamage(target, attackDamage, unit), 0);
     logBattle(damage > 0
-      ? `The Vault Tyrant cleaves through the ${front.length ? "front" : "back"} row.`
-      : "Divine Aegis turns aside the Vault Tyrant’s cleave.");
+      ? `${unit.label} ${unit.type === "infernalDragon" ? "breathes fire across" : "cleaves through"} the ${front.length ? "front" : "back"} row.`
+      : `Divine Aegis turns aside ${unit.label}'s attack.`);
     return;
   }
 
   let target;
   if (unit.type === "archdemon") {
     target = targetBackFirst(heroes);
-  } else if (unit.type === "assassin") {
+  } else if (unit.type === "assassin" || skill === "assassin") {
     unit.row = "front";
     unit.returnAt = state.battleTime + 350;
     target = [...heroes].sort((a, b) => a.hp - b.hp)[0];
     logBattle(`${unit.label} blinks forward toward ${target.label}.`);
-  } else if (["boneMage", "warlock", "marksman"].includes(unit.type)) {
+  } else if (["boneMage", "warlock", "marksman", "goblinArcher", "orcShaman"].includes(unit.type)) {
     target = randomLiving(heroes);
   } else {
     target = targetFrontFirst(heroes);
   }
-  const damage = dealDamage(target, unit.damage, unit);
-  if (damage > 0 && target.hp > 0) logBattle(`${unit.label} strikes ${target.label}.`);
+  const damage = dealDamage(target, attackDamage, unit);
+  if (damage > 0 && target.hp > 0 && skill !== "heal") logBattle(`${unit.label} strikes ${target.label}.`);
 }
 
 function updateBattle(milliseconds) {
@@ -928,14 +987,18 @@ function updateBattle(milliseconds) {
     unit.flash = Math.max(0, unit.flash - delta);
     unit.actionFlash = Math.max(0, unit.actionFlash - delta);
     unit.potionFlash = Math.max(0, (unit.potionFlash ?? 0) - delta);
+    unit.evadeFlash = Math.max(0, (unit.evadeFlash ?? 0) - delta);
+    if (unit.side === "enemy" && enemiesFrozen && unit.returnAt !== null) unit.returnAt += delta;
   }
 
   for (const unit of [...livingParty()]) {
     if (state.battlePaused) break;
+    const frozenTime = Math.min(delta, unit.frozenMs ?? 0);
+    unit.frozenMs = Math.max(0, (unit.frozenMs ?? 0) - delta);
     const interval = heroInterval(unit);
     if (!Number.isFinite(interval)) continue;
-    unit.timer -= delta;
-    while (!state.battlePaused && unit.timer <= 0 && unit.hp > 0 && livingEnemies().length) {
+    unit.timer -= delta - frozenTime;
+    while (!state.battlePaused && !(unit.frozenMs > 0) && unit.timer <= 0 && unit.hp > 0 && livingEnemies().length) {
       actHero(unit);
       unit.timer += interval;
     }
@@ -944,14 +1007,14 @@ function updateBattle(milliseconds) {
   if (!state.battlePaused && livingEnemies().length && !enemiesFrozen) {
     for (const unit of [...livingEnemies()]) {
       if (state.battlePaused) break;
-      if (unit.type === "assassin" && unit.returnAt !== null && state.battleTime >= unit.returnAt) {
+      if (["assassin", "shadowAssassin"].includes(unit.type) && unit.returnAt !== null && state.battleTime >= unit.returnAt) {
         unit.row = "back";
         unit.returnAt = null;
       }
       unit.timer -= delta;
       while (!state.battlePaused && unit.timer <= 0 && unit.hp > 0 && livingParty().length) {
         actEnemy(unit);
-        unit.timer += ENEMY_TYPES[unit.type].interval * COMBAT_INTERVAL_SCALE;
+        unit.timer += enemyInterval(unit);
       }
     }
   }
@@ -994,7 +1057,7 @@ function finishFloor() {
     state.victoryDay ??= state.day;
     state.resultTitle = firstVictory ? "Victory" : "Boss Defeated";
     const lootCopy = state.floorPilferGold ? `, plus ${state.floorPilferGold} pilfered gold` : "";
-    state.resultCopy = `The Vault Tyrant falls. ${survivorCopy}. The party claims ${state.floorReward} gold${lootCopy} and may continue for a deeper record.`;
+    state.resultCopy = `${BOSS_DEFINITIONS[state.bossType].label} falls. ${survivorCopy}. The party claims ${state.floorReward} gold${lootCopy} and may continue for a deeper record.`;
     state.message = "Victory is secured. Flee safely or continue beyond floor 10 for a deeper record.";
   } else {
     state.resultTitle = `Floor ${state.floor} Cleared`;
@@ -1030,8 +1093,8 @@ function finishDay(reason = "The company returns to the surface with its survivo
     : state.party.length ? "Expedition Ended" : "No One Returned");
   state.resultCopy = campaignEnded
     ? `${reason} ${state.victoryAchieved
-      ? `The Vault Tyrant was defeated on day ${state.victoryDay}; your record is floor ${state.deepestFloor}.`
-      : "Ten days expire before the Vault Tyrant is defeated."}`
+      ? `${BOSS_DEFINITIONS[state.bossType]?.label ?? "The dungeon lord"} was defeated on day ${state.victoryDay}; your record is floor ${state.deepestFloor}.`
+      : "Ten days expire before the dungeon lord is defeated."}`
     : reason;
   state.message = reason;
   state.view = campaignEnded ? "campaign_end" : "day_result";
@@ -1090,6 +1153,8 @@ function clearCombatFeedback() {
     unit.flash = 0;
     unit.actionFlash = 0;
     unit.potionFlash = 0;
+    unit.evadeFlash = 0;
+    unit.frozenMs = 0;
   }
 }
 
@@ -1217,11 +1282,12 @@ function battlePresentation() {
     view: state.view,
     floor: state.floor,
     boss: isBossFloor(state.floor),
+    bossInfo: BOSS_DEFINITIONS[state.bossType] ?? null,
     day: state.day,
     gold: state.gold,
     flavor: currentFlavor().name,
     party: state.party,
-    enemies: state.enemies,
+    enemies: state.enemies.map(unit => ({ ...unit, empowered: enemyEmpowered(unit) })),
     log: state.battleLog,
     combatEffects: state.combatEffects,
     meter: state.commandMeter,
@@ -1346,6 +1412,7 @@ window.render_game_to_text = () => {
       bossFloor: BOSS_FLOOR,
       victoryDay: state.victoryDay,
       currentFloorIsBoss: isBossFloor(state.floor),
+      bossType: state.bossType,
       canContinueAfterVictory: true,
     },
     flavor: { key: state.flavorKey, ...currentFlavor(), roster: FLAVOR_ROSTERS[state.flavorKey] },
@@ -1449,6 +1516,7 @@ window.render_game_to_text = () => {
       damageReduction: unit.damageReduction,
       healRatio: unit.healRatio,
       mageTargets: unit.mageTargets,
+      frozenMs: Math.round(unit.frozenMs ?? 0),
     })),
     enemies: state.enemies.filter((unit) => unit.hp > 0).map((unit) => ({
       type: unit.type,
@@ -1456,6 +1524,11 @@ window.render_game_to_text = () => {
       row: unit.row,
       hp: Math.ceil(unit.hp),
       maxHp: unit.maxHp,
+      boss: unit.boss,
+      ability: BOSS_DEFINITIONS[unit.type]?.summary ?? null,
+      empowered: enemyEmpowered(unit),
+      damage: unit.damage * (enemyEmpowered(unit) ? BOSS_RULES.allyDamage : 1),
+      attackIntervalMs: Math.round(enemyInterval(unit)),
     })),
     battleLog: state.battleLog,
     result: ["floor_result", "day_result", "campaign_end"].includes(state.view)
@@ -1475,7 +1548,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Defeat the Vault Tyrant on floor 10 to win; Continue remains available afterward. All seven battle commands are visible from the start; click one or press 1–7. Combat auto-pauses when Command reaches full; choose an order, then Resume or press P. Damage fills Command, and matching living heroes determine command power. Mark Prey requires selecting an enemy. Potion requires selecting a wounded hero. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee costs half your gold. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
+    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Defeat the campaign boss on floor 10 to win; Continue remains available afterward. All seven battle commands are visible from the start; click one or press 1–7. Combat auto-pauses when Command reaches full; choose an order, then Resume or press P. Damage fills Command, and matching living heroes determine command power. Mark Prey requires selecting an enemy. Potion requires selecting a wounded hero. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee costs half your gold. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
   });
 };
 

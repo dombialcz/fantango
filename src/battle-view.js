@@ -32,7 +32,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
     <header class="battle-header"><div><span class="battle-eyebrow">VAULTBOUND · EXPEDITION</span><h1></h1></div><div class="battle-header__stats"><span class="battle-campaign"></span><span class="battle-day"></span><strong class="battle-gold"></strong></div></header>
     <div class="battle-arena">
       <div class="battle-side battle-side--heroes"><h2>YOUR COMPANY <span></span></h2><div class="battle-side__ranks">${rank("hero-back", "REAR GUARD")}${rank("hero-front", "FRONT LINE")}</div></div>
-      <section class="battle-report" aria-label="Battle status"><span class="battle-report__sigil" aria-hidden="true">⚔</span><h2></h2><p class="battle-report__copy" role="status"></p><div class="battle-result-actions"></div><ol class="battle-log" aria-label="Recent battle actions"></ol></section>
+      <section class="battle-report" aria-label="Battle status"><span class="battle-report__sigil" aria-hidden="true">⚔</span><h2></h2><p class="battle-report__copy" role="status"></p><p class="battle-boss-intel"></p><div class="battle-result-actions"></div><ol class="battle-log" aria-label="Recent battle actions"></ol></section>
       <div class="battle-side battle-side--enemies"><h2>THE OPPOSITION <span></span></h2><div class="battle-side__ranks">${rank("enemy-front", "FRONT LINE")}${rank("enemy-back", "REAR GUARD")}</div></div>
       <svg class="battle-strikes" aria-hidden="true"><defs><filter id="strike-glow"><feGaussianBlur stdDeviation="2"/></filter></defs><g></g></svg>
     </div>
@@ -83,11 +83,18 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
   function updateCard(unit, state) {
     let card = cards.get(unit.id);
     const definition = unit.side === "hero" ? heroTypes[unit.type] : enemyTypes[unit.type];
+    // Campaign reset reuses numeric IDs; never keep the previous unit's portrait.
+    if (card && (card.dataset.unitType !== unit.type || card.dataset.side !== unit.side)) {
+      card.remove();
+      cards.delete(unit.id);
+      card = null;
+    }
     if (!card) {
       card = document.createElement("button");
       card.type = "button";
       card.className = "battle-unit";
       card.dataset.unit = unit.id;
+      card.dataset.unitType = unit.type;
       const enemyArt = ENEMY_PORTRAITS[unit.type];
       const portrait = unit.side === "hero" ? definition.image : enemyArt?.image;
       const fallback = `<span class="battle-enemy-glyph" style="--enemy-color:${definition.color}">${definition.glyph}</span>`;
@@ -108,17 +115,20 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
     card.classList.toggle("is-hit", unit.flash > 0);
     card.classList.toggle("is-acting", unit.actionFlash > 0);
     card.classList.toggle("is-marked", !isHero && state.markedEnemyId === unit.id);
-    card.classList.toggle("is-frozen", !isHero && state.effects.freeze > 0);
+    const frozen = isHero ? unit.frozenMs > 0 : state.effects.freeze > 0;
+    card.classList.toggle("is-frozen", frozen);
+    card.classList.toggle("is-boss", Boolean(unit.boss));
     card.classList.toggle("is-shielded", isHero && state.effects.aegis > 0);
     card.classList.toggle("is-holding", isHero && unit.row === "front" && state.effects.hold > 0);
     card.classList.toggle("is-healed", (unit.potionFlash ?? 0) > 0);
     card.dataset.side = unit.side;
     card.querySelector(".battle-unit__info strong").textContent = unit.label;
-    card.querySelector(".battle-unit__info small").textContent = isHero ? `${definition.label} · L${unit.hero.level}` : definition.label;
+    card.querySelector(".battle-unit__info small").textContent = isHero ? `${definition.label} · L${unit.hero.level}` : unit.boss ? "FLOOR 10 · BOSS" : definition.label;
     card.querySelector(".battle-unit__health i").style.width = `${Math.max(0, unit.hp / unit.maxHp) * 100}%`;
     card.querySelector(".battle-unit__hp").textContent = `${Math.ceil(unit.hp)} / ${unit.maxHp} HP`;
-    card.querySelector(".battle-unit__status").textContent = !isHero && state.effects.freeze > 0 ? "FROZEN" : isHero && state.effects.aegis > 0 ? "AEGIS" : state.markedEnemyId === unit.id ? "MARKED" : "";
-    card.setAttribute("aria-label", `${unit.label}, ${definition.label}, ${Math.ceil(unit.hp)} of ${unit.maxHp} health${targetable ? ", select target" : ""}`);
+    card.querySelector(".battle-unit__status").textContent = frozen ? "FROZEN" : unit.evadeFlash > 0 ? "EVADE" : isHero && state.effects.aegis > 0 ? "AEGIS" : state.markedEnemyId === unit.id ? "MARKED" : unit.empowered ? "EMPOWERED" : "";
+    card.title = definition.summary ?? definition.label;
+    card.setAttribute("aria-label", `${unit.label}${unit.boss ? ", final boss" : ""}, ${definition.label}, ${Math.ceil(unit.hp)} of ${unit.maxHp} health${frozen ? ", frozen" : ""}${targetable ? ", select target" : ""}`);
     const row = rows.get(`${unit.side}-${unit.row}`);
     if (card.parentElement !== row) row.append(card);
   }
@@ -137,7 +147,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       line.setAttribute("y1", source.y + source.height / 2 - bounds.y + arena.scrollTop);
       line.setAttribute("x2", target.x + target.width / 2 - bounds.x);
       line.setAttribute("y2", target.y + target.height / 2 - bounds.y + arena.scrollTop);
-      line.setAttribute("stroke", effect.kind === "heal" ? "#83d4b3" : effect.sourceSide === "hero" ? "#ead298" : "#dc8279");
+      line.setAttribute("stroke", effect.kind === "heal" ? "#83d4b3" : effect.kind === "freeze" ? "#a2c8f4" : effect.sourceSide === "hero" ? "#ead298" : "#dc8279");
       line.setAttribute("opacity", Math.min(0.8, effect.remaining / 700));
       line.setAttribute("stroke-width", "2");
       strikeGroup.append(line);
@@ -154,7 +164,10 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       root.classList.toggle("is-paused", state.paused);
       root.classList.toggle("is-result", state.view !== "battle");
       root.classList.toggle("is-boss", state.boss);
-      root.querySelector(".battle-header h1").textContent = state.boss ? "The Vault Tyrant" : `Floor ${state.floor}`;
+      root.querySelector(".battle-header h1").textContent = state.boss ? state.bossInfo?.label ?? "Final boss" : `Floor ${state.floor}`;
+      const intel = root.querySelector(".battle-boss-intel");
+      intel.hidden = !state.boss;
+      intel.textContent = state.boss ? `FLOOR 10 · ${state.bossInfo?.summary ?? "Defeat the dungeon lord and its guards."}` : "";
       root.querySelector(".battle-campaign").textContent = state.flavor;
       root.querySelector(".battle-day").textContent = `Day ${state.day} / 10`;
       updateGoldBalance(root.querySelector(".battle-gold"), state.gold);

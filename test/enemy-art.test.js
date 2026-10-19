@@ -3,9 +3,10 @@ import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
 import { ENEMY_PORTRAITS } from "../src/enemy-art.js";
 import { FLAVOR_ROSTERS } from "../src/enemy-rosters.js";
+import { BOSS_DEFINITIONS } from "../src/bosses.js";
 
 test("every campaign enemy and the boss have one distinct lightweight portrait", async () => {
-  const expected = [...Object.values(FLAVOR_ROSTERS).flatMap(Object.values), "vaultTyrant"];
+  const expected = [...Object.values(FLAVOR_ROSTERS).flatMap(Object.values), ...Object.keys(BOSS_DEFINITIONS)];
   assert.deepEqual(Object.keys(ENEMY_PORTRAITS).sort(), expected.sort());
   assert.equal(new Set(Object.values(ENEMY_PORTRAITS).map((art) => art.image)).size, expected.length);
   for (const [faction, roster] of Object.entries(FLAVOR_ROSTERS)) {
@@ -22,5 +23,5 @@ test("every campaign enemy and the boss have one distinct lightweight portrait",
     assert.equal(data.toString("ascii", 0, 4), "RIFF");
     assert.equal(data.toString("ascii", 8, 12), "WEBP");
   }
-  assert.ok(total < 650000);
+  assert.ok(total < 1000000);
 });

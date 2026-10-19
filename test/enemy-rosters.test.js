@@ -25,7 +25,7 @@ test("each campaign has its own complete enemy roster", () => {
 
   const allTypes = Object.values(FLAVOR_ROSTERS).flatMap((roster) => Object.values(roster));
   assert.equal(new Set(allTypes).size, allTypes.length);
-  assert.equal(allTypes.some((type) => ["goblin", "orc", "enemyMage"].includes(type)), false);
+  assert.deepEqual(FLAVOR_ROSTERS.orcs, { common: "goblin", heavy: "orc", ranged: "goblinArcher", special: "orcShaman" });
 });
 
 test("enemy rolls select the active campaign's common, heavy, and ranged units", () => {

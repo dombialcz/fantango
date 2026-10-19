@@ -45,6 +45,12 @@ body.battle-open > .back-link, body.battle-open > .sidegame-link { display: none
 .battle-unit.is-targetable { border: 2px solid #d1bd89; box-shadow: 0 0 12px #d1bd8922; }
 .battle-unit.is-targetable:hover { background: #4f4d3955; }
 .battle-unit.is-marked { outline: 1px solid #dfc47b; outline-offset: 3px; }
+/* Boss identity stays gold through hit, freeze, action and targeting states. */
+.battle-unit.is-boss { border: 2px solid #e4b653 !important; box-shadow: inset 0 0 20px #e4b65313, 0 0 12px #e4b65325; }
+.battle-unit.is-boss.is-frozen { filter: none; }
+.battle-unit.is-boss .battle-unit__info > strong { color: #f2d596; }
+.battle-unit.is-boss .battle-unit__health i { background: #e4b653; }
+.battle-boss-intel { padding: 10px; border: 1px solid #d5af583d; border-radius: 6px; color: #dcc498; background: #b18a3210; font: 10px/1.6 Arial, sans-serif; }
 .battle-report { position: relative; z-index: 2; align-self: center; text-align: center; min-width: 0; padding: 16px 0; }
 .battle-report__sigil { display: block; color: #a48f6e; font-size: 37px; opacity: .55; margin-bottom: 16px; }
 .battle-report > h2 { font-weight: 400; color: #d7c6a5; font-size: 20px; margin: 0 0 12px; }

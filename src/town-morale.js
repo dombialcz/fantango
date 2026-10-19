@@ -28,7 +28,7 @@ export function expeditionOutcome({ clearedFloor, recordBefore, previousClearedF
   return progress ? 'progress' : 'no-progress';
 }
 export function townMorale(day, lastExpedition, victoryAchieved) {
-  if (victoryAchieved) return { tone: 'victory', text: 'The Tyrant has fallen. Hope has a home again.' };
+  if (victoryAchieved) return { tone: 'victory', text: 'The dungeon lord has fallen. Hope has a home again.' };
   if (day === 1 || !lastExpedition) return { tone: 'opening', text: OPENING };
   const tone = lastExpedition.outcome;
   if (tone === 'clean-retreat') return { tone, text: 'Further into the dark. Every soul brought home.' };

@@ -1,0 +1,61 @@
+{
+  "mode": "Built-in image generation",
+  "date": "2026-10-19",
+  "assets": [
+    {
+      "id": "infernalDragon",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent fantasy RPG enemy portrait. Subject: a huge infernal dragon head and upper chest, charcoal-red scales, two horns, broad jaw, a restrained lick of fire from its mouth. Painterly dimensional dark fantasy game illustration, readable at tiny card size; large expressive face, simplified equipment and clean silhouette. Centered three-quarter chest-up bust filling a square, whole head and shoulders inside frame. Dramatic warm orange and yellow backlight along the silhouette, neutral soft light on face. Truly transparent empty background, no scene, no rectangular background, no border, no frame, no lettering, no watermark. One character only. Distinct imposing final boss, more striking than common enemies, restrained detail.",
+      "file": "assets/enemies/infernalDragon.webp"
+    },
+    {
+      "id": "evilSpirit",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent fantasy RPG enemy portrait. Subject: an evil ghostly spirit, spectral pale face in a torn dark cowl, icy eyes, translucent wisp shoulders. Painterly dimensional dark fantasy game illustration, readable at tiny card size; large expressive face, simplified equipment and clean silhouette. Centered three-quarter chest-up bust filling a square, whole head and shoulders inside frame. Dramatic violet and purple backlight along the silhouette, neutral soft light on face. Truly transparent empty background, no scene, no rectangular background, no border, no frame, no lettering, no watermark. One character only. Distinct imposing final boss, more striking than common enemies, restrained detail.",
+      "file": "assets/enemies/evilSpirit.webp"
+    },
+    {
+      "id": "lich",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent fantasy RPG enemy portrait. Subject: an ancient lich king, skull face, tall broken crown and simple dark robes, one skeletal hand holding a small undead summoning orb. Painterly dimensional dark fantasy game illustration, readable at tiny card size; large expressive face, simplified equipment and clean silhouette. Centered three-quarter chest-up bust filling a square, whole head and shoulders inside frame. Dramatic violet and purple backlight along the silhouette, neutral soft light on face. Truly transparent empty background, no scene, no rectangular background, no border, no frame, no lettering, no watermark. One character only. Distinct imposing final boss, more striking than common enemies, restrained detail.",
+      "file": "assets/enemies/lich.webp"
+    },
+    {
+      "id": "shadowAssassin",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent fantasy RPG enemy portrait. Subject: an elite shadow assassin, black hood and half-mask, luminous red eyes, twin dagger hilts visible at shoulders. Painterly dimensional dark fantasy game illustration, readable at tiny card size; large expressive face, simplified equipment and clean silhouette. Centered three-quarter chest-up bust filling a square, whole head and shoulders inside frame. Dramatic crimson red backlight along the silhouette, neutral soft light on face. Truly transparent empty background, no scene, no rectangular background, no border, no frame, no lettering, no watermark. One character only. Distinct imposing final boss, more striking than common enemies, restrained detail.",
+      "file": "assets/enemies/shadowAssassin.webp"
+    },
+    {
+      "id": "guildMaster",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent fantasy RPG enemy portrait. Subject: a sinister thieves guild master, shrewd mature face, rich black leather coat, a handful of large gold coins displayed prominently near chest. Painterly dimensional dark fantasy game illustration, readable at tiny card size; large expressive face, simplified equipment and clean silhouette. Centered three-quarter chest-up bust filling a square, whole head and shoulders inside frame. Dramatic crimson red backlight along the silhouette, neutral soft light on face. Truly transparent empty background, no scene, no rectangular background, no border, no frame, no lettering, no watermark. One character only. Distinct imposing final boss, more striking than common enemies, restrained detail.",
+      "file": "assets/enemies/guildMaster.webp"
+    },
+    {
+      "id": "burningWarlord",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent fantasy RPG enemy portrait. Subject: a powerful green-skinned orc warlord, heavy scarred face and tusks, black iron armor, burning shoulders and a few embers. Painterly dimensional dark fantasy game illustration, readable at tiny card size; large expressive face, simplified equipment and clean silhouette. Centered three-quarter chest-up bust filling a square, whole head and shoulders inside frame. Dramatic crimson red backlight along the silhouette, neutral soft light on face. Truly transparent empty background, no scene, no rectangular background, no border, no frame, no lettering, no watermark. One character only. Distinct imposing final boss, more striking than common enemies, restrained detail.",
+      "file": "assets/enemies/burningWarlord.webp"
+    },
+    {
+      "id": "elderShaman",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent fantasy RPG enemy portrait. Subject: a venerable green-skinned orc shaman boss, weathered face and long tusks, antler and bone headdress, simple staff with a soft healing green light. Painterly dimensional dark fantasy game illustration, readable at tiny card size; large expressive face, simplified equipment and clean silhouette. Centered three-quarter chest-up bust filling a square, whole head and shoulders inside frame. Dramatic crimson red backlight along the silhouette, neutral soft light on face. Truly transparent empty background, no scene, no rectangular background, no border, no frame, no lettering, no watermark. One character only. Distinct imposing final boss, more striking than common enemies, restrained detail.",
+      "file": "assets/enemies/elderShaman.webp"
+    },
+    {
+      "id": "goblin",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent fantasy RPG enemy portrait. Subject: a small green goblin, oversized pointy ears, mischievous face, simple ragged leather collar. Painterly dimensional dark fantasy game illustration, readable at tiny card size; large expressive face, simplified equipment and clean silhouette. Centered three-quarter chest-up bust filling a square, whole head and shoulders inside frame. Dramatic crimson red backlight along the silhouette, neutral soft light on face. Truly transparent empty background, no scene, no rectangular background, no border, no frame, no lettering, no watermark. One character only. Simple common enemy, less ornate than a hero.",
+      "file": "assets/enemies/goblin.webp"
+    },
+    {
+      "id": "orc",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent fantasy RPG enemy portrait. Subject: a heavy green orc infantryman, broad tusked face, one plain iron shoulder plate. Painterly dimensional dark fantasy game illustration, readable at tiny card size; large expressive face, simplified equipment and clean silhouette. Centered three-quarter chest-up bust filling a square, whole head and shoulders inside frame. Dramatic crimson red backlight along the silhouette, neutral soft light on face. Truly transparent empty background, no scene, no rectangular background, no border, no frame, no lettering, no watermark. One character only. Simple common enemy, less ornate than a hero.",
+      "file": "assets/enemies/orc.webp"
+    },
+    {
+      "id": "goblinArcher",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent fantasy RPG enemy portrait. Subject: a green goblin archer, pointed ears and simple dark hood, visible bow limb beside shoulder. Painterly dimensional dark fantasy game illustration, readable at tiny card size; large expressive face, simplified equipment and clean silhouette. Centered three-quarter chest-up bust filling a square, whole head and shoulders inside frame. Dramatic crimson red backlight along the silhouette, neutral soft light on face. Truly transparent empty background, no scene, no rectangular background, no border, no frame, no lettering, no watermark. One character only. Simple common enemy, less ornate than a hero.",
+      "file": "assets/enemies/goblinArcher.webp"
+    },
+    {
+      "id": "orcShaman",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent fantasy RPG enemy portrait. Subject: a green orc hexer, tusked face in a plain brown hood, small bone necklace, a restrained magical glow near one hand. Painterly dimensional dark fantasy game illustration, readable at tiny card size; large expressive face, simplified equipment and clean silhouette. Centered three-quarter chest-up bust filling a square, whole head and shoulders inside frame. Dramatic crimson red backlight along the silhouette, neutral soft light on face. Truly transparent empty background, no scene, no rectangular background, no border, no frame, no lettering, no watermark. One character only. Simple common enemy, less ornate than a hero.",
+      "file": "assets/enemies/orcShaman.webp"
+    }
+  ]
+}

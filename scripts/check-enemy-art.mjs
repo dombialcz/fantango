@@ -17,6 +17,7 @@ try {
         window.enemyArtTest = {
           stage(flavor, floor = 3) {
             state.flavorKey = flavor; state.floor = floor;
+            if (floor === 10) { state.flavorKey = 'demons'; state.bossType = 'vaultTyrant'; }
             state.party = buildParty(['knight','ranger','mage','cleric'].map((type, index) => ({id: 1000 + index, type, name: HERO_TYPES[type].label, level: 2, active: true})));
             prepareFloor();
             if (floor !== 10) state.enemies = Object.values(FLAVOR_ROSTERS[flavor]).map(type => makeEnemy(type, floor));
@@ -33,7 +34,7 @@ try {
     await page.goto(`${baseURL}/dungeon.html`);
     await page.waitForFunction(() => window.enemyArtTest);
     const state = async () => JSON.parse(await page.evaluate(() => window.render_game_to_text()));
-    for (const faction of ['undead', 'demons', 'assassins', 'boss']) {
+    for (const faction of ['undead', 'demons', 'assassins', 'orcs', 'boss']) {
       await page.evaluate((faction) => window.enemyArtTest.stage(faction === 'boss' ? 'undead' : faction, faction === 'boss' ? 10 : 3), faction);
       await page.locator('#battle-screen').waitFor({ state: 'visible' });
       await page.evaluate(() => Promise.all([...document.querySelectorAll('.battle-unit img, [data-command] img')].map(image => image.decode())));
@@ -82,7 +83,7 @@ try {
     await skeleton.locator('.battle-enemy-glyph').click();
     assert.ok((await skeleton.getAttribute('class')).includes('is-marked'));
     await context.close();
-    console.log(`${name}: all 13 portraits, health, pause, targeting, freeze, summons, blinking and fallback passed`);
+    console.log(`${name}: all four regular rosters, boss gold, health, pause, targeting, freeze, summons, blinking and fallback passed`);
   }
   const page = await browser.newPage();
   await page.goto(`${baseURL}/dungeon.html`);

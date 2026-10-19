@@ -17,6 +17,7 @@ export const FLAVOR_ROSTERS = Object.freeze({
     ranged: "marksman",
     special: "assassin",
   }),
+  orcs: Object.freeze({ common: "goblin", heavy: "orc", ranged: "goblinArcher", special: "orcShaman" }),
 });
 
 export function enemyTypeForRoll(flavorKey, floor, roll) {
