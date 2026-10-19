@@ -6,7 +6,7 @@ import { BOSS_FLOOR, floorGoldReward, isBossFloor } from "./dungeon-progression.
 import { enemyTypeForRoll, FLAVOR_ROSTERS } from "./enemy-rosters.js";
 import { BOSS_DEFINITIONS, BOSS_RULES, rollCampaignBoss } from "./bosses.js";
 import { cappedCombatPercent, interceptingKnight, totalDamageReduction } from "./combat-rules.js";
-import { createBackdropDepth, targetBackdropFloor, advanceBackdropDepth, DESCENT_DURATION_MS } from "./battle-backdrop.js";
+import { createBackdropDepth, targetBackdropFloor, snapBackdropFloor, advanceBackdropDepth, DESCENT_DURATION_MS } from "./battle-backdrop.js";
 import { createTownView } from "./town-view.js";
 import { createBattleView } from "./battle-view.js";
 import { createRosterView } from "./roster-view.js";
@@ -1063,6 +1063,7 @@ function updateBattle(milliseconds) {
 }
 
 function finishFloor() {
+  snapBackdropFloor(state.backdrop, state.floor);
   state.expeditionClearedFloor = state.floor;
   clearCombatFeedback();
   state.view = "floor_result";
@@ -1095,6 +1096,7 @@ function continueExpedition() {
 }
 
 function finishDay(reason = "The company returns to the surface with its survivors.", title = null, retreatType = "automatic") {
+  snapBackdropFloor(state.backdrop, state.floor);
   clearCombatFeedback();
   state.pilferPending = 0;
   state.party = livingParty();
@@ -1252,7 +1254,7 @@ function update(milliseconds) {
   }
   updateBattle(step);
   // Scenery follows real time, not combat speed. Pause also freezes the descent.
-  if (["battle", "floor_result"].includes(state.view) && (!state.battlePaused || sceneryMotionPreference.matches)) {
+  if (state.view === "battle" && (!state.battlePaused || sceneryMotionPreference.matches)) {
     advanceBackdropDepth(state.backdrop, sceneryMotionPreference.matches ? DESCENT_DURATION_MS : step);
   }
 }

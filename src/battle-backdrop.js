@@ -25,6 +25,11 @@ export function targetBackdropFloor(depth, floor) {
   depth.elapsedMs = 0;
 }
 
+export function snapBackdropFloor(depth, floor) {
+  const progress = floorBackdropProgress(floor);
+  Object.assign(depth, { progress, from: progress, target: progress, elapsedMs: DESCENT_DURATION_MS });
+}
+
 export function advanceBackdropDepth(depth, milliseconds) {
   if (depth.progress === depth.target) return;
   depth.elapsedMs = Math.min(DESCENT_DURATION_MS, depth.elapsedMs + Math.max(0, milliseconds));

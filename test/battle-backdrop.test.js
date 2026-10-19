@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile,stat} from 'node:fs/promises';
-import { BATTLE_BACKDROPS, DESCENT_DURATION_MS, createBackdropDepth, floorBackdropProgress, targetBackdropFloor, advanceBackdropDepth } from '../src/battle-backdrop.js';
+import { BATTLE_BACKDROPS, DESCENT_DURATION_MS, createBackdropDepth, floorBackdropProgress, targetBackdropFloor, snapBackdropFloor, advanceBackdropDepth } from '../src/battle-backdrop.js';
 import { FLAVOR_ROSTERS } from '../src/enemy-rosters.js';
 
 test('each campaign has a distinct descent and each floor adds 10% until floor ten',()=>{
@@ -32,4 +32,16 @@ test('descent artwork is delivered locally as lightweight WebP files',async()=>{
     const bytes=await readFile(url);assert.equal(bytes.toString('ascii',0,4),'RIFF');assert.equal(bytes.toString('ascii',8,12),'WEBP');
   }
   assert.ok(total<2000000);
+});
+
+test('every finished fight snaps to its exact floor, anchoring the next linear step',()=>{
+  const scene=createBackdropDepth();
+  for(let floor=1;floor<=12;floor++){
+    const previous=Math.min((floor-1)/10,1);
+    targetBackdropFloor(scene,floor);assert.equal(scene.progress,previous);
+    advanceBackdropDepth(scene,500);snapBackdropFloor(scene,floor);
+    assert.equal(scene.progress,Math.min(floor/10,1));
+    assert.equal(scene.target,scene.progress);assert.equal(scene.from,scene.progress);
+    const stopped={...scene};advanceBackdropDepth(scene,999999);assert.deepEqual(scene,stopped);
+  }
 });

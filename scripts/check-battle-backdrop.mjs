@@ -11,7 +11,7 @@ try{
   await context.route('**/src/dungeon.js',async route=>{
     const response=await route.fetch();
     await route.fulfill({response,body:`${await response.text()}
-      window.sceneryTest={get state(){return state;},render,startExpedition,
+      window.sceneryTest={get state(){return state;},render,startExpedition,finishDay,
         stage(flavor,floor=1){
           state.flavorKey=flavor;state.bossType=null;state.backdrop=createBackdropDepth();state.floor=floor;
           state.party=buildParty(['knight','thief','ranger','mage'].map((type,index)=>({id:100+index,type,name:HERO_TYPES[type].label,level:5,active:true})));
@@ -65,6 +65,34 @@ try{
   await page.evaluate(()=>window.sceneryTest.floor(2));await assertPosition(.05);
   await page.evaluate(()=>advanceTime(9000));await assertPosition(.125);
 
+  // Short wins must finish at their floor's exact depth, not keep easing on results.
+  for(const flavor of Object.keys(BATTLE_BACKDROPS)){
+    await stage(flavor);
+    for(let floor=1;floor<=11;floor++){
+      if(floor>1) await page.locator('[data-battle-action="continue"]').click();
+      await assertPosition(Math.min((floor-1)/10,1));
+      await page.evaluate(()=>{
+        const {state}=window.sceneryTest;
+        for(const unit of [...state.party,...state.enemies])unit.timer=Infinity;
+        advanceTime(500);state.enemies.forEach(enemy=>enemy.hp=0);advanceTime(1);
+      });
+      assert.equal((await snapshot()).view,'floor_result');await assertPosition(Math.min(floor/10,1));
+      const stopped=await geometry();await page.evaluate(()=>advanceTime(1000));assert.deepEqual(await geometry(),stopped);
+      if(floor===1&&flavor==='undead') await page.screenshot({path:'output/battle-backdrop/snapped-short-win.png'});
+    }
+  }
+  for(const outcome of ['flee','defeat','loss','stalemate']){
+    await stage('undead',4);await page.evaluate(()=>advanceTime(1000));
+    if(outcome==='flee') await page.locator('[data-battle-action="flee"]').click();
+    else await page.evaluate(outcome=>{
+      const {state}=window.sceneryTest;
+      if(outcome==='stalemate')state.battleTime=90000;
+      else state.party.forEach((hero,index)=>{if(outcome==='loss'||index>=2)hero.hp=0;});
+      advanceTime(1);
+    },outcome);
+    assert.equal((await snapshot()).view,'day_result');await assertPosition(.4);
+  }
+
   // Each new daily expedition starts at town again, even with the same cached art.
   await page.evaluate(()=>{
     const {state,startExpedition,render}=window.sceneryTest;
@@ -89,6 +117,6 @@ try{
   assert.equal((await snapshot()).battleBackdrop.loaded,false);
   assert.equal(await page.locator('[data-command]').count(),7);
   assert.deepEqual(errors,[]);
-  console.log('Four campaign descents: 0/10/50/100% geometry, slow stop, retargeting, pause/speed, new run, deep floors, responsive bounds, reduced motion and fallback passed.');
+  console.log('Four campaign descents: exact post-fight snaps, quick-win linear steps, retreat/defeat/loss/stalemate, pause/speed, reset, deep floors, responsive bounds, reduced motion and fallback passed.');
   await context.close();
 }finally{await browser.close();}

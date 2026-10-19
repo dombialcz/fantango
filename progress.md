@@ -1,5 +1,10 @@
 Original prompt: i want to create a game like tango from linkedin. Can you create a summary for that game? I want a game that has three daily levels - they should be random and the seed is current date taken from the browser. The game should be in JS. Can you summarise the rules for the game and figure out how to make sure the levels are solvable with enough hints for the user. We need to figure out or find an algorithm for creating these puzzles so they can always be solved
 
+## 2026-10-19 — Exact depth anchors after each fight
+
+- Snap scenery immediately to min(current floor × 10%, 100%) when a fight ends, including wins, manual/automatic retreats, total defeat and stalemate. Result screens no longer continue the pan. Next-floor movement starts at the previous exact anchor, keeping floor-by-floor progress linear even after short fights; slow in-battle motion, pause, reduced motion and expedition reset remain unchanged.
+- Added pure snap/next-floor/stop tests and extended live scenery checks with eleven fast wins in each of four campaigns through real Continue buttons, exact result-screen positions/no drift, and retreat/defeat/loss/stalemate cases. Existing responsive and accessibility scenery checks pass. No artwork or combat/economy changes.
+
 ## 2026-10-19 — Campaign descent scenery
 
 - Generated four matching 1:3 vertical cutaway paintings with the built-in image tool: town/graveyard into violet crypts, ruined gate into lava depths, tavern/cellars into the guild treasury, and broken walls into a mossy Orc cavern. Saved full compositions as 724×2172 WebPs in assets/battle/ (~400 KB each, ~1.6 MB combined); only the active theme loads. Exact prompts/delivery paths: assets/battle/ART_PROMPTS.json. Local journal: output/descent-art-jobs.json; repeatable conversion: scripts/prepare-backdrop-art.mjs.
