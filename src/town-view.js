@@ -1,8 +1,11 @@
 import { BUILDING_DEFINITIONS, buildingUpgradeCost } from "./town.js";
 import { goldAmount, goldPrice, updateGoldBalance } from "./gold-ui.js";
 import { observeTownRestoration } from "./town-art-feedback.js";
+import { CEMETERY } from "./cemetery.js";
 
-const DISTRICT_ORDER = ["knight", "ranger", "mage", "thief", "tavern", "cleric", "barbarian", "bard", "alchemist"];
+const DISTRICT_ORDER = ["knight", "ranger", "mage", "thief", "tavern", "cleric", "barbarian", "bard", "alchemist", "cemetery"];
+const definitionFor = type => type === "cemetery" ? {name: CEMETERY.name, utility: true} : BUILDING_DEFINITIONS[type];
+const escape = value => String(value).replace(/[&<>"']/g, character => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[character]);
 const STAGES = ["Humble beginnings", "Established", "Expanded", "Fortified", "Fully restored"];
 const DISTRICTS = {
   knight: { color: "#a4bac8", title: "A shield at the city gates", copy: "Knights start with 20% damage reduction and can intercept single-target attacks on allies (50% chance). Frozen Knights cannot intercept; area attacks cannot be intercepted. Barracks improve their damage reduction further, up to the shared 90% cap.", command: "Hold the Line strengthens front-row armor and damage. More living Knights strengthen both bonuses." },
@@ -14,11 +17,12 @@ const DISTRICTS = {
   mage: { color: "#b39bdb", title: "Knowledge above the rooftops", copy: "Every new floor of the tower opens another page of forbidden knowledge for your Mages.", command: "Time Freeze stops enemy attacks, summoning, and movement. More living Mages make the spell last longer." },
   alchemist: { color: "#82c9b1", title: "A remedy for the road below", copy: "Glass, herbs, and a carefully measured spark. Stock the company with healing for the next expedition.", command: "Potions restore a hero's maximum health. Supplies restock at the start of each daily expedition." },
   tavern: { color: "#dab979", title: "Every expedition starts here", copy: "Keep the hearth warm and the contract reel turning. A better Tavern draws more seasoned adventurers.", command: "Improves the chance of level 2–4 heroes in new offers. Reroll the reel to find your next company." },
+  cemetery: { color: "#a7b6aa" },
 };
 
 function artMarkup(type, level) {
   return `<span class="town-art" data-stage="${level}" aria-hidden="true">
-    <img class="town-art__image" src="assets/town/levels/${type}-${level}.webp" alt="" decoding="async"/>
+    <img class="town-art__image" src="${type === "cemetery" ? CEMETERY.image : `assets/town/levels/${type}-${level}.webp`}" alt="" decoding="async"/>
   </span>`;
 }
 
@@ -38,6 +42,7 @@ function upgradeButton(type, building, gold, path = null) {
 }
 
 function inspectorMarkup(type, snapshot) {
+  if (type === "cemetery") return cemeteryMarkup(snapshot);
   const definition = BUILDING_DEFINITIONS[type];
   const district = DISTRICTS[type];
   const building = snapshot.buildings[type];
@@ -61,6 +66,26 @@ function inspectorMarkup(type, snapshot) {
     </div>`;
 }
 
+function cemeteryMarkup(snapshot) {
+  const graves = snapshot.graves ?? [];
+  const entries = [...graves].reverse().map(grave => `<li class="cemetery-grave" data-grave="${escape(grave.heroId)}">
+    <img src="assets/heroes/${escape(grave.class)}.png" alt="" loading="lazy"/>
+    <div><div class="cemetery-grave__heading"><strong>${escape(grave.name)}</strong><span>LV ${escape(grave.level)}</span></div>
+      <small>${escape(BUILDING_DEFINITIONS[grave.class]?.classLabel ?? grave.class)} · Day ${escape(grave.day)} · Floor ${escape(grave.floor)}</small>
+      <p>${escape(grave.campaignName)}</p><p>Slain by <b>${escape(grave.killer)}</b></p></div>
+  </li>`).join("");
+  return `<div class="town-inspector__art" style="--district-color:${DISTRICTS.cemetery.color}"><span class="town-eyebrow">A PLACE OF REMEMBRANCE</span>${artMarkup("cemetery",1)}</div>
+    <div class="town-inspector__body cemetery-inspector">
+      <div class="town-inspector__heading"><h2>Cemetery</h2><span class="town-level-badge">MEMORIAL</span></div>
+      <p class="town-inspector__tagline">Their names remain. Their courage carries on.</p>
+      <div class="town-benefit cemetery-benefit"><span class="town-eyebrow">LEGACY OF THE FALLEN</span><strong>+${graves.length}% maximum health</strong><p>${graves.length} fallen ${graves.length === 1 ? "hero" : "heroes"} · All living heroes benefit.</p></div>
+      <p class="cemetery-rules">Each hero lost in combat grants +1% maximum health to the living, including future recruits. The bonus stacks additively, on top of town and Bard bonuses. It does not restore current HP. No upgrades or gold required.</p>
+      <div class="cemetery-register-heading"><h3>Book of the Fallen</h3><span>${graves.length} remembered</span></div>
+      ${graves.length ? `<ol class="cemetery-register" tabindex="0" aria-label="Fallen heroes">${entries}</ol>` : `<div class="cemetery-empty"><span aria-hidden="true">✦</span><h3>No names carved in stone.</h3><p>May it stay that way. Fallen heroes will be remembered here.</p></div>`}
+      <p class="cemetery-reset-note">The memorial and its health bonus reset with each ten-day campaign. Dismissed heroes are not counted.</p>
+    </div>`;
+}
+
 export function createTownView({ root, onUpgrade, onClose, onReset }) {
   let selectedType = "tavern";
   let snapshot = null;
@@ -77,12 +102,12 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
     <div class="town-panorama"><div><span class="town-eyebrow">BEFORE THE GATES OPEN</span><h2>A little hope, on the edge of the dark.</h2><p class="town-roll-status"></p></div><button type="button" data-town-action="close">Prepare your company <span aria-hidden="true">→</span></button></div>
     <div class="town-layout">
       <section class="town-districts" aria-label="Town districts">
-        <div class="town-districts__heading"><span>NINE DISTRICTS · ONE COMPANY</span><span class="town-improvements"></span></div>
+        <div class="town-districts__heading"><span>TEN DISTRICTS · ONE COMPANY</span><span class="town-improvements"></span></div>
         <div class="town-grid">${DISTRICT_ORDER.map((type) => `<button class="town-district" type="button" data-district="${type}" style="--district-color:${DISTRICTS[type].color}" aria-pressed="false">
-          <span class="town-district__top"><span>${BUILDING_DEFINITIONS[type].utility ? "CITY SERVICE" : BUILDING_DEFINITIONS[type].classLabel.toUpperCase()}</span><span class="town-district__level"></span></span>
+          <span class="town-district__top"><span>${type === "cemetery" ? "REMEMBRANCE" : definitionFor(type).utility ? "CITY SERVICE" : definitionFor(type).classLabel.toUpperCase()}</span><span class="town-district__level"></span></span>
           ${artMarkup(type, 1)}
-          <span class="town-district__name">${BUILDING_DEFINITIONS[type].name}</span>
-          <span class="town-district__bottom">${levelPips(1)}<span class="town-district__cost"></span></span>
+          <span class="town-district__name">${definitionFor(type).name}</span>
+          <span class="town-district__bottom">${type === "cemetery" ? `<span class="cemetery-card__count"></span>` : levelPips(1)}<span class="town-district__cost"></span></span>
         </button>`).join("")}</div>
         <footer class="town-districts__footer"><p><span aria-hidden="true">✦</span> Every improvement brings more of your city to life.</p><span>Town progress resets with each ten-day campaign.</span></footer>
       </section>
@@ -164,7 +189,7 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
         }));
         traits.dataset.town = next.town.name;
       }
-      const nextSignature = JSON.stringify([next.day, next.gold, next.flavorName, next.message, next.buildings, next.rolledToday, next.town, next.morale]);
+      const nextSignature = JSON.stringify([next.day, next.gold, next.flavorName, next.message, next.buildings, next.rolledToday, next.town, next.morale, next.graves]);
       if (nextSignature === signature && wasVisible) return;
       signature = nextSignature;
       root.querySelector(".town-panorama h2").textContent = next.morale.text;
@@ -186,6 +211,15 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
       root.querySelector(".town-improvements").textContent = `${improvements} / 36 improvements`;
       for (const card of cards) {
         const type = card.dataset.district;
+        if (type === "cemetery") {
+          const count = next.graves?.length ?? 0;
+          card.setAttribute("aria-pressed", String(type === selectedType));
+          card.setAttribute("aria-label", `Cemetery, ${count} fallen heroes. +${count}% maximum health for all living heroes. Free to inspect; cannot be upgraded.`);
+          card.querySelector(".town-district__level").textContent = "MEMORIAL";
+          card.querySelector(".cemetery-card__count").textContent = `${count} fallen`;
+          card.querySelector(".town-district__cost").textContent = `+${count}% health`;
+          continue;
+        }
         const building = next.buildings[type];
         const cost = buildingUpgradeCost(building.level);
         card.setAttribute("aria-pressed", String(type === selectedType));

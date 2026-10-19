@@ -107,11 +107,13 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
         root.querySelector(".company-reserves").innerHTML = Array.from({ length: Math.max(2, reserves.length) }, (_, index) => lockedCard(reserves[index] && { ...reserves[index], selected: reserves[index].id === snapshot.selectedHeroId }, true)).join("");
       }
       const inspectorNode = root.querySelector(".roster-inspector");
-      const inspectorKey = JSON.stringify([snapshot.selectedOfferId, snapshot.selectedHeroId, snapshot.gold, snapshot.bench, snapshot.offers, snapshot.activeCount, snapshot.buildings]);
+      const inspectorKey = JSON.stringify([snapshot.selectedOfferId, snapshot.selectedHeroId, snapshot.gold, snapshot.bench, snapshot.offers, snapshot.activeCount, snapshot.buildings, snapshot.cemeteryBonusPercent]);
       if (inspectorNode.dataset.key !== inspectorKey) {
         const focusedAction = inspectorNode.contains(document.activeElement) ? document.activeElement.dataset.rosterAction : null;
         inspectorNode.dataset.key = inspectorKey;
         inspectorNode.innerHTML = inspector(snapshot);
+        const bonusNote = inspectorNode.querySelector(".hero-town-bonus");
+        if (bonusNote && snapshot.cemeteryBonusPercent > 0) bonusNote.textContent = `Includes +${snapshot.cemeteryBonusPercent}% maximum health from the Cemetery, plus town bonuses. Bard power buffs are assigned when the expedition begins.`;
         if (focusedAction) inspectorNode.querySelector(`[data-roster-action="${focusedAction}"]:not(:disabled)`)?.focus({ preventScroll: true });
       }
       root.querySelector(".roster-launch-copy").textContent = snapshot.activeCount ? `${snapshot.activeCount} ${snapshot.activeCount === 1 ? "hero" : "heroes"} ready · ${snapshot.potions} healing potion${snapshot.potions === 1 ? "" : "s"} · floor 10 holds the boss` : "Hire a hero to fill your first party slot.";

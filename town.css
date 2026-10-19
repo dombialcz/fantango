@@ -39,6 +39,30 @@ body.town-open > .sidegame-link { display: none; }
 .town-screen a:focus-visible { outline: 2px solid #efce8d; outline-offset: 5px; }
 .town-shell { max-width: 1416px; margin: 0 auto; }
 
+.cemetery-card__count { color: #a8b6ab; font: 10px/1.4 Arial, sans-serif; }
+[data-district="cemetery"] .town-district__cost { color: #b8d0b5; font: 12px/1.4 Georgia, serif; }
+.cemetery-benefit p { margin: 7px 0 0; color: #a6bba9; font: 11px/1.5 Arial, sans-serif; }
+.cemetery-rules, .cemetery-reset-note { color: #a7aeaf; font: 12px/1.7 Georgia, serif; overflow-wrap: anywhere; }
+.cemetery-reset-note { padding-top: 15px; border-top: 1px solid #a9b8a82b; color: #7f9690; font-size: 11px; }
+.cemetery-register-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 25px 0 13px; }
+.cemetery-register-heading h3 { color: #ddcfb1; font: 16px Georgia, serif; margin: 0; }
+.cemetery-register-heading > span { color: #8d9d97; font: 10px Arial, sans-serif; white-space: nowrap; }
+.cemetery-register { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; max-height: 540px; overflow: auto; scrollbar-width: thin; scrollbar-color: #6a786b #14202a; }
+.cemetery-register:focus-visible { outline: 2px solid #efce8d; outline-offset: 3px; }
+.cemetery-grave { display: flex; align-items: flex-start; gap: 10px; padding: 12px 10px; border: 1px solid #b8ba9a25; border-radius: 6px; background: #07111a55; }
+.cemetery-grave > img { width: 38px; height: 48px; object-fit: contain; filter: saturate(.3); flex: 0 0 auto; }
+.cemetery-grave > div { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.cemetery-grave__heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.cemetery-grave__heading strong { color: #e1d4b8; font: 15px/1.4 Georgia, serif; }
+.cemetery-grave__heading span { color: #b2b7a4; white-space: nowrap; font: 9px Arial, sans-serif; }
+.cemetery-grave small { display: block; color: #a6b0a6; margin: 4px 0; font: 10px/1.6 Arial, sans-serif; }
+.cemetery-grave p { margin: 3px 0 0; color: #849992; font: 11px/1.5 Georgia, serif; }
+.cemetery-grave b { color: #c2b29d; font-weight: 400; }
+.cemetery-empty { text-align: center; padding: 25px 12px; border: 1px dashed #b8ba9a36; border-radius: 6px; }
+.cemetery-empty > span { color: #91a28f; }
+.cemetery-empty h3 { color: #c4c5ac; font: 16px Georgia, serif; }
+.cemetery-empty p { color: #849992; font: 12px/1.7 Georgia, serif; }
+
 .town-header {
   min-height: 94px;
   display: flex;

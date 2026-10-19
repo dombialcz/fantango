@@ -7,6 +7,7 @@ import { enemyTypeForRoll, FLAVOR_ROSTERS } from "./enemy-rosters.js";
 import { BOSS_DEFINITIONS, BOSS_RULES, rollCampaignBoss } from "./bosses.js";
 import { cappedCombatPercent, interceptingKnight, totalDamageReduction } from "./combat-rules.js";
 import { createBackdropDepth, targetBackdropFloor, snapBackdropFloor, advanceBackdropDepth, DESCENT_DURATION_MS } from "./battle-backdrop.js";
+import { CEMETERY, cemeteryMaxHp, recordFallenHero } from "./cemetery.js";
 import { createTownView } from "./town-view.js";
 import { createBattleView } from "./battle-view.js";
 import { createRosterView } from "./roster-view.js";
@@ -223,6 +224,7 @@ function createCampaign() {
     flavorKey: randomItem(Object.keys(FLAVORS)),
     bossType: null,
     backdrop: createBackdropDepth(),
+    graves: [],
     deepestFloor: 0,
     expeditionRecordBefore: 0,
     expeditionClearedFloor: 0,
@@ -517,7 +519,8 @@ function buildParty(heroes) {
     const effects = heroEffects(hero.type);
     const buffAmount = buffAmounts.get(hero.id) ?? 0;
     const power = heroPower(hero.level) * (1 + buffAmount);
-    const maxHp = Math.round(power * definition.hp * effects.healthMultiplier);
+    const baseMaxHp = power * definition.hp * effects.healthMultiplier;
+    const maxHp = cemeteryMaxHp(baseMaxHp, state.graves);
     return {
       id: `hero-${hero.id}`,
       hero,
@@ -535,6 +538,8 @@ function buildParty(heroes) {
       executeBonus: effects.executeBonus,
       healRatio: effects.healRatio,
       mageTargets: effects.mageTargets,
+      baseMaxHp,
+      cemeteryBonusPercent: state.graves.length,
       maxHp,
       hp: maxHp,
       timer: Math.random() * 450,
@@ -793,6 +798,19 @@ function damageReductionFor(unit) {
   return totalDamageReduction(unit.damageReduction ?? 0, armor, state.town.prefix.enemyDamage ?? 1);
 }
 
+function rememberFallenHero(unit, source) {
+  const recorded = recordFallenHero(state.graves, unit, source, { day: state.day, floor: state.floor,
+    campaignKey: state.flavorKey, campaignName: currentFlavor().name });
+  if (!recorded) return;
+  for (const ally of livingParty()) {
+    ally.baseMaxHp ??= ally.maxHp / (1 + (ally.cemeteryBonusPercent ?? 0) / 100);
+    ally.maxHp = cemeteryMaxHp(ally.baseMaxHp, state.graves);
+    ally.cemeteryBonusPercent = state.graves.length;
+    // A death increases capacity, not current HP. Healing remains a separate action.
+  }
+  logBattle(`The Cemetery remembers ${unit.label}. The living gain +${state.graves.length}% maximum health.`);
+}
+
 function dealDamage(target, amount, source, { area = false, logStrike = false } = {}) {
   if (!target || target.hp <= 0) return;
   const enemyAttack = target.side === "hero" && typeof source === "object" && source.side === "enemy";
@@ -835,7 +853,10 @@ function dealDamage(target, amount, source, { area = false, logStrike = false } 
   target.flash = 420;
   if (typeof source === "object") addCombatEffect(source, target);
   if (critical) logBattle(`${sourceLabel} lands a critical hit.`);
-  if (target.hp === 0) logBattle(`${sourceLabel} defeats ${target.label}.`);
+  if (target.hp === 0) {
+    if (target.side === "hero") rememberFallenHero(target, source);
+    logBattle(`${sourceLabel} defeats ${target.label}.`);
+  }
   else if (logStrike) logBattle(`${sourceLabel} strikes ${target.label}.`);
   if (protectedAlly) logBattle(`${target.label} intercepts the attack on ${protectedAlly.label} (${actualDamage} damage).`);
   if (typeof source === "object" && source.side !== target.side) gainCommandMeter(actualDamage);
@@ -1279,6 +1300,7 @@ function render() {
     flavorName: currentFlavor().name,
     message: state.message,
     rolledToday: state.rolledToday,
+    graves: state.graves,
   });
   const battleVisible = ["battle", "floor_result", "day_result", "campaign_end"].includes(state.view);
   battleView.render(battleVisible ? battlePresentation() : { visible: false });
@@ -1291,7 +1313,7 @@ function render() {
     if (hero.type === "bard") summary = `Gives ${effects.bardTargets} random non-bard ${effects.bardTargets === 1 ? "ally" : "allies"} +${Math.round(effects.bardBuff * 100)}% power at expedition start.`;
     if (hero.type === "thief") summary += ` ${Math.round(effects.evasionChance * 100)}% dodge chance, including town bonuses.`;
     if (hero.type === "knight") summary += ` ${Math.round(totalDamageReduction(effects.damageReduction, 0, state.town.prefix.enemyDamage ?? 1) * 100)}% damage reduction, including town bonuses.`;
-    return { ...hero, power, health: Math.round(power * definition.hp * effects.healthMultiplier), damage: Math.round(power * definition.damage * effects.damageMultiplier), summary };
+    return { ...hero, power, health: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier, state.graves), damage: Math.round(power * definition.damage * effects.damageMultiplier), summary };
   };
   rosterView.render(state.view === "tavern" ? {
     visible: true, day: state.day, gold: state.gold, flavor: currentFlavor().name,
@@ -1302,6 +1324,7 @@ function render() {
     bench: state.bench.map(presentHero), selectedHeroId: state.selectedHeroId, selectedOfferId: state.selectedOfferId,
     activeCount: activeBench().length, teamCapacity: teamCapacity(state.day), benchCapacity: benchLimit(),
     potions: alchemistSupplies(state.buildings.alchemist.level).count, buildings: state.buildings, message: state.message,
+    cemeteryBonusPercent: state.graves.length,
   } : { visible: false });
   canvas.hidden = true;
 }
@@ -1464,6 +1487,8 @@ window.render_game_to_text = () => {
     offerCount: state.offers.length,
     offers: state.rollRemainingMs > 0 ? [] : state.offers.map(summarizeHero),
     bench: state.bench.map(summarizeHero),
+    cemetery: { name: CEMETERY.name, upgradeable: false, fallenCount: state.graves.length,
+      healthBonusPercent: state.graves.length, graves: state.graves, resetsWithCampaign: true },
     buildings: Object.fromEntries(
       TOWN_TYPES.map((type) => {
         const building = state.buildings[type];
@@ -1548,6 +1573,7 @@ window.render_game_to_text = () => {
       evasionChance: unit.evasionChance,
       interceptChance: unit.type === "knight" ? .5 : 0,
       effectiveDamageReduction: damageReductionFor(unit),
+      cemeteryBonusPercent: unit.cemeteryBonusPercent,
       damageMultiplier: unit.damageMultiplier,
       damageReduction: unit.damageReduction,
       healRatio: unit.healRatio,
