@@ -1,6 +1,7 @@
 import { BATTLE_COMMANDS, COMMAND_IDS, COMMAND_MAX } from "./battle-commands.js";
 import { ENEMY_PORTRAITS } from "./enemy-art.js";
 import { goldPrice, updateGoldBalance } from "./gold-ui.js";
+import { BATTLE_BACKDROPS } from "./battle-backdrop.js";
 
 const COMMAND_COPY = {
   hold: "The friendly front row gains armor and damage for six seconds. More living Knights strengthen both bonuses.",
@@ -28,7 +29,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
   const commandButtons = new Map();
   const rowKeys = ["hero-back", "hero-front", "enemy-front", "enemy-back"];
   const rank = (key, title) => `<section class="battle-rank" data-rank="${key}"><h3>${title}<span></span></h3><div class="battle-rank__units"></div></section>`;
-  root.innerHTML = `<div class="battle-shell">
+  root.innerHTML = `<div class="battle-backdrop" aria-hidden="true"><img alt="" decoding="async"/></div><div class="battle-shell">
     <header class="battle-header"><div><span class="battle-eyebrow">VAULTBOUND · EXPEDITION</span><h1></h1></div><div class="battle-header__stats"><span class="battle-campaign"></span><span class="battle-day"></span><strong class="battle-gold"></strong></div></header>
     <div class="battle-arena">
       <div class="battle-side battle-side--heroes"><h2>YOUR COMPANY <span></span></h2><div class="battle-side__ranks">${rank("hero-back", "REAR GUARD")}${rank("hero-front", "FRONT LINE")}</div></div>
@@ -47,6 +48,15 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
   const rows = new Map(rowKeys.map((key) => [key, root.querySelector(`[data-rank="${key}"] .battle-rank__units`)]));
   for (const id of COMMAND_IDS) commandButtons.set(id, root.querySelector(`[data-command="${id}"]`));
   const arena = root.querySelector(".battle-arena");
+  const backdrop = root.querySelector(".battle-backdrop");
+  const backdropImage = backdrop.querySelector("img");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let backdropTheme = null;
+  backdropImage.addEventListener("load", () => {
+    backdrop.style.setProperty("--scene-image-height", `${backdropImage.naturalHeight / backdropImage.naturalWidth * 100}vw`);
+    backdrop.classList.add("is-loaded");
+  });
+  backdropImage.addEventListener("error", () => backdrop.classList.remove("is-loaded"));
   const strikeGroup = root.querySelector(".battle-strikes g");
   const description = root.querySelector(".battle-command-description");
   const actionButtons = new Map(["potion", "flee", "pause", "speed"].map((id) => [id, root.querySelector(`[data-battle-action="${id}"]`)]));
@@ -155,12 +165,32 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
   }
 
   return {
+    backdropSnapshot() {
+      if (root.hidden || !current) return null;
+      const depth = current.backdrop;
+      return { theme: backdropTheme, image: BATTLE_BACKDROPS[backdropTheme]?.image,
+        targetDepthPercent: Math.round((depth?.target ?? 0) * 100),
+        displayedDepthPercent: Math.round((reducedMotion.matches ? depth?.target ?? 0 : depth?.progress ?? 0) * 10000) / 100,
+        reducedMotion: reducedMotion.matches, loaded: backdrop.classList.contains("is-loaded") };
+    },
     render(state) {
       const wasVisible = !root.hidden;
       root.hidden = !state.visible;
       document.body.classList.toggle("battle-open", state.visible);
       if (!state.visible) return;
       current = state;
+      const theme = BATTLE_BACKDROPS[state.flavorKey] ? state.flavorKey : "undead";
+      if (theme !== backdropTheme) {
+        backdropTheme = theme;
+        backdrop.classList.remove("is-loaded");
+        backdrop.style.setProperty("--scene-image-height", "300vw");
+        backdrop.style.setProperty("--scene-tint", BATTLE_BACKDROPS[theme].tint);
+        backdropImage.src = BATTLE_BACKDROPS[theme].image;
+      }
+      root.dataset.campaign = theme;
+      const progress = reducedMotion.matches ? state.backdrop?.target ?? 0 : state.backdrop?.progress ?? 0;
+      backdrop.style.setProperty("--scene-progress", progress);
+      backdrop.dataset.depth = String(Math.round(progress * 100));
       root.classList.toggle("is-paused", state.paused);
       root.classList.toggle("is-result", state.view !== "battle");
       root.classList.toggle("is-boss", state.boss);

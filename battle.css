@@ -2,8 +2,12 @@
 body.battle-open { display: block; overflow: hidden; background: #080e15; }
 body.battle-open main { display: block; height: 100dvh; min-height: 0; }
 body.battle-open > .back-link, body.battle-open > .sidegame-link { display: none; }
-.battle-screen { --battle-gold: #dcc38e; --battle-line: #b2bac42a; width: 100%; height: 100dvh; color: #e9e2d3; background: linear-gradient(#0b1420d9, #0b1420ed), url("assets/vault-bg.jpg") center / cover; }
-.battle-shell { display: flex; flex-direction: column; height: 100%; width: min(1600px, 100%); margin: auto; padding: 0 28px; }
+.battle-screen { --battle-gold: #dcc38e; --battle-line: #b2bac42a; position: relative; isolation: isolate; overflow: hidden; width: 100%; height: 100dvh; color: #e9e2d3; background: url("assets/vault-bg.jpg") center / cover #080e15; }
+.battle-backdrop { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.battle-backdrop img { display: block; width: 100%; height: max(320dvh, var(--scene-image-height, 300vw)); max-width: none; object-fit: cover; object-position: center; opacity: 0; transform: translate3d(0, calc(var(--scene-progress, 0) * (100dvh - 100%)), 0); will-change: transform; transition: opacity 800ms ease; }
+.battle-backdrop.is-loaded img { opacity: 1; }
+.battle-backdrop::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, #07101abf, #07101a70 40%, #07101ad9), linear-gradient(var(--scene-tint, #151e2924), var(--scene-tint, #151e2924)); }
+.battle-shell { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; width: min(1600px, 100%); margin: auto; padding: 0 28px; }
 .battle-screen button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .battle-screen button:disabled { cursor: default; }
 .battle-screen button:focus-visible { outline: 2px solid #f3d59b; outline-offset: 3px; }
@@ -51,7 +55,7 @@ body.battle-open > .back-link, body.battle-open > .sidegame-link { display: none
 .battle-unit.is-boss .battle-unit__info > strong { color: #f2d596; }
 .battle-unit.is-boss .battle-unit__health i { background: #e4b653; }
 .battle-boss-intel { padding: 10px; border: 1px solid #d5af583d; border-radius: 6px; color: #dcc498; background: #b18a3210; font: 10px/1.6 Arial, sans-serif; }
-.battle-report { position: relative; z-index: 2; align-self: center; text-align: center; min-width: 0; padding: 16px 0; }
+.battle-report { position: relative; z-index: 2; align-self: center; text-align: center; min-width: 0; padding: 16px 10px; background: #08121bce; border: 1px solid #bba77e20; border-radius: 8px; }
 .battle-report__sigil { display: block; color: #a48f6e; font-size: 37px; opacity: .55; margin-bottom: 16px; }
 .battle-report > h2 { font-weight: 400; color: #d7c6a5; font-size: 20px; margin: 0 0 12px; }
 .battle-report__copy { color: #b3bac0; font-size: 13px; line-height: 1.7; margin: 0; }
@@ -97,7 +101,7 @@ body.battle-open > .back-link, body.battle-open > .sidegame-link { display: none
 .battle-command__active:not(:empty) { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; background: #09121d77; color: #f2e6c4; font-size: 25px; }
 .battle-command.is-targeting { border-color: #edda9f; }
 .battle-command-description { min-height: 29px; margin: 10px 0 0; color: #869aa7; font: 10px/1.6 Arial, sans-serif; }
-.battle-controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; border-top: 1px solid #bec9d51e; padding: 8px 0; flex-shrink: 0; }
+.battle-controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; border-top: 1px solid #bec9d51e; padding: 8px 0; flex-shrink: 0; background: #0b1522e0; }
 .battle-target-help { color: #8b9ca5; font-size: 11px; line-height: 1.5; }
 .battle-controls > div { display: flex; flex-shrink: 0; gap: 8px; }
 .battle-controls button { min-height: 42px; min-width: 80px; padding: 6px 14px; color: #c9cfca; background: #1b2a36; border: 1px solid #bcc7cc35; border-radius: 5px; font-size: 12px; }

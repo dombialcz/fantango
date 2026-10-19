@@ -6,6 +6,7 @@ import { BOSS_FLOOR, floorGoldReward, isBossFloor } from "./dungeon-progression.
 import { enemyTypeForRoll, FLAVOR_ROSTERS } from "./enemy-rosters.js";
 import { BOSS_DEFINITIONS, BOSS_RULES, rollCampaignBoss } from "./bosses.js";
 import { cappedCombatPercent, interceptingKnight, totalDamageReduction } from "./combat-rules.js";
+import { createBackdropDepth, targetBackdropFloor, advanceBackdropDepth, DESCENT_DURATION_MS } from "./battle-backdrop.js";
 import { createTownView } from "./town-view.js";
 import { createBattleView } from "./battle-view.js";
 import { createRosterView } from "./roster-view.js";
@@ -26,6 +27,7 @@ import {
 } from "./town.js";
 
 const canvas = document.querySelector("#dungeon-game");
+const sceneryMotionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
 let layoutMode = "desktop";
 let previousFrame = performance.now();
 let nextHeroId = 1;
@@ -220,6 +222,7 @@ function createCampaign() {
     freeRerollsRemaining: town.settlement.freeRerolls ?? 0,
     flavorKey: randomItem(Object.keys(FLAVORS)),
     bossType: null,
+    backdrop: createBackdropDepth(),
     deepestFloor: 0,
     expeditionRecordBefore: 0,
     expeditionClearedFloor: 0,
@@ -481,6 +484,7 @@ function startExpedition() {
   state.expeditionRecordBefore = state.deepestFloor;
   state.expeditionClearedFloor = 0;
   state.floor = 1;
+  state.backdrop = createBackdropDepth();
   state.party = buildParty(chosen);
   state.expeditionStartCount = state.party.length;
   state.expeditionStartIds = chosen.map((hero) => hero.id);
@@ -588,6 +592,8 @@ function generateEnemies(floor) {
 }
 
 function prepareFloor() {
+  targetBackdropFloor(state.backdrop, state.floor);
+  if (sceneryMotionPreference.matches) advanceBackdropDepth(state.backdrop, DESCENT_DURATION_MS);
   state.view = "battle";
   state.battlePaused = false;
   state.commandAutoPaused = false;
@@ -1245,6 +1251,10 @@ function update(milliseconds) {
     if (state.rollRemainingMs === 0) state.message = `${state.offers.length} contracts revealed. Inspect a hero, then use Hire beneath the portrait. Your company is safe from rerolls.`;
   }
   updateBattle(step);
+  // Scenery follows real time, not combat speed. Pause also freezes the descent.
+  if (["battle", "floor_result"].includes(state.view) && (!state.battlePaused || sceneryMotionPreference.matches)) {
+    advanceBackdropDepth(state.backdrop, sceneryMotionPreference.matches ? DESCENT_DURATION_MS : step);
+  }
 }
 
 function configureLayout(force = false) {
@@ -1304,6 +1314,8 @@ function battlePresentation() {
     day: state.day,
     gold: state.gold,
     flavor: currentFlavor().name,
+    flavorKey: state.flavorKey,
+    backdrop: state.backdrop,
     party: state.party,
     enemies: state.enemies.map(unit => ({ ...unit, empowered: enemyEmpowered(unit) })),
     log: state.battleLog,
@@ -1514,6 +1526,7 @@ window.render_game_to_text = () => {
     midBattleFleeCost: state.view === "battle" ? midBattleFleeCost() : null,
     manualFleeLevelChance: ["battle", "floor_result"].includes(state.view) ? manualFleeLevelChance() : null,
     battleTimeMs: Math.round(state.battleTime),
+    battleBackdrop: battleView.backdropSnapshot(),
     combatEffects: state.combatEffects.map((effect) => ({
       sourceId: effect.sourceId,
       targetId: effect.targetId,
