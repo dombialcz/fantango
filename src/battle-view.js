@@ -1,4 +1,5 @@
 import { BATTLE_COMMANDS, COMMAND_IDS, COMMAND_MAX } from "./battle-commands.js";
+import { ENEMY_PORTRAITS } from "./enemy-art.js";
 import { goldPrice, updateGoldBalance } from "./gold-ui.js";
 
 const COMMAND_COPY = {
@@ -87,7 +88,17 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       card.type = "button";
       card.className = "battle-unit";
       card.dataset.unit = unit.id;
-      card.innerHTML = `<span class="battle-unit__portrait">${unit.side === "hero" ? `<img src="${definition.image}" alt=""/>` : `<span class="battle-enemy-glyph" style="--enemy-color:${definition.color}">${definition.glyph}</span>`}</span><span class="battle-unit__info"><strong></strong><small></small><span class="battle-unit__health"><i></i></span><span class="battle-unit__hp"></span></span><span class="battle-unit__status"></span>`;
+      const enemyArt = ENEMY_PORTRAITS[unit.type];
+      const portrait = unit.side === "hero" ? definition.image : enemyArt?.image;
+      const fallback = `<span class="battle-enemy-glyph" style="--enemy-color:${definition.color}">${definition.glyph}</span>`;
+      card.innerHTML = `<span class="battle-unit__portrait">${portrait ? `<img src="${portrait}" alt="" decoding="async"/>` : fallback}</span><span class="battle-unit__info"><strong></strong><small></small><span class="battle-unit__health"><i></i></span><span class="battle-unit__hp"></span></span><span class="battle-unit__status"></span>`;
+      if (unit.side === "enemy") {
+        card.dataset.enemyType = unit.type;
+        card.dataset.faction = enemyArt?.faction ?? "unknown";
+        card.querySelector("img")?.addEventListener("error", () => {
+          card.querySelector(".battle-unit__portrait").innerHTML = fallback;
+        }, { once: true });
+      }
       cards.set(unit.id, card);
     }
     const isHero = unit.side === "hero";

@@ -66,6 +66,8 @@ The Alchemist stocks each daily expedition with healing potions. Levels 1–3 pr
 
 The active party grows from four to eight slots over the campaign. Surviving heroes heal after each day, while defeated heroes are lost. Each campaign rolls one of three complete enemy rosters: Undead Uprising fields skeletons, zombies, bone mages, and necromancers; Demonic Invasion fields cultists, demons, warlocks, and archdemons; and the Assassins' Guild fields cutthroats, enforcers, marksmen, and teleporting assassins.
 
+All twelve campaign enemy types and the Vault Tyrant have simple transparent bust portraits, reused across floors. Undead share violet backlighting, demons warm yellow-orange, and guild enemies crimson. The 13 portraits are 256px WebPs (about 300 KB total); they replace letter glyphs without changing combat or card layout. Names and health remain accessible, and a failed portrait falls back to its original glyph. [Artwork paths and generation prompts](assets/enemies/ART_PROMPTS.json). Run `node scripts/check-enemy-art.mjs` with a local server to verify every portrait, mobile layouts, targeting, freeze, summons, assassin movement, and fallback.
+
 Floor 10 is the victory milestone. It replaces the normal enemy group with the high-health Vault Tyrant, whose cleave damages every hero in the defending row. Defeating it marks the campaign victorious, but the player may continue to floors 11 and beyond until the current expedition ends or the ten-day limit expires, preserving the deepest floor as the run’s record.
 
 ### Mastermind
