@@ -122,13 +122,13 @@ const HERO_TYPES = {
 const HERO_KEYS = Object.keys(HERO_TYPES);
 const TOWN_TYPES = Object.keys(BUILDING_DEFINITIONS);
 const HERO_NAMES = {
-  knight: ["Aldric", "Branna", "Cedric", "Ysabel"],
-  thief: ["Nyx", "Silas", "Vesper", "Rook"],
-  bard: ["Lucan", "Mira", "Orfeo", "Tamsin"],
+  knight: ["Aveline", "Branna", "Helena", "Ysabel"],
+  thief: ["Nikolai", "Silas", "Viktor", "Dorian"],
+  bard: ["Lucan", "Milo", "Orfeo", "Tristan"],
   cleric: ["Ansel", "Elowen", "Marek", "Sabine"],
-  barbarian: ["Brynjar", "Freya", "Korga", "Ulf"],
-  ranger: ["Arden", "Kaia", "Rowan", "Sylvi"],
-  mage: ["Cael", "Isolde", "Meris", "Vael"],
+  barbarian: ["Brynjar", "Ragnar", "Korg", "Ulf"],
+  ranger: ["Arwen", "Kaia", "Rosalind", "Sylvi"],
+  mage: ["Celeste", "Isolde", "Morgana", "Vivienne"],
 };
 
 const FLAVORS = {

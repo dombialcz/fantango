@@ -1,0 +1,15 @@
+{
+  "mode": "built-in image generation",
+  "generated": [
+    {
+      "id": "knight",
+      "file": "assets/heroes/knight.png",
+      "prompt": "Use case: precise-object-edit. Edit target: existing Vaultbound knight portrait. Replace the knight with an adult blonde woman, recognizably female face visible through a raised visor/open-faced protective helmet, small strands of blonde hair emerging beneath helmet. Preserve the centered head-and-shoulders crop, formidable heavy steel plate armor, gold edging, navy scarf, blue rim light, painterly detailed dark fantasy game icon style and transparent background. Defense-first stalwart protector, practical fully covered armor and substantial shoulders; calm resolute expression. Helmet covers crown, temples and neck. No text, no frame, no additional characters. Square 512x512 portrait matching the original silhouette."
+    },
+    {
+      "id": "mage",
+      "file": "assets/heroes/mage.png",
+      "prompt": "Use case: precise-object-edit. Edit target: existing Vaultbound mage portrait. Replace the spellcaster with an adult woman with clearly feminine facial features, long silver hair, glowing violet eyes and confident composed expression. Preserve the centered head-and-shoulders crop, navy hood and robes, ornate gold edging, blue rim lighting, gloved hand conjuring violet magic on the left, painterly detailed dark fantasy game icon style and transparent background. Practical covered robes, no text, no frame, no additional characters. Square 512x512 portrait matching the original silhouette."
+    }
+  ]
+}

@@ -1,5 +1,12 @@
 Original prompt: i want to create a game like tango from linkedin. Can you create a summary for that game? I want a game that has three daily levels - they should be random and the seed is current date taken from the browser. The game should be in JS. Can you summarise the rules for the game and figure out how to make sure the levels are solvable with enough hints for the user. We need to figure out or find an algorithm for creating these puzzles so they can always be solved
 
+## 2026-10-19 — Hero names and portrait alignment
+
+- Updated new-recruit pools: female Knight, Mage and Ranger names; male Bard, Barbarian and Thief names. Clerics were unspecified and remain unchanged. Saved heroes keep their existing identities.
+- Replaced shared Knight and Mage portraits through built-in image generation, retaining transparent 512px PNGs and the existing navy/gold art style. Knight is a blonde woman wearing a protective helmet and heavy plate; Mage is a silver-haired woman with violet magic. Exact prompts and final asset paths are in assets/heroes/ART_PROMPTS.json. Combat behavior is unchanged.
+- Verified actual Knight/Mage offers, recruitment, names and portraits in-browser without page errors; visually reviewed both full roster captures. Ran the web-game skill client and roster flow checks. Normal-motion roster test passed desktop, phone, small phone and landscape, then timed out waiting for a tablet card to stabilize; the complete suite passed with reduced motion via an output-only copy of the test. No runtime or test source changes were needed for that animation issue.
+- No remaining implementation work for this request. Optional follow-up: stabilize the existing tablet animated-card browser test.
+
 ## 2026-10-19 — Contextual balance explanations
 
 - Replaced the long static rule blocks with a compact Recruitment favour strip beneath the reel: class/portrait/+1 chips, new-contract/max-level caption, and a collapsed native Why these classes disclosure with exact two-day averages and all tied winners. Expanded desktop information uses both columns without stretching the reel's sidebar into a tall empty panel.
