@@ -28,7 +28,7 @@ try {
   assert.equal(await page.locator('.company-hero.is-crowded').count(),3);
   assert.equal(await page.locator('.hero-stats span').nth(1).locator('b').textContent(),'80');
   assert.equal(await page.locator('.hero-stats span').nth(2).locator('b').textContent(),'64');
-  assert.match(await page.locator('.hero-balance-note').textContent(),/−20% health and damage included/);
+  assert.match(await page.locator('.hero-balance-note').textContent(),/Crowded ranks.*−20% health & damage/);
   await page.locator('[data-hero="104"]').click();
   assert.equal(await page.locator('.hero-stats span').nth(1).locator('b').textContent(),'100'); // Reserve is not penalized.
 
@@ -67,7 +67,7 @@ try {
   state=await snapshot();assert.ok(state.offers.every(hero=>hero.class==='mage'&&hero.level===2&&hero.selectionLevelBonus===1));
   assert.deepEqual(state.bench.map(hero=>hero.level),existingLevels); // Not a recurring survivor level-up.
   assert.equal(await page.locator('.contract-variety').count(),6);
-  await page.locator('[data-offer]').first().click();assert.match(await page.locator('.hero-balance-note').textContent(),/\+1 underused-class level included/);
+  await page.locator('[data-offer]').first().click();assert.match(await page.locator('.hero-balance-note').textContent(),/\+1 underused-class level/);
 
   // Tavern level-four rolls can now become level-five underused-class offers.
   await page.evaluate(()=>{

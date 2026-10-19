@@ -2,6 +2,7 @@ import { BATTLE_COMMANDS, COMMAND_IDS, COMMAND_MAX } from "./battle-commands.js"
 import { ENEMY_PORTRAITS } from "./enemy-art.js";
 import { goldPrice, updateGoldBalance } from "./gold-ui.js";
 import { BATTLE_BACKDROPS } from "./battle-backdrop.js";
+import { createBattleContext } from "./contextual-help.js";
 
 const COMMAND_COPY = {
   hold: "The friendly front row gains armor and damage for six seconds. More living Knights strengthen both bonuses.",
@@ -46,6 +47,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
   </div>`;
 
   const rows = new Map(rowKeys.map((key) => [key, root.querySelector(`[data-rank="${key}"] .battle-rank__units`)]));
+  const contextualHelp = createBattleContext(root, heroTypes);
   for (const id of COMMAND_IDS) commandButtons.set(id, root.querySelector(`[data-command="${id}"]`));
   const arena = root.querySelector(".battle-arena");
   const backdrop = root.querySelector(".battle-backdrop");
@@ -207,6 +209,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       const ids = new Set(visibleUnits.map((unit) => unit.id));
       for (const [id, card] of cards) if (!ids.has(id)) { card.remove(); cards.delete(id); }
       for (const unit of visibleUnits) updateCard(unit, state);
+      contextualHelp.render(state.party);
       for (const key of rowKeys) {
         const row = rows.get(key);
         row.parentElement.querySelector("h3 span").textContent = row.children.length;

@@ -1,4 +1,5 @@
 import { goldAmount, goldPrice, updateGoldBalance } from "./gold-ui.js";
+import { createRosterContext } from "./contextual-help.js";
 
 const escape = (value) => String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 
@@ -18,6 +19,7 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
   </div>`;
   root.querySelector('.reel-odds').insertAdjacentHTML('afterend', '<div class="reel-variety" aria-label="Underused class bonus"></div>');
   root.querySelector('.company-help').insertAdjacentHTML('afterend', '<p class="company-balance" role="status"></p>');
+  const contextualHelp = createRosterContext(root, heroTypes);
 
   function offerCard(hero, snapshot) {
     const type = heroTypes[hero.type];
@@ -97,12 +99,6 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
       rollButton.innerHTML = rolling ? `Rolling<span class="roll-caption">The fates are deciding…</span>` : `${snapshot.rolledToday ? "Reroll heroes" : "Roll for heroes"}${price ? goldPrice(price) : `<span class="gold-free">${snapshot.rolledToday ? "BONUS ROLL" : "FIRST ROLL"} · FREE ↻</span>`}`;
       root.querySelector(".reel-cost-note").innerHTML = snapshot.rolledToday ? `${snapshot.gold < price ? `<span class="gold-shortfall">Need ${price - snapshot.gold} more gold.</span>` : price > 0 ? "Spends gold immediately. " : "Your bonus reroll is free. "}After this: ${goldAmount(snapshot.rerollCost + (price > 0 ? 1 : 0))}<br/>Hired heroes stay.` : `${snapshot.freeRerollsRemaining ? `${snapshot.freeRerollsRemaining} additional free reroll${snapshot.freeRerollsRemaining === 1 ? "" : "s"}, then ` : "Later rolls cost "}${goldAmount(1)}, then 2, 3… today.`;
       root.querySelector(".reel-odds").innerHTML = `<span>TAVERN · LEVEL ${snapshot.tavernLevel}</span><strong>${escape(snapshot.odds)}</strong><small>Bonus levels roll in sequence; each step must succeed.</small>`;
-      const variety = snapshot.selectionBonus;
-      root.querySelector('.reel-variety').innerHTML = `<strong>UNDERUSED CLASSES · +1 LEVEL</strong><span>${variety.classes.length ? escape(variety.classes.map(type => heroTypes[type].label).join(' · ')) : 'No bonus yet — finish your first expedition.'}</span><small>${variety.days.length ? `Based on deployed heroes on ${variety.days.length === 1 ? 'day' : 'days'} ${variety.days.join(' & ')}. Ties all qualify.` : 'Uses your previous two days of expedition teams.'} New contracts only · maximum level 5.</small>`;
-      const crowded = snapshot.crowdedClasses;
-      const balance = root.querySelector('.company-balance');
-      balance.classList.toggle('has-penalty', crowded.length > 0);
-      balance.textContent = crowded.length ? `${crowded.map(({type, count}) => `${heroTypes[type].label} ×${count}`).join(' · ')}: every hero of these classes gets −20% health and damage for the entire expedition. Reserves do not count.` : 'Deploying 3+ of one class gives all of them −20% health and damage for that expedition. Reserves do not count.';
       root.querySelectorAll('[data-roster-action="town"]').forEach((button) => { button.disabled = rolling; });
       root.querySelector(".roster-team-count").textContent = `${snapshot.activeCount} / ${snapshot.teamCapacity} active`;
       const active = snapshot.bench.filter((hero) => hero.active);
@@ -120,10 +116,6 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
         const focusedAction = inspectorNode.contains(document.activeElement) ? document.activeElement.dataset.rosterAction : null;
         inspectorNode.dataset.key = inspectorKey;
         inspectorNode.innerHTML = inspector(snapshot);
-        const selected = snapshot.offers.find(hero => hero.id === snapshot.selectedOfferId) ?? snapshot.bench.find(hero => hero.id === snapshot.selectedHeroId);
-        if (selected && (selected.crowdingPenaltyPercent || selected.selectionLevelBonus)) {
-          inspectorNode.querySelector('.hero-town-bonus').insertAdjacentHTML('beforebegin', `<p class="hero-balance-note">${selected.selectionLevelBonus ? '+1 underused-class level included. ' : ''}${selected.crowdingPenaltyPercent ? `${selected.prospectiveActive ? 'If hired into this party: ' : ''}−20% health and damage included above (3+ of this class). Locked for the expedition at departure.` : ''}</p>`);
-        }
         const bonusNote = inspectorNode.querySelector(".hero-town-bonus");
         if (bonusNote && snapshot.cemeteryBonusPercent > 0) bonusNote.textContent = `Includes +${snapshot.cemeteryBonusPercent}% maximum health from the Cemetery, plus town bonuses. Bard power buffs are assigned when the expedition begins.`;
         if (focusedAction) inspectorNode.querySelector(`[data-roster-action="${focusedAction}"]:not(:disabled)`)?.focus({ preventScroll: true });
@@ -131,6 +123,7 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
       root.querySelector(".roster-launch-copy").textContent = snapshot.activeCount ? `${snapshot.activeCount} ${snapshot.activeCount === 1 ? "hero" : "heroes"} ready · ${snapshot.potions} healing potion${snapshot.potions === 1 ? "" : "s"} · floor 10 holds the boss` : "Hire a hero to fill your first party slot.";
       root.querySelector(".roster-deploy").disabled = rolling || !snapshot.activeCount;
       root.querySelector(".roster-message").textContent = snapshot.message;
+      contextualHelp.render(snapshot);
     },
     focus() { root.querySelector('.roster-roll-button:not(:disabled), .roster-deploy:not(:disabled)')?.focus({ preventScroll: true }); },
   };

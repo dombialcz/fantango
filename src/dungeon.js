@@ -1432,9 +1432,10 @@ function render() {
     let summary = definition.summary;
     if (hero.type === "mage") summary = `Strikes up to ${effects.mageTargets} different enemies per attack, starting in the back row. Spell targets come from the Mage Guild.`;
     if (hero.type === "bard") summary = `Gives ${effects.bardTargets} random non-bard ${effects.bardTargets === 1 ? "ally" : "allies"} +${Math.round(effects.bardBuff * 100)}% power at expedition start.`;
-    if (hero.type === "thief") summary += ` ${Math.round(effects.evasionChance * 100)}% dodge chance, including town bonuses.`;
     if (hero.type === "knight") summary += ` ${Math.round(totalDamageReduction(effects.damageReduction, 0, state.town.prefix.enemyDamage ?? 1) * 100)}% damage reduction, including town bonuses.`;
-    return { ...hero, power, health: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier * crowdingMultiplier, state.graves), damage: Math.round(power * definition.damage * effects.damageMultiplier * crowdingMultiplier), crowdingPenaltyPercent: crowdingMultiplier < 1 ? 20 : 0, prospectiveActive, summary };
+    return { ...hero, power, health: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier * crowdingMultiplier, state.graves), damage: Math.round(power * definition.damage * effects.damageMultiplier * crowdingMultiplier), crowdingPenaltyPercent: crowdingMultiplier < 1 ? 20 : 0, prospectiveActive, summary,
+      unpenalizedHealth: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier, state.graves),
+      unpenalizedDamage: Math.round(power * definition.damage * effects.damageMultiplier), evasionChance: effects.evasionChance };
   };
   rosterView.render(state.view === "tavern" ? {
     visible: true, day: state.day, gold: state.gold, flavor: currentFlavor().name,
@@ -1513,7 +1514,7 @@ function toggleBattlePause() {
 window.addEventListener("keydown", (event) => {
   if (event.ctrlKey || event.metaKey || event.altKey) return;
   // Enter and Space on a focused HTML control must activate that control only.
-  if (event.target.closest?.("button, a, input, select, textarea") && ["Enter", " "].includes(event.key)) return;
+  if (event.target.closest?.("button, a, input, select, textarea, summary") && ["Enter", " "].includes(event.key)) return;
   if (document.querySelector("dialog[open]")) return;
   if (event.repeat && ["r", "t", "enter"].includes(event.key.toLowerCase())) return;
   if (event.key.toLowerCase() === "f") {

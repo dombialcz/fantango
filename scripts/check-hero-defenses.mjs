@@ -122,7 +122,7 @@ try {
     state.selectedOfferId=90;render();
   });
   assert.match(await page.locator('[data-offer="90"] small').textContent(),/Front row/);
-  assert.match(await page.locator('.hero-behavior').textContent(),/28% dodge/);
+  assert.match(await page.locator('.hero-dodge-help summary').textContent(),/Dodge\s+28%/);
   await page.screenshot({path:'output/hero-defenses/rogue-roster.png',fullPage:true});
   await page.locator('[data-offer="91"]').click();
   assert.match(await page.locator('.hero-behavior').textContent(),/50% chance to intercept/);
