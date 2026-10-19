@@ -1,5 +1,5 @@
 import { BATTLE_BACKDROPS } from "./battle-backdrop.js";
-import { BUILDING_DEFINITIONS, buildingUpgradeCost } from "./town.js";
+import { BUILDING_DEFINITIONS, buildingUpgradeCost, buildingEffects, alchemistSupplies } from "./town.js";
 import { goldAmount, goldPrice, updateGoldBalance } from "./gold-ui.js";
 import { observeTownRestoration } from "./town-art-feedback.js";
 import { createBuildingFlavor } from "./building-flavor.js";
@@ -32,13 +32,42 @@ function levelPips(level) {
   return `<span class="town-pips" aria-hidden="true">${Array.from({ length: 5 }, (_, index) => `<i class="${index < level ? "is-built" : ""}"></i>`).join("")}</span>`;
 }
 
-function upgradeButton(type, building, gold, path = null) {
+function buildingBenefits(type, building, potionRecoveryPercent = building.level * 10) {
+  const definition = BUILDING_DEFINITIONS[type];
+  const percent = value => Math.round(value * 100);
+  if (type === "tavern") return [definition.core(building.level)];
+  if (type === "alchemist") {
+    const supplies = alchemistSupplies(building.level);
+    return [
+      `${supplies.count} healing potion${supplies.count === 1 ? "" : "s"} at each expedition's start`,
+      `Each potion restores ${percent(supplies.healRatio)}% maximum health`,
+      `${potionRecoveryPercent}% chance to recover one potion per cleared floor${potionRecoveryPercent > building.level * 10 ? ` (${building.level * 10}% from Alchemist + Undead legacy)` : ""}`,
+    ];
+  }
+  const effects = buildingEffects(type, building);
+  const benefits = [];
+  if (type === "knight") benefits.push(`${percent(effects.damageReduction)}% damage reduction`, "50% chance to intercept an ally's single-target hit");
+  if (type === "thief") {
+    benefits.push(`${percent(effects.evasionChance)}% dodge chance`);
+    if (effects.executeBonus) benefits.push(`+${percent(effects.executeBonus)}% damage against foes at half health or below`);
+  }
+  if (type === "bard") benefits.push(`+${percent(effects.bardBuff)}% power to ${effects.bardTargets} non-Bard ${effects.bardTargets === 1 ? "ally" : "allies"} at expedition start`);
+  if (type === "cleric") benefits.push(definition.core(building.level));
+  if (type === "mage") benefits.push(`${effects.mageTargets} spell target${effects.mageTargets === 1 ? "" : "s"}`);
+  for (const [key, label] of [["healthMultiplier", "maximum health"], ["damageMultiplier", "damage"], ["speedMultiplier", "attack speed"]]) {
+    if (effects[key] > 1) benefits.push(`+${percent(effects[key] - 1)}% ${label}`);
+  }
+  if (effects.critChance) benefits.push(`+${percent(effects.critChance)} percentage points of critical-hit chance`);
+  return benefits.length ? benefits : ["No building bonuses yet — upgrade to improve this class."];
+}
+
+function upgradeButton(type, building, gold, path = null, potionRecoveryPercent = building.level * 10) {
   const definition = BUILDING_DEFINITIONS[type];
   const cost = buildingUpgradeCost(building.level);
   if (cost === null) return "";
   const choice = path ? definition[path] : null;
   return `<button class="town-upgrade gold-purchase" type="button" data-upgrade="${type}" data-path="${path ?? ""}" data-gold-cost="${cost}" title="Pay ${cost} gold to upgrade ${definition.name} to level ${building.level + 1}" ${gold < cost ? "disabled" : ""}>
-    <span><strong>${choice ? choice.label : `UPGRADE TO LEVEL ${building.level + 1}`}</strong><small>${choice ? choice.short : definition.core(building.level + 1)}</small></span>
+    <span><strong>${choice ? choice.label : `UPGRADE TO LEVEL ${building.level + 1}`}</strong><small>${escape(choice ? choice.short : buildingBenefits(type, { ...building, level: building.level + 1 }, Math.min(100, potionRecoveryPercent + 10)).join(" · "))}</small></span>
     ${goldPrice(cost)}
   </button>`;
 }
@@ -60,8 +89,8 @@ function inspectorMarkup(type, snapshot, flavor) {
       <p class="town-building-flavor">${escape(flavor)}</p>
       <div class="town-restoration"><span>${STAGES[building.level - 1]}</span>${levelPips(building.level)}</div>
       <p class="town-inspector__copy">${district.copy}</p>
-      <div class="town-benefit"><span class="town-eyebrow">CURRENT BENEFIT</span><strong>${definition.core(building.level)}</strong>${pathCopy}</div>
-      <div class="town-command-note"><span class="town-eyebrow">${definition.commandLabel ?? (type === "alchemist" ? "HEALING SUPPLIES" : "THE CONTRACT REEL")}</span><p>${type === "alchemist" ? `${district.command} Current recovery chance: ${snapshot.potionRecoveryPercent ?? building.level*10}%.` : district.command}</p></div>
+      <div class="town-benefit"><span class="town-eyebrow">CURRENT ${definition.utility ? "BENEFITS" : `${definition.classLabel.toUpperCase()} BONUSES`}</span><ul class="town-building-bonuses">${buildingBenefits(type, building, snapshot.potionRecoveryPercent).map(benefit => `<li>${escape(benefit)}</li>`).join("")}</ul>${pathCopy}</div>
+      <div class="town-command-note"><span class="town-eyebrow">${definition.commandLabel ?? (type === "alchemist" ? "HEALING SUPPLIES" : "THE CONTRACT REEL")}</span><p>${district.command}</p></div>
       <div class="town-upgrades"><div class="town-upgrades__heading"><span>${cost === null ? "District complete" : "Next improvement"}</span><small>${cost === null ? "LEVEL 5 / 5" : `LEVEL ${building.level + 1}`}</small></div>
         ${cost === null ? `<p class="town-complete">Fully restored. Your company has the best this district can offer.</p>` : `<button class="town-upgrade" type="button" data-open-upgrade="${type}" aria-haspopup="dialog"><span><strong>UPGRADE</strong><small>View level ${building.level + 1} improvements</small></span>${goldPrice(cost, "COST")}</button>`}
         ${cost !== null ? `<p class="town-upgrades__help gold-purchase-note">${snapshot.gold < cost ? `Need ${cost - snapshot.gold} more gold to purchase this upgrade.` : `Choose an improvement in the upgrade dialog. ${definition.utility ? "Applies to future supplies or contracts." : "Choose one bonus for every hero of this class."}`}</p>` : ""}
@@ -103,7 +132,7 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
       <button class="town-brand" type="button" data-town-action="close" aria-label="Return to the contract reel">VAULTBOUND<span>TEN DAYS BELOW</span></button>
       <div class="town-header__right"><span class="town-gold"></span><button class="town-return" type="button" data-town-action="close">Prepare company <span aria-hidden="true">→</span></button></div>
     </header>
-    <nav class="campaign-steps" aria-label="Daily expedition"><span aria-current="step"><b>01</b> Town</span><button type="button" data-town-action="close"><b>02</b> Company</button><span><b>03</b> Dungeon</span></nav>
+    <nav class="campaign-steps" aria-label="Daily expedition"><span aria-current="step"><b>01</b> Town</span><button type="button" data-town-action="close"><b>02</b> Company</button><span><b>03</b> Dungeon</span><a class="tutorial-link" href="tutorial.html">Tutorial ↗</a></nav>
     <div class="town-intro"><div><span class="town-eyebrow">YOUR CITY. THEIR LAST SAFE HAVEN.</span><div class="town-title-row"><h1></h1><div class="town-countdown" role="timer" aria-live="off"><span class="town-countdown__label">THE TEN-DAY DEADLINE</span><div class="town-countdown__day">DAY <strong></strong><span> / 10</span></div><span class="town-countdown__remaining"></span><div class="town-countdown__ticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div><p class="town-flavor"></p><ul class="town-traits"></ul><p class="town-journey-note"></p><details class="town-legacies" hidden><summary>Legacies of the company</summary><ul></ul></details></div><span class="town-campaign"></span></div>
     <div class="town-panorama"><div><span class="town-eyebrow">BEFORE THE GATES OPEN</span><h2>A little hope, on the edge of the dark.</h2><p class="town-roll-status"></p></div><button type="button" data-town-action="close">Prepare your company <span aria-hidden="true">→</span></button></div>
     <div class="town-layout">
@@ -161,8 +190,8 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
     upgradeDialog.innerHTML = `<span class="town-eyebrow">LEVEL ${building.level} → ${building.level + 1}</span>
       <h2 id="town-upgrade-title">Upgrade ${escape(definition.name)}</h2>
       <p class="town-building-flavor" id="town-upgrade-flavor">${escape(flavor.current(type))}</p>
-      <div class="town-upgrade-dialog__benefit"><span>${definition.utility ? "INCLUDED IN THIS UPGRADE" : "INCLUDED WITH EITHER CHOICE"}</span><strong>${escape(definition.core(building.level + 1))}</strong></div>
-      <div class="town-upgrade-options">${definition.utility ? upgradeButton(type, building, snapshot.gold) : upgradeButton(type, building, snapshot.gold, "pathA") + upgradeButton(type, building, snapshot.gold, "pathB")}</div>
+      ${definition.utility ? "" : `<div class="town-upgrade-dialog__benefit"><span>INCLUDED WITH EITHER CHOICE</span><strong>${escape(definition.core(building.level + 1))}</strong></div>`}
+      <div class="town-upgrade-options">${definition.utility ? upgradeButton(type, building, snapshot.gold, null, snapshot.potionRecoveryPercent) : upgradeButton(type, building, snapshot.gold, "pathA") + upgradeButton(type, building, snapshot.gold, "pathB")}</div>
       <p class="town-upgrades__help">${snapshot.gold < cost ? `Need ${cost - snapshot.gold} more gold.` : `Choose ${definition.utility ? "Upgrade" : "one improvement"} to spend ${cost} gold.`}</p>
       <button type="button" class="town-upgrade-cancel" data-town-action="cancel-upgrade" autofocus>Cancel</button>`;
     upgradeDialog.showModal();

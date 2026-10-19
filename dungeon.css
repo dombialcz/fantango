@@ -138,3 +138,11 @@ noscript {
     transform: translateX(-50%);
   }
 }
+
+/* Shared entry to the separate guided practice page. */
+.tutorial-link { color: #e4bd73; font: 12px/1.4 Georgia, serif; text-decoration: none; padding: 9px 10px; border: 1px solid #675936; border-radius: 5px; white-space: nowrap; }
+.tutorial-link:hover { background: #e4bd7315; }
+.tutorial-link:focus-visible { outline: 2px solid #e4bd73; outline-offset: 3px; }
+
+.campaign-steps .tutorial-link { margin-left: auto; border: 0; padding: 0; font-size: 11px; }
+@media (max-width: 760px) { .campaign-steps .tutorial-link { font-size: 10px; } }

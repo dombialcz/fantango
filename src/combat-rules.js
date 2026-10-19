@@ -1,3 +1,6 @@
+export const COMBAT_DAMAGE_SCALE = 0.25;
+export const COMBAT_INTERVAL_SCALE = 1.5;
+
 export const COMBAT_PERCENT_CAP = .9;
 export const KNIGHT_INTERCEPT_CHANCE = .5;
 

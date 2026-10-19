@@ -146,6 +146,8 @@ body.town-open > .sidegame-link { display: none; }
 .town-benefit { padding: 14px 15px; background: #080f176b; border-left: 2px solid #c5a5729c; }
 .town-benefit .town-eyebrow { display: block; font-size: 8px; color: #b6a27e; margin-bottom: 8px; }
 .town-benefit > strong { display: block; font-size: 14px; color: #e2d6bb; line-height: 1.5; font-weight: 400; }
+.town-building-bonuses { margin: 0; padding-left: 16px; color: #e2d6bb; font: 14px/1.5 Georgia, serif; }
+.town-building-bonuses li + li { margin-top: 6px; }
 .town-paths { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; color: #85939c; font: 8px/1.6 Arial, sans-serif; margin: 10px 0 0; }
 .town-paths b { color: #c1c7c7; font-weight: 400; }
 .town-paths > span { margin: 0 3px; }

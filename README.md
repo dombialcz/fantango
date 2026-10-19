@@ -6,6 +6,8 @@ A dark-fantasy daily logic game about a thief, a treasury, and a perfectly balan
 
 **Play Vaultbound:** [dombialcz.github.io/fantango/dungeon.html](https://dombialcz.github.io/fantango/dungeon.html)
 
+**Learn Vaultbound:** Open `tutorial.html` for a five-lesson guided practice run: recruit a Knight and Ranger, train the Knight, improve the Barracks, use an order and potion, then choose whether to delve deeper or return safely. The optional second floor also lets players practise a confirmed mid-fight escape and see its gold cost. It uses shared game definitions and artwork with separate in-memory practice state, so it never reads or writes campaign saves. Revisit completed lessons or restart at any time. Run `node scripts/check-tutorial.mjs` against a local server to check the full tutorial, keyboard flow, responsive layouts and save isolation.
+
 **Play Mastermind:** [dombialcz.github.io/fantango/mastermind.html](https://dombialcz.github.io/fantango/mastermind.html)
 
 Play by filling the 6×6 vault with coins and thieves:

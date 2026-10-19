@@ -1,3 +1,5 @@
+import { HERO_TYPES, HERO_NAMES, heroPower } from "./hero-data.js";
+import { ENEMY_TYPES } from "./enemy-data.js";
 import { createJourney, heroLevelCap, heroLevelSpeed, heroTrainingCost, remainingInvasions, legacyEffects, legacyRewards, applyLegacyHeroEffects, potionRecoveryChance, campaignSummary, LEGACIES } from "./campaign-journey.js";
 import { createVictoryView } from "./campaign-victory-view.js";
 import { createEventCampaign, EVENT_BY_ID, resolveEvent, applyEventEffect } from "./campaign-events.js";
@@ -11,7 +13,7 @@ import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
 import { BOSS_FLOOR, enemyHealthMultiplier, floorGoldReward, isBossFloor } from "./dungeon-progression.js";
 import { enemyTypeForRoll, FLAVOR_ROSTERS } from "./enemy-rosters.js";
 import { BOSS_DEFINITIONS, BOSS_RULES, rollCampaignBoss } from "./bosses.js";
-import { cappedCombatPercent, interceptingKnight, totalDamageReduction } from "./combat-rules.js";
+import { COMBAT_DAMAGE_SCALE, COMBAT_INTERVAL_SCALE, cappedCombatPercent, interceptingKnight, totalDamageReduction } from "./combat-rules.js";
 import { createBackdropDepth, targetBackdropFloor, snapBackdropFloor, advanceBackdropDepth, DESCENT_DURATION_MS } from "./battle-backdrop.js";
 import { CEMETERY, cemeteryMaxHp, recordFallenHero } from "./cemetery.js";
 import { createTownView } from "./town-view.js";
@@ -41,95 +43,10 @@ let previousFrame = performance.now();
 let nextHeroId = 1;
 let nextEnemyId = 1;
 
-const COMBAT_DAMAGE_SCALE = 0.25;
-const COMBAT_INTERVAL_SCALE = 1.5;
 const COMBAT_EFFECT_DURATION = 700;
-
-const HERO_TYPES = {
-  knight: {
-    label: "Knight",
-    row: "front",
-    hp: 1,
-    damage: 0.8,
-    interval: 1200,
-    color: "#9bb4c8",
-    image: "assets/heroes/knight.png",
-    summary: "Front-line defender. 50% chance to intercept single-target attacks on allies while unfrozen. Area attacks cannot be intercepted.",
-  },
-  thief: {
-    label: "Thief",
-    row: "front",
-    hp: 0.6,
-    damage: 0.4,
-    interval: 900,
-    color: "#7594c8",
-    image: "assets/heroes/thief.png",
-    summary: "Dodges on the front line and finishes the weakest enemy in the enemy front row.",
-  },
-  bard: {
-    label: "Bard",
-    row: "back",
-    hp: 0.6,
-    damage: 0,
-    interval: Infinity,
-    color: "#d99a69",
-    image: "assets/heroes/bard.png",
-    summary: "Gives a random non-bard ally +20% power.",
-  },
-  cleric: {
-    label: "Cleric",
-    row: "front",
-    hp: 0.8,
-    damage: 0.2,
-    heal: 0.1,
-    interval: 1400,
-    color: "#e7d891",
-    image: "assets/heroes/cleric.png",
-    summary: "Attacks and heals a random injured ally.",
-  },
-  barbarian: {
-    label: "Barbarian",
-    row: "front",
-    hp: 1.2,
-    damage: 1.5,
-    interval: 1600,
-    color: "#c97058",
-    image: "assets/heroes/barbarian.png",
-    summary: "Crushes the enemy with the highest health.",
-  },
-  ranger: {
-    label: "Ranger",
-    row: "back",
-    hp: 0.8,
-    damage: 0.8,
-    interval: 1100,
-    color: "#79a66a",
-    image: "assets/heroes/ranger.png",
-    summary: "Targets the enemy back row before the front.",
-  },
-  mage: {
-    label: "Mage",
-    row: "back",
-    hp: 0.5,
-    damage: 0.6,
-    interval: 1400,
-    color: "#a684dc",
-    image: "assets/heroes/mage.png",
-    summary: "Strikes one enemy per Mage Guild level, back row first.",
-  },
-};
 
 const HERO_KEYS = Object.keys(HERO_TYPES);
 const TOWN_TYPES = Object.keys(BUILDING_DEFINITIONS);
-const HERO_NAMES = {
-  knight: ["Aveline", "Branna", "Helena", "Ysabel"],
-  thief: ["Nikolai", "Silas", "Viktor", "Dorian"],
-  bard: ["Lucan", "Milo", "Orfeo", "Tristan"],
-  cleric: ["Ansel", "Elowen", "Marek", "Sabine"],
-  barbarian: ["Brynjar", "Ragnar", "Korg", "Ulf"],
-  ranger: ["Arwen", "Kaia", "Rosalind", "Sylvi"],
-  mage: ["Celeste", "Isolde", "Morgana", "Vivienne"],
-};
 
 const FLAVORS = {
   undead: {
@@ -147,25 +64,6 @@ const FLAVORS = {
   orcs: { name: "Orc Warband", description: "Green-skinned goblins and orcs march beneath the warlord's burning banner." },
 };
 
-const ENEMY_TYPES = {
-  skeleton: { label: "Skeleton", row: "front", hp: 42, damage: 16, interval: 1050, color: "#bbb5a5", glyph: "S" },
-  zombie: { label: "Zombie", row: "front", hp: 175, damage: 28, interval: 1950, color: "#71806a", glyph: "Z" },
-  boneMage: { label: "Bone Mage", row: "back", hp: 58, damage: 38, interval: 1500, color: "#8a7aa0", glyph: "B" },
-  necromancer: { label: "Necromancer", row: "back", hp: 95, damage: 16, interval: 2100, color: "#745887", glyph: "N" },
-  cultist: { label: "Cultist", row: "front", hp: 55, damage: 22, interval: 850, color: "#9c725c", glyph: "C" },
-  demon: { label: "Demon", row: "front", hp: 170, damage: 42, interval: 1700, color: "#a54f45", glyph: "D" },
-  warlock: { label: "Warlock", row: "back", hp: 62, damage: 42, interval: 1400, color: "#965879", glyph: "W" },
-  archdemon: { label: "Archdemon", row: "back", hp: 280, damage: 62, interval: 1850, color: "#c3493f", glyph: "A" },
-  cutthroat: { label: "Cutthroat", row: "front", hp: 58, damage: 22, interval: 820, color: "#596b7f", glyph: "C" },
-  enforcer: { label: "Enforcer", row: "front", hp: 165, damage: 38, interval: 1600, color: "#705d55", glyph: "E" },
-  marksman: { label: "Marksman", row: "back", hp: 70, damage: 40, interval: 1350, color: "#687c94", glyph: "M" },
-  assassin: { label: "Assassin", row: "back", hp: 72, damage: 55, interval: 780, color: "#53627d", glyph: "A" },
-  goblin: { label: "Goblin", row: "front", hp: 42, damage: 16, interval: 1050, color: "#7f9a53", glyph: "G" },
-  orc: { label: "Orc", row: "front", hp: 175, damage: 32, interval: 1950, color: "#66804a", glyph: "O" },
-  goblinArcher: { label: "Goblin Archer", row: "back", hp: 58, damage: 38, interval: 1500, color: "#85954e", glyph: "G" },
-  orcShaman: { label: "Orc Hexer", row: "back", hp: 95, damage: 42, interval: 1800, color: "#718c5d", glyph: "H" },
-  ...BOSS_DEFINITIONS,
-};
 
 function randomItem(items) {
   return items[Math.floor(Math.random() * items.length)];
@@ -182,10 +80,6 @@ function teamCapacity(day) {
 
 function offerCount(day) {
   return 5 + day - 1;
-}
-
-function heroPower(level) {
-  return 100 + (level - 1) * 70;
 }
 
 function speedMultiplier(level) {
