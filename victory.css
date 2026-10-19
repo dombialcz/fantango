@@ -1,0 +1,66 @@
+body.victory-open { background: #09131d; overflow-y: auto; }
+body.victory-open > .back-link, body.victory-open > .sidegame-link { display: none; }
+.victory-screen { min-height: 100dvh; color: #ded8c8; background: linear-gradient(#09131d88, #09131df2 500px, #09131d), var(--victory-scene) center top / 100% auto no-repeat; font: 14px/1.7 Georgia, serif; }
+.victory-screen[hidden] { display: none; }
+.victory-wrap { max-width: 1040px; margin: auto; padding: 55px 30px 35px; }
+.victory-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 25px 0 30px; }
+.victory-eyebrow { font: 9px/1.6 Arial, sans-serif; letter-spacing: .15em; color: #c6ad7b; }
+.victory-header h1 { margin: 12px 0; color: #f0dfb8; font-size: clamp(28px, 4vw, 48px); font-weight: 400; line-height: 1.2; }
+.victory-header h1:focus { outline: none; }
+.victory-header p { max-width: 700px; color: #c9d1c9; }
+.victory-screen h2 { margin: 7px 0 12px; color: #e7d7b3; font-weight: 400; font-size: 24px; line-height: 1.35; }
+.victory-screen p { margin: 8px 0 16px; }
+.victory-screen button { cursor: pointer; color: #e4d8bd; border: 1px solid #a998713e; background: #1a2a34; border-radius: 6px; padding: 11px 15px; font: 12px/1.5 Arial, sans-serif; }
+.victory-screen button:hover:not(:disabled) { border-color: #c1a76b; background: #263742; }
+.victory-screen button:focus-visible { outline: 2px solid #e8cd8d; outline-offset: 3px; }
+.victory-screen button:disabled { cursor: default; opacity: .45; }
+.victory-stats { display: grid; grid-template-columns: repeat(5,1fr); border: 1px solid #ab967f44; background: #13232bd9; border-radius: 8px; padding: 20px 12px; gap: 12px; text-align: center; }
+.victory-stats b { display: block; font-size: 28px; color: #e5c990; font-weight: 400; }
+.victory-stats span { display: block; font: 10px/1.6 Arial,sans-serif; color: #aabcb9; }
+.victory-wrap > section { margin: 30px 0; padding: 26px; border: 1px solid #8ba79f26; background: #13212be6; border-radius: 8px; }
+.victory-story ol { padding-left: 18px; }
+.victory-story li { padding: 8px 0 0 7px; color: #b8c3bd; }
+.victory-story li small { color: #c8ae80; font: 9px Arial,sans-serif; }
+.victory-story li p { font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.victory-note { color: #9eada8; font-size: 12px; }
+.victory-story details { margin: 20px 0; }
+.victory-story summary { cursor: pointer; color: #d5c19b; }
+.victory-rewards { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 15px; margin-top: 20px; }
+.victory-rewards button { padding: 22px; text-align: left; }
+.victory-rewards strong { display: block; font: 20px/1.4 Georgia,serif; color: #e6c894; margin-bottom: 10px; }
+.victory-rewards span { display: block; color: #b5c3bd; }
+.victory-screen [aria-pressed="true"] { border-color: #d1b77c; background: #67562b3d; box-shadow: inset 0 0 0 1px #d1b77c; }
+.victory-veterans { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-top: 20px; }
+.victory-veterans button, .victory-veterans article { position: relative; padding: 0 0 12px; overflow: hidden; text-align: center; }
+.victory-veterans article { border: 1px solid #a998713e; border-radius: 6px; background: #1a2a34; }
+.victory-veterans img { display: block; width: 100%; height: 145px; object-fit: cover; object-position: center 15%; margin-bottom: 8px; }
+.victory-veterans strong, .victory-veterans small { display: block; padding: 0 5px; }
+.victory-veterans small { color: #aebdb7; font-size: 10px; margin-top: 4px; }
+.victory-veterans i { display: none; position: absolute; top: 8px; right: 8px; background: #d6bd85; color: #17202a; border-radius: 50%; width: 23px; height: 23px; font-style: normal; }
+.victory-veterans [aria-pressed="true"] i { display: block; }
+.victory-selection { color: #d7c18d; font-size: 12px; margin-top: 15px !important; }
+.victory-towns ol { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; padding: 0; list-style: none; }
+.victory-towns li { padding: 13px; border: 1px solid #a6bbac26; border-radius: 5px; }
+.victory-towns span, .victory-towns small { display: block; color: #acbdb7; font: 11px/1.7 Arial,sans-serif; margin-top: 5px; }
+.victory-blessings li { margin: 8px 0; color: #acbdb7; }
+.victory-footer { padding: 15px 0; border-top: 1px solid #a4b5a738; }
+.victory-footer > div:last-child { display: flex; gap: 12px; justify-content: flex-end; margin-top: 22px; }
+.victory-footer p { font-size: 12px; color: #acbdb7; max-width: 850px; }
+.victory-screen .victory-primary { color: #f1ddb0; border-color: #b69b60; background: #62502c; }
+@media(max-width:600px) {
+ .victory-wrap { padding: 20px 14px; }
+ .victory-header { flex-direction: column-reverse; gap: 0; padding-top: 0; padding-bottom: 15px; }
+ .victory-chronicle-host { align-self: flex-end; }
+ .victory-stats { grid-template-columns: repeat(3,1fr); padding: 12px 8px; }
+ .victory-stats b { font-size: 24px; }
+ .victory-wrap > section { padding: 20px 16px; margin: 18px 0; }
+ .victory-screen h2 { font-size: 22px; }
+ .victory-rewards { grid-template-columns: 1fr; }
+ .victory-rewards button { padding: 17px; }
+ .victory-veterans { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+ .victory-veterans article { border: 1px solid #a998713e; border-radius: 6px; background: #1a2a34; }
+.victory-veterans img { height: 130px; }
+ .victory-towns ol { grid-template-columns: 1fr; }
+ .victory-footer > div:last-child { flex-direction: column; }
+ .victory-footer button { min-height: 46px; }
+}

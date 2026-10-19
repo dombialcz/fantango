@@ -56,9 +56,9 @@ export function createRosterContext(root, heroTypes) {
 
   return { render(snapshot) {
     const counts = countsFor(snapshot), bonus = snapshot.selectionBonus;
-    const key = JSON.stringify(bonus);
+    const key = JSON.stringify([bonus,snapshot.maxHeroLevel]);
     const favoured = favour.querySelector('.context-favoured');
-    update(favoured, key, bonus.classes.length ? `<div class="context-class-chips">${bonus.classes.map(type => `<span><img src="${heroTypes[type].image}" alt=""/>${heroTypes[type].label}<b>+1</b></span>`).join('')}</div><p class="context-caption">New contracts only · maximum level 5</p>` : '<p class="context-opening">No bonus yet.</p><p class="context-caption">Your first expedition sets tomorrow’s favour.</p>');
+    update(favoured, key, bonus.classes.length ? `<div class="context-class-chips">${bonus.classes.map(type => `<span><img src="${heroTypes[type].image}" alt=""/>${heroTypes[type].label}<b>+1</b></span>`).join('')}</div><p class="context-caption">New contracts only · maximum level ${Math.min(6,snapshot.maxHeroLevel ?? 5)}</p>` : '<p class="context-opening">No bonus yet.</p><p class="context-caption">Your first expedition sets tomorrow’s favour.</p>');
     const explanation = favour.querySelector('.context-favour-explanation');
     update(explanation, key, `<p>Your least-deployed classes get <strong>+1 level on new contracts</strong>, after the Tavern roll. All ties qualify. Hired heroes do not gain this level again.</p>${bonus.days.length ? `<table class="context-usage"><caption>Day${bonus.days.length > 1 ? 's' : ''} ${bonus.days.join(' & ')} · average heroes deployed per day</caption><thead><tr><th scope="col">Class</th><th scope="col">Average</th></tr></thead><tbody>${Object.keys(heroTypes).map(type => `<tr ${bonus.classes.includes(type) ? 'class="is-favoured"' : ''}><th scope="row">${heroTypes[type].label}${bonus.classes.includes(type) ? ' <span>+1</span>' : ''}</th><td>${average(bonus.averages[type])}</td></tr>`).join('')}</tbody></table>` : '<p>Day 1 has no bonus. Day 2 uses your first expedition; after that, we average the previous two days.</p>'}<p>Only the team you actually send below counts—not reserves, hiring or rerolling. Favour is recalculated each morning.</p>`);
     const crowded = snapshot.crowdedClasses;

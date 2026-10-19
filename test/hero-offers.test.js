@@ -18,13 +18,14 @@ test("offer level chances follow Tavern level and halving", () => {
     { level: 2, chance: 40 },
     { level: 3, chance: 20 },
     { level: 4, chance: 10 },
+    { level: 5, chance: 5 },
   ]);
 });
 
-test("base Tavern rolls use sequential rolls and stop at level 4 before class bonuses", () => {
+test("base Tavern rolls use sequential rolls and stop at level 5 before class bonuses", () => {
   assert.equal(rollOfferLevel(1, () => 0), 1);
   assert.equal(rollOfferLevel(4, () => 0), 3);
-  assert.equal(rollOfferLevel(5, () => 0), 4);
+  assert.equal(rollOfferLevel(5, () => 0), 5);
   assert.equal(rollOfferLevel(5, () => 0.999), 1);
 
   const rolls = [0.3, 0.3];

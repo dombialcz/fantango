@@ -17,8 +17,8 @@ const DISTRICTS = {
   barbarian: { color: "#ce8b74", title: "Strength is forged in the dust", copy: "No polished floors. No gentle lessons. The pit prepares Barbarians for whatever waits below.", command: "Bloodlust sacrifices 10% maximum health from the allied front row for a sweeping strike. More living Barbarians increase its damage." },
   ranger: { color: "#9cb887", title: "Eyes beyond the city walls", copy: "Trackers gather at the edge of town. Build a home for the Rangers who never lose their quarry.", command: "Mark Prey focuses a chosen enemy and speeds up attacks against it. More living Rangers increase the speed bonus." },
   mage: { color: "#b39bdb", title: "Knowledge above the rooftops", copy: "Every new floor of the tower opens another page of forbidden knowledge for your Mages.", command: "Time Freeze stops enemy attacks, summoning, and movement. More living Mages make the spell last longer. Costs 100 Command, with a ten-second cooldown after the freeze ends." },
-  alchemist: { color: "#82c9b1", title: "A remedy for the road below", copy: "Glass, herbs, and a carefully measured spark. Stock the company with healing for the next expedition.", command: "Potions restore a hero's maximum health. Supplies restock at the start of each daily expedition. Each cleared floor has a 50% chance to restore one potion." },
-  tavern: { color: "#dab979", title: "Every expedition starts here", copy: "Keep the hearth warm and the contract reel turning. A better Tavern draws more seasoned adventurers.", command: "New heroes can reach levels 2–4. Each higher level is rolled only after the previous level succeeds. Underused-class bonus levels are added afterward." },
+  alchemist: { color: "#82c9b1", title: "A remedy for the road below", copy: "Glass, herbs, and a carefully measured spark. Stock the company with healing for the next expedition.", command: "Potions restore a hero's maximum health. Supplies restock at the start of each daily expedition. Potion recovery after each cleared floor is 10% per Alchemist level, plus 50 percentage points with the Undead potion legacy." },
+  tavern: { color: "#dab979", title: "Every expedition starts here", copy: "Keep the hearth warm and the contract reel turning. A better Tavern draws more seasoned adventurers.", command: "New heroes can reach levels 2–5. Each higher level is rolled only after the previous level succeeds. Underused-class bonus levels are added afterward." },
   cemetery: { color: "#a7b6aa" },
 };
 
@@ -61,7 +61,7 @@ function inspectorMarkup(type, snapshot, flavor) {
       <div class="town-restoration"><span>${STAGES[building.level - 1]}</span>${levelPips(building.level)}</div>
       <p class="town-inspector__copy">${district.copy}</p>
       <div class="town-benefit"><span class="town-eyebrow">CURRENT BENEFIT</span><strong>${definition.core(building.level)}</strong>${pathCopy}</div>
-      <div class="town-command-note"><span class="town-eyebrow">${definition.commandLabel ?? (type === "alchemist" ? "HEALING SUPPLIES" : "THE CONTRACT REEL")}</span><p>${district.command}</p></div>
+      <div class="town-command-note"><span class="town-eyebrow">${definition.commandLabel ?? (type === "alchemist" ? "HEALING SUPPLIES" : "THE CONTRACT REEL")}</span><p>${type === "alchemist" ? `${district.command} Current recovery chance: ${snapshot.potionRecoveryPercent ?? building.level*10}%.` : district.command}</p></div>
       <div class="town-upgrades"><div class="town-upgrades__heading"><span>${cost === null ? "District complete" : "Next improvement"}</span><small>${cost === null ? "LEVEL 5 / 5" : `LEVEL ${building.level + 1}`}</small></div>
         ${cost === null ? `<p class="town-complete">Fully restored. Your company has the best this district can offer.</p>` : `<button class="town-upgrade" type="button" data-open-upgrade="${type}" aria-haspopup="dialog"><span><strong>UPGRADE</strong><small>View level ${building.level + 1} improvements</small></span>${goldPrice(cost, "COST")}</button>`}
         ${cost !== null ? `<p class="town-upgrades__help gold-purchase-note">${snapshot.gold < cost ? `Need ${cost - snapshot.gold} more gold to purchase this upgrade.` : `Choose an improvement in the upgrade dialog. ${definition.utility ? "Applies to future supplies or contracts." : "Choose one bonus for every hero of this class."}`}</p>` : ""}
@@ -104,7 +104,7 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
       <div class="town-header__right"><span class="town-gold"></span><button class="town-return" type="button" data-town-action="close">Prepare company <span aria-hidden="true">→</span></button></div>
     </header>
     <nav class="campaign-steps" aria-label="Daily expedition"><span aria-current="step"><b>01</b> Town</span><button type="button" data-town-action="close"><b>02</b> Company</button><span><b>03</b> Dungeon</span></nav>
-    <div class="town-intro"><div><span class="town-eyebrow">YOUR CITY. THEIR LAST SAFE HAVEN.</span><div class="town-title-row"><h1></h1><div class="town-countdown" role="timer" aria-live="off"><span class="town-countdown__label">THE TEN-DAY DEADLINE</span><div class="town-countdown__day">DAY <strong></strong><span> / 10</span></div><span class="town-countdown__remaining"></span><div class="town-countdown__ticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div><p class="town-flavor"></p><ul class="town-traits"></ul></div><span class="town-campaign"></span></div>
+    <div class="town-intro"><div><span class="town-eyebrow">YOUR CITY. THEIR LAST SAFE HAVEN.</span><div class="town-title-row"><h1></h1><div class="town-countdown" role="timer" aria-live="off"><span class="town-countdown__label">THE TEN-DAY DEADLINE</span><div class="town-countdown__day">DAY <strong></strong><span> / 10</span></div><span class="town-countdown__remaining"></span><div class="town-countdown__ticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div><p class="town-flavor"></p><ul class="town-traits"></ul><p class="town-journey-note"></p><details class="town-legacies" hidden><summary>Legacies of the company</summary><ul></ul></details></div><span class="town-campaign"></span></div>
     <div class="town-panorama"><div><span class="town-eyebrow">BEFORE THE GATES OPEN</span><h2>A little hope, on the edge of the dark.</h2><p class="town-roll-status"></p></div><button type="button" data-town-action="close">Prepare your company <span aria-hidden="true">→</span></button></div>
     <div class="town-layout">
       <section class="town-districts" aria-label="Town districts">
@@ -119,7 +119,7 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
       </section>
       <aside class="town-inspector" aria-label="Selected district"></aside>
     </div>
-    <footer class="town-footer"><p class="town-message" role="status" aria-live="polite"></p><button type="button" data-town-action="reset">New campaign</button></footer>
+    <footer class="town-footer"><p class="town-message" role="status" aria-live="polite"></p><button type="button" data-town-action="reset">New journey</button></footer>
     <dialog class="town-upgrade-dialog" aria-labelledby="town-upgrade-title" aria-describedby="town-upgrade-flavor"></dialog>
     <dialog class="town-sheet" aria-label="District details"><button type="button" class="town-sheet__close" data-town-action="dismiss" aria-label="Close district details">Close <span aria-hidden="true">×</span></button><div class="town-sheet__content"></div></dialog>
   </div>`;
@@ -239,9 +239,13 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
         }));
         traits.dataset.town = next.town.name;
       }
-      const nextSignature = JSON.stringify([next.day, next.gold, next.flavorKey, next.flavorName, next.message, next.buildings, next.rolledToday, next.town, next.morale, next.graves]);
+      const nextSignature = JSON.stringify([next.journeyNumber,next.heroLevelCap,next.legacies,next.potionRecoveryPercent,next.day, next.gold, next.flavorKey, next.flavorName, next.message, next.buildings, next.rolledToday, next.town, next.morale, next.graves]);
       if (nextSignature === signature && wasVisible) return;
       signature = nextSignature;
+      root.querySelector(".town-journey-note").textContent = `INVASION ${next.journeyNumber ?? 1} / 4 · HERO LEVEL CAP ${next.heroLevelCap ?? 5}`;
+      const legacies = root.querySelector(".town-legacies");
+      legacies.hidden = !next.legacies?.length;
+      legacies.querySelector("ul").replaceChildren(...(next.legacies ?? []).map(reward => {const li = document.createElement("li");li.textContent = `${reward.name}: ${reward.description}`;return li;}));
       const panorama = root.querySelector(".town-panorama");
       const backdrop = BATTLE_BACKDROPS[next.flavorKey];
       if (backdrop) panorama.style.setProperty("--town-campaign-scene", `url("${backdrop.image}")`);

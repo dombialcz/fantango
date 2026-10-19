@@ -43,7 +43,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       <div class="battle-command-deck">${COMMAND_IDS.map((id, index) => `<button class="battle-command" type="button" data-command="${id}" aria-describedby="command-description"><span class="battle-command__art"><img src="assets/commands/${id}.webp" alt=""/><span class="battle-command__key">${index + 1}</span><span class="battle-command__cost">${BATTLE_COMMANDS[id].cost}<small>CMD</small></span><span class="battle-command__count"></span><span class="battle-command__active"></span></span><strong>${BATTLE_COMMANDS[id].label}</strong><span class="battle-command__power"></span><span class="battle-command__reason"></span></button>`).join("")}</div>
       <p class="battle-command-description" id="command-description">Damage dealt and received fills Command. Orders grow stronger with matching living heroes.</p>
     </section>
-    <footer class="battle-controls"><span class="battle-control-preferences"><button class="battle-auto-pause" data-battle-action="auto-pause" type="button" aria-pressed="true" title="Pause combat when Command reaches 100. Starts on every expedition.">Auto pause at 100: ON</button><span class="battle-target-help"></span></span><div><button data-battle-action="potion" type="button"></button><button data-battle-action="flee" class="battle-flee" type="button"></button><button data-battle-action="pause" type="button"></button><button data-battle-action="speed" type="button"></button></div></footer>
+    <footer class="battle-controls"><span class="battle-control-preferences"><button class="battle-auto-pause" data-battle-action="auto-pause" type="button" aria-pressed="true" title="Pause combat when Command reaches 100. Starts on every expedition.">Auto pause at 100: ON</button><span class="battle-target-help"></span></span><section class="battle-supplies" aria-label="Healing supplies"><span class="battle-eyebrow">ALCHEMIST’S SUPPLIES</span><button class="battle-potion" data-battle-action="potion" type="button"><img src="assets/items/healing-potion.webp" alt=""/><span><strong class="battle-potion__label"></strong><small class="battle-potion__detail"></small></span><span class="battle-potion__cooldown" aria-hidden="true"></span></button></section><div><button data-battle-action="flee" class="battle-flee" type="button"></button><button data-battle-action="pause" type="button"></button><button data-battle-action="speed" type="button"></button></div></footer>
   </div>
   <dialog id="battle-flee-confirmation" class="battle-flee-dialog" aria-labelledby="flee-dialog-title" aria-describedby="flee-dialog-description">
     <span class="battle-eyebrow">LEAVE THE EXPEDITION</span>
@@ -250,7 +250,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
         resultActions.innerHTML = state.view === "floor_result"
           ? `<button type="button" data-battle-action="flee-safe">Flee safely <span class="gold-free">FREE</span><small>${state.levelChance}% level-up chance</small></button><button type="button" data-battle-action="continue">Continue<small>Enter floor ${state.floor + 1}</small></button>`
           : state.view === "day_result" ? `<button type="button" data-battle-action="next-day">Next day<small>${state.levelResult}</small></button>`
-          : state.view === "campaign_end" ? `<button type="button" data-battle-action="reset">New campaign</button>` : "";
+          : state.view === "campaign_end" ? `<button type="button" data-battle-action="reset">New journey</button>` : "";
       }
       const meter = Math.floor(state.meter);
       root.querySelector(".battle-resource strong").textContent = `${meter} / ${COMMAND_MAX}`;
@@ -275,8 +275,16 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
         button.title = `${COMMAND_COPY[id]} ${command.reason ?? "Ready to cast."}`;
         button.setAttribute("aria-label", `${BATTLE_COMMANDS[id].label}, ${BATTLE_COMMANDS[id].cost} command, ${command.count} matching heroes, ${command.reason ?? "ready"}`);
       }
-      actionButtons.get("potion").innerHTML = state.targeting === "potion" ? "Cancel potion" : `Potion ×${state.potions}<small>${state.potionHealPercent}% max HP</small>`;
-      actionButtons.get("potion").disabled = result || (state.targeting !== "potion" && (state.potions <= 0 || !state.party.some((unit) => unit.hp > 0 && unit.hp < unit.maxHp)));
+      const potion = actionButtons.get("potion");
+      const cooldown = state.potionCooldownMs ?? 0;
+      const cooldownText = `${(Math.ceil(cooldown / 100) / 10).toFixed(1)}s`;
+      potion.querySelector(".battle-potion__label").textContent = state.targeting === "potion" ? "Cancel potion" : `Potion ×${state.potions}`;
+      potion.querySelector(".battle-potion__detail").textContent = cooldown > 0 ? `Ready in ${cooldownText}` : `${state.potionHealPercent}% max HP · 2s cooldown`;
+      potion.style.setProperty("--potion-cooldown", `${Math.min(100, cooldown / 2000 * 100)}%`);
+      potion.classList.toggle("is-targeting", state.targeting === "potion");
+      potion.disabled = result || cooldown > 0 || (state.targeting !== "potion" && (state.potions <= 0 || !state.party.some((unit) => unit.hp > 0 && unit.hp < unit.maxHp)));
+      potion.setAttribute("aria-pressed", String(state.targeting === "potion"));
+      potion.setAttribute("aria-label", `Potion, ${state.potions} remaining, heals ${state.potionHealPercent}% maximum health. ${cooldown > 0 ? `Ready in ${cooldownText}.` : state.targeting === "potion" ? "Cancel choosing a hero." : "Choose a wounded hero."}`);
       const flee = actionButtons.get("flee");
       const fleeSignature = `${state.fleeCost}:${state.levelChance}`;
       if (flee.dataset.priceSignature !== fleeSignature) {
@@ -293,7 +301,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       autoPause.setAttribute("aria-pressed", String(state.commandAutoPauseEnabled));
       autoPause.textContent = `Auto pause at 100: ${state.commandAutoPauseEnabled ? "ON" : "OFF"}`;
       autoPause.disabled = result;
-      actionButtons.get("potion").title = "Heal one hero. Each cleared floor has a 50% chance to restore one potion.";
+      actionButtons.get("potion").title = `Heal one wounded hero. Two seconds between uses, including while paused. No Command cost. Each cleared floor has a ${state.potionRecoveryPercent}% chance to restore one potion.`;
       actionButtons.get("pause").textContent = state.paused ? "Resume" : "Pause";
       actionButtons.get("speed").textContent = `Speed ×${state.speed}`;
       for (const [id, button] of actionButtons) if (id !== "potion") button.disabled = result;

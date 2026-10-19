@@ -31,7 +31,7 @@ export function archivedChronicles() {
 export function archiveChronicle(state) {
   if (state.chronicle.length <= 1) return;
   try {
-    const archive = { town: state.town, flavorKey: state.flavorKey, chronicle: state.chronicle, victoryAchieved: state.victoryAchieved };
+    const archive = { campaignId: state.campaignId, town: state.town, flavorKey: state.flavorKey, chronicle: state.chronicle, victoryAchieved: state.victoryAchieved };
     localStorage.setItem(ARCHIVE_KEY, JSON.stringify([archive, ...archivedChronicles()].slice(0, 5)));
   } catch { /* Current chronicle can still be downloaded. */ }
 }
@@ -53,19 +53,25 @@ export function createChronicleView({ getState, onOpen }) {
       paragraph.append(document.createTextNode(entry.text)); container.append(paragraph);
     }
   }
-  trigger.addEventListener('click', () => {
-    onOpen(); campaigns = [getState(), ...archivedChronicles()];
+  function open() {
+    onOpen();
+    const current = getState(), seen = new Set();
+    campaigns = [current,...(current.journey?.completed ?? []).slice().reverse(),...archivedChronicles()].filter(campaign => {
+      const key = campaign.campaignId ?? JSON.stringify([campaign.town.name,campaign.chronicle]);
+      if (seen.has(key)) return false; seen.add(key); return true;
+    });
     select.replaceChildren(...campaigns.map((campaign, index) => { const option = document.createElement('option'); option.value = index; option.textContent = `${index ? 'Previous' : 'Current'} · ${campaign.town.name}`; return option; }));
-    select.value = '0'; show(); dialog.showModal();
-  });
+    select.value = '0'; show(); if (!dialog.open) dialog.showModal();
+  }
+  trigger.addEventListener('click', open);
   select.addEventListener('change', show);
   dialog.querySelector('[data-close]').addEventListener('click', () => { dialog.close(); trigger.focus(); });
   dialog.querySelector('[data-download]').addEventListener('click', () => {
     const url = URL.createObjectURL(new Blob([chronicleText(selected)], { type: 'text/markdown' }));
     const link = document.createElement('a'); link.href = url; link.download = 'vaultbound-chronicle.md'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
-  return { dialog, place(view) {
-    const selector = view === 'town' ? '.town-header__right' : view === 'tavern' ? '.roster-header > div' : view === 'event' ? '.event-header' : '.battle-header__stats';
+  return { dialog, open, place(view) {
+    const selector = view === 'town' ? '.town-header__right' : view === 'tavern' ? '.roster-header > div' : view === 'event' ? '.event-header' : view === 'campaign_victory' ? '.victory-chronicle-host' : '.battle-header__stats';
     const host = document.querySelector(selector);
     if (host && trigger.parentElement !== host) host.append(trigger);
   } };

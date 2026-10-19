@@ -22,8 +22,8 @@ export function classSelectionBonus(history, day, types) {
   };
 }
 
-export function boostedOfferLevel(level, type, bonus) {
-  return Math.min(5, level + (bonus.classes.includes(type) ? 1 : 0));
+export function boostedOfferLevel(level, type, bonus, cap = 5) {
+  return Math.min(cap, 6, level + (bonus.classes.includes(type) ? 1 : 0));
 }
 
 export function classCrowdingMultiplier(count) {

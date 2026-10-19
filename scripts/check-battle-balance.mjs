@@ -125,8 +125,8 @@ try {
   await setMeter(99); await page.evaluate(() => { const t = window.balanceTest; t.gainCommandMeter(10); t.render(); });
   assert.equal((await snapshot()).battlePaused, true);
 
-  // Independent 50% boundary, no rerolls on repeated result calls/reload, usable supplies.
-  for (const [roll, recovered] of [[0, true], [.49999, true], [.5, false], [.99999, false]]) {
+  // Independent base 10% boundary, no rerolls on repeated result calls/reload, usable supplies.
+  for (const [roll, recovered] of [[0, true], [.09999, true], [.1, false], [.99999, false]]) {
     await stage();
     await page.evaluate(roll => { const t = window.balanceTest; t.state.potionsRemaining = 0; Math.random = () => roll; t.finishFloor(); t.render(); }, roll);
     s = await snapshot(); assert.equal(s.potions.remaining, recovered ? 1 : 0); assert.equal(s.potions.recoveredThisFloor, recovered);
@@ -147,7 +147,7 @@ try {
   }
   await stage();
   await page.evaluate(() => {
-    const t = window.balanceTest; Math.random = () => .1;
+    const t = window.balanceTest; Math.random = () => .05;
     t.state.events.plan = [{ id: 'W02', at: 1, outcomeRoll: .1, rewardRoll: .1, targetRoll: .1 }];
     t.finishFloor(); t.render();
   });
@@ -185,5 +185,5 @@ try {
   s = await snapshot(); assert.equal(s.commandAutoPauseEnabled, true); assert.equal(s.commands.effects.freezeCooldownMs, 0);
   assert.equal(s.commands.effects.divineAegisMs, 0); assert.equal(await page.locator('.is-shielded').count(), 0);
   assert.deepEqual(errors, []);
-  console.log('Battle balance: Freeze cost/cooldown, targeted six-second Aegis/interception/AoE, 50% potion recovery/once-only/results/events, auto-pause toggle/persistence/new expedition and four layouts passed.');
+  console.log('Battle balance: Freeze cost/cooldown, targeted six-second Aegis/interception/AoE, 10% potion recovery/once-only/results/events, auto-pause toggle/persistence/new expedition and four layouts passed.');
 } finally { await browser.close(); }

@@ -280,3 +280,8 @@ body.town-open > .sidegame-link { display: none; }
   .town-countdown { flex-basis: auto; width: 100%; padding: 10px 14px; box-sizing: border-box; }
   .town-countdown__day strong { font-size: 44px; }
 }
+
+.town-journey-note { color: #c2b28e; font: 9px/1.7 Arial,sans-serif; letter-spacing: .08em; margin: 12px 0; }
+.town-legacies { max-width: 700px; color: #b1c0b7; font: 11px/1.7 Arial,sans-serif; margin-top: 10px; }
+.town-legacies summary { cursor: pointer; color: #d4c297; }
+.town-legacies li { margin: 7px 0; }

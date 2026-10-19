@@ -1,3 +1,5 @@
+import { createJourney, heroLevelCap, heroLevelSpeed, heroTrainingCost, remainingInvasions, legacyEffects, legacyRewards, applyLegacyHeroEffects, potionRecoveryChance, campaignSummary, LEGACIES } from "./campaign-journey.js";
+import { createVictoryView } from "./campaign-victory-view.js";
 import { createEventCampaign, EVENT_BY_ID, resolveEvent, applyEventEffect } from "./campaign-events.js";
 import { createEventView } from "./event-view.js";
 import { recordChronicle, saveCampaign, loadCampaign, archiveChronicle, createChronicleView } from "./campaign-chronicle.js";
@@ -6,7 +8,7 @@ import { createTownIdentity, townHeroEffects, rollTownClass, townRollCost } from
 import { offerLevelChances, offerLevelChancesText, rollOfferLevel } from "./hero-offers.js";
 import { classCounts, recordClassSelection, classSelectionBonus, boostedOfferLevel, classCrowdingMultiplier } from "./class-balance.js";
 import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
-import { BOSS_FLOOR, floorGoldReward, isBossFloor } from "./dungeon-progression.js";
+import { BOSS_FLOOR, enemyHealthMultiplier, floorGoldReward, isBossFloor } from "./dungeon-progression.js";
 import { enemyTypeForRoll, FLAVOR_ROSTERS } from "./enemy-rosters.js";
 import { BOSS_DEFINITIONS, BOSS_RULES, rollCampaignBoss } from "./bosses.js";
 import { cappedCombatPercent, interceptingKnight, totalDamageReduction } from "./combat-rules.js";
@@ -187,11 +189,11 @@ function heroPower(level) {
 }
 
 function speedMultiplier(level) {
-  return 1 + (level - 1) * 0.15;
+  return heroLevelSpeed(level);
 }
 
 function upgradeCost(level) {
-  return level >= 5 ? null : level * level;
+  return heroTrainingCost(level, heroLevelCap(state.journey));
 }
 
 function offerLevelOddsText() {
@@ -202,7 +204,7 @@ function makeHero(type = randomItem(HERO_KEYS), tavernLevel = 1) {
   const names = HERO_NAMES[type];
   const name = randomItem(names);
   const rolledLevel = rollOfferLevel(tavernLevel);
-  const level = boostedOfferLevel(rolledLevel, type, selectionBonus());
+  const level = boostedOfferLevel(rolledLevel, type, selectionBonus(), heroLevelCap(state.journey));
   return {
     id: nextHeroId++,
     type,
@@ -217,21 +219,32 @@ function rollHeroes(count, tavernLevel = 1) {
   return Array.from({ length: count }, () => makeHero(rollTownClass(HERO_KEYS, state.town), tavernLevel));
 }
 
-function createCampaign() {
+function createCampaign(journey = createJourney(), veterans = []) {
   const buildings = createTownBuildings();
   const town = createTownIdentity();
-  const flavorKey = randomItem(Object.keys(FLAVORS));
+  const flavorKey = randomItem(remainingInvasions(journey));
+  const inherited = legacyEffects(journey);
   const seed = crypto.getRandomValues(new Uint32Array(1))[0];
   return {
     view: "town",
+    campaignId: crypto.randomUUID(),
+    journey,
+    conclusion: null,
+    victoryRewardId: null,
+    carryHeroIds: [],
     day: 1,
-    gold: 10 + (town.prefix.gold ?? 0) + (town.settlement.dailyGold ?? 0),
+    gold: 10 + (town.prefix.gold ?? 0) + (town.settlement.dailyGold ?? 0) + inherited.dailyGold,
     town,
     freeRerollsRemaining: town.settlement.freeRerolls ?? 0,
     flavorKey,
     events: createEventCampaign(flavorKey, seed),
     dayOutlook: "opening",
-    chronicle: [{ day: 1, floor: null, category: "dawn", text: `A little hope, on the edge of the dark. ${town.name} faces ${FLAVORS[flavorKey].name}.` }],
+    chronicle: [
+      { day: 1, floor: null, category: "dawn", text: `A little hope, on the edge of the dark. ${town.name} faces ${FLAVORS[flavorKey].name}.` },
+      ...veterans.map(hero => ({day:1,floor:null,category:"arrival",text:`${hero.name} (${HERO_TYPES[hero.type].label}, L${hero.level}) arrived from the saved town, ready to fight again.`})),
+      ...legacyRewards(journey).map(reward => ({day:1,floor:null,category:"legacy",text:`${reward.name}: ${reward.description}`})),
+      ...(inherited.dailyGold ? [{day:1,floor:null,category:"income",text:"Liberated coffers yielded 3 gold."}] : []),
+    ],
     bossType: null,
     backdrop: createBackdropDepth(),
     graves: [],
@@ -247,7 +260,7 @@ function createCampaign() {
     offers: [],
     rolledToday: false,
     rollRemainingMs: 0,
-    bench: [],
+    bench: veterans.map(hero => ({...hero, active:true})),
     selectedHeroId: null,
     selectedOfferId: null,
     buildings,
@@ -279,6 +292,7 @@ function createCampaign() {
     potionsRemaining: 0,
     potionHealRatio: 0.2,
     potionTargeting: false,
+    potionCooldownMs: 0,
     battleLog: [],
     combatEffects: [],
     expeditionStartCount: 0,
@@ -296,9 +310,15 @@ function createCampaign() {
 
 const savedCampaign = loadCampaign();
 let state = savedCampaign?.state ?? createCampaign();
+state.journey ??= createJourney();
+state.campaignId ??= crypto.randomUUID();
+state.conclusion ??= null;
+state.victoryRewardId ??= null;
+state.carryHeroIds ??= [];
 state.selectionHistory ??= []; // Saves made before class balancing have no selection history.
 state.commandAutoPauseEnabled ??= true;
 state.freezeCooldownMs ??= 0;
+state.potionCooldownMs ??= 0;
 state.divineAegisTargetId ??= null;
 // Legacy party-wide shields cannot remain active without a selected hero.
 if (state.divineAegisTargetId === null) state.divineAegisMs = 0;
@@ -415,6 +435,10 @@ const battleView = createBattleView({
     render();
   },
 });
+
+const victoryView = createVictoryView({root:document.querySelector("#victory-screen"),heroTypes:HERO_TYPES,flavors:FLAVORS,
+  onReward:chooseLegacy,onVeteran:chooseVeteran,onContinue:defendNextTown,
+  onReset:()=>{resetCampaign();render();},onChronicle:()=>chronicleView.open(),onDownload:downloadJourney});
 
 function currentFlavor() {
   return FLAVORS[state.flavorKey];
@@ -535,7 +559,7 @@ function upgradeSelected() {
   if (!hero) return;
   const cost = upgradeCost(hero.level);
   if (cost === null) {
-    state.message = `${hero.name} has reached level 5.`;
+    state.message = `${hero.name} has reached the current level cap of ${heroLevelCap(state.journey)}.`;
     return;
   }
   if (state.gold < cost) {
@@ -582,6 +606,7 @@ function startExpedition(confirmed = false) {
   const supplies = alchemistSupplies(state.buildings.alchemist.level);
   state.potionsRemaining = supplies.count;
   state.potionHealRatio = supplies.healRatio;
+  state.potionCooldownMs = 0;
   state.commandAutoPauseEnabled = true;
   state.potionTargeting = false;
   state.battleLog = [];
@@ -591,7 +616,7 @@ function startExpedition(confirmed = false) {
 }
 
 function heroEffects(type) {
-  return townHeroEffects(type, buildingEffects(type, state.buildings[type]), state.town);
+  return applyLegacyHeroEffects(townHeroEffects(type, buildingEffects(type, state.buildings[type]), state.town), state.journey);
 }
 
 function buildParty(heroes) {
@@ -652,7 +677,7 @@ function floorScale(floor) {
 function makeEnemy(type, floor = state.floor) {
   const definition = ENEMY_TYPES[type];
   const scale = floorScale(floor);
-  const maxHp = Math.round(definition.hp * scale);
+  const maxHp = Math.round(definition.hp * scale * enemyHealthMultiplier(floor));
   return {
     id: `enemy-${nextEnemyId++}`,
     side: "enemy",
@@ -723,7 +748,7 @@ function livingEnemies() {
 }
 
 function resetFloorCommands() {
-  state.commandMeter = state.events.nextCommand ?? COMMAND_START;
+  state.commandMeter = state.events.nextCommand ?? Math.min(COMMAND_MAX, COMMAND_START + legacyEffects(state.journey).startingCommandBonus);
   state.events.activeAttack = state.events.nextAttack;
   if (state.events.nextCommand !== null) remember("effect", `Event consequence took effect: battle begins with ${state.events.nextCommand} Command.`, state.floor);
   if (state.events.nextAttack !== 1) remember("effect", `Event consequence took effect: ${Math.round((state.events.nextAttack - 1) * 100)}% attack damage this battle.`, state.floor);
@@ -1232,22 +1257,26 @@ function finishFloor() {
     state.victoryDay ??= state.day;
     state.resultTitle = firstVictory ? "Victory" : "Boss Defeated";
     const lootCopy = state.floorPilferGold ? `, plus ${state.floorPilferGold} pilfered gold` : "";
-    state.resultCopy = `${BOSS_DEFINITIONS[state.bossType].label} falls. ${survivorCopy}. The party claims ${state.floorReward} gold${lootCopy} and may continue for a deeper record.`;
-    state.message = "Victory is secured. Flee safely or continue beyond floor 10 for a deeper record.";
+    state.resultCopy = `${BOSS_DEFINITIONS[state.bossType].label} falls. ${survivorCopy}. The party claims ${state.floorReward} gold${lootCopy} and brings the invasion to an end.`;
+    state.message = "The invasion has ended. Remember the fallen and choose what to carry forward.";
   } else {
     state.resultTitle = `Floor ${state.floor} Cleared`;
     const lootCopy = state.floorPilferGold ? ` Thieves also secure ${state.floorPilferGold} pilfered gold.` : "";
     state.resultCopy = `${survivorCopy}. The vault yields ${state.floorReward} gold for day ${state.day}.${lootCopy}`;
     state.message = "Take the winnings and flee, or press deeper with your current health.";
   }
-  state.floorPotionRecovered = Math.random() < 0.5;
+  state.floorPotionRecovered = Math.random() < potionRecoveryChance(state.buildings.alchemist.level, state.journey);
   if (state.floorPotionRecovered) {
     state.potionsRemaining += 1;
     state.resultCopy += " Recovered one healing potion.";
     remember("supplies", "Recovered one healing potion after clearing the floor.", state.floor);
   }
-  if (state.victoryDay === state.day && isBossFloor(state.floor)) remember("victory", `${BOSS_DEFINITIONS[state.bossType].label} was defeated. Victory is secured.`, state.floor);
   state.events.clears += 1;
+  if (isBossFloor(state.floor)) {
+    concludeCampaign();
+    persist();
+    return;
+  }
   const scheduled = state.events.plan[state.events.next];
   if (scheduled && state.events.clears >= scheduled.at) {
     state.events.pending = { ...scheduled, result: null };
@@ -1258,12 +1287,13 @@ function finishFloor() {
 }
 
 function continueExpedition() {
-  if (state.view !== "floor_result") return;
+  if (state.view !== "floor_result" || state.floor >= BOSS_FLOOR) return;
   state.floor += 1;
   prepareFloor();
 }
 
 function finishDay(reason = "The company returns to the surface with its survivors.", title = null, retreatType = "automatic") {
+  if (state.view === "campaign_victory") return;
   snapBackdropFloor(state.backdrop, state.floor);
   clearCombatFeedback();
   state.pilferPending = 0;
@@ -1302,7 +1332,7 @@ function resolveRetreatLevelUps(retreatType) {
   state.retreatType = retreatType;
   state.retreatLevelChance = retreatLevelChance(state.party.length, retreatType);
   const eligibleIds = state.party
-    .filter((unit) => unit.hero.level < 5)
+    .filter((unit) => unit.hero.level < heroLevelCap(state.journey))
     .map((unit) => unit.hero.id);
   state.retreatLevelUpIds = rollRetreatLevelUps(eligibleIds, state.retreatLevelChance);
 }
@@ -1323,20 +1353,21 @@ function togglePotionTargeting() {
     state.potionTargeting = false;
     return;
   }
-  if (state.potionsRemaining <= 0) return;
+  if (state.potionsRemaining <= 0 || state.potionCooldownMs > 0) return;
   if (!livingParty().some((unit) => unit.hp < unit.maxHp)) return;
   state.commandTargeting = null;
   state.potionTargeting = true;
 }
 
 function usePotionOn(unit) {
-  if (state.view !== "battle" || !state.potionTargeting || state.potionsRemaining <= 0) return;
+  if (state.view !== "battle" || !state.potionTargeting || state.potionsRemaining <= 0 || state.potionCooldownMs > 0) return;
   if (!unit || unit.side !== "hero" || unit.hp <= 0 || unit.hp >= unit.maxHp) return;
   const healing = Math.max(1, Math.round(unit.maxHp * state.potionHealRatio));
   const restored = Math.min(healing, unit.maxHp - unit.hp);
   unit.hp += restored;
   unit.potionFlash = 650;
   state.potionsRemaining -= 1;
+  state.potionCooldownMs = 2000;
   state.potionTargeting = false;
   logBattle(`A potion restores ${restored} health to ${unit.label}.`);
   remember("potion", `A potion restored ${restored} HP to ${unit.label}.`, state.floor);
@@ -1391,7 +1422,7 @@ function advanceDay() {
   if (state.view !== "day_result") return;
   if (state.eventRerollsRemaining > 0) remember("favour", `${state.eventRerollsRemaining} unused event contract favour(s) expired.`);
   state.day += 1;
-  state.gold += state.town.settlement.dailyGold ?? 0;
+  state.gold += (state.town.settlement.dailyGold ?? 0) + legacyEffects(state.journey).dailyGold;
   state.eventRerollsRemaining = state.events.nextDayRerolls;
   state.freeRerollsRemaining = (state.town.settlement.freeRerolls ?? 0) + state.events.nextDayRerolls;
   state.events.nextDayRerolls = 0;
@@ -1401,7 +1432,7 @@ function advanceDay() {
   const survivors = state.party.map((unit) => unit.hero);
   const reserves = state.bench.filter((hero) => !state.expeditionStartIds.includes(hero.id));
   for (const hero of survivors) {
-    if (state.retreatLevelUpIds.includes(hero.id)) { hero.level = Math.min(5, hero.level + 1); remember("level", `${hero.name} returned at level ${hero.level}.`); }
+    if (state.retreatLevelUpIds.includes(hero.id)) { hero.level = Math.min(heroLevelCap(state.journey), hero.level + 1); remember("level", `${hero.name} returned at level ${hero.level}.`); }
     hero.active = true;
   }
   for (const hero of reserves) hero.active = false;
@@ -1424,6 +1455,7 @@ function advanceDay() {
   state.retreatLevelChance = 0;
   state.retreatLevelUpIds = [];
   state.view = "town";
+  if (legacyEffects(state.journey).dailyGold) remember("income", "Liberated coffers yielded 3 gold.");
   if (state.town.settlement.dailyGold) remember("income", "The Estate yielded 1 gold.");
   if (state.eventRerollsRemaining) remember("favour", `${state.eventRerollsRemaining} extra free reroll(s) available today from yesterday’s encounters.`);
   state.message = levelUps > 0
@@ -1432,16 +1464,73 @@ function advanceDay() {
   persist();
 }
 
+function concludeCampaign() {
+  if (state.conclusion) return;
+  clearCombatFeedback();
+  state.party = livingParty();
+  state.victoryAchieved = true;
+  state.victoryDay ??= state.day;
+  state.events.pending = null;
+  state.events.activeAttack = 1;
+  state.events.dayPower = 1;
+  state.view = "campaign_victory";
+  for (const unit of state.party) unit.hero.townsSaved = (unit.hero.townsSaved ?? 0) + 1;
+  remember("victory", `${BOSS_DEFINITIONS[state.bossType]?.label ?? "The dungeon lord"} has fallen. ${state.town.name} is saved. The invasion ended on day ${state.victoryDay}.`, BOSS_FLOOR);
+  remember("ending", `${state.party.length} heroes survived; ${state.graves.length} are remembered. ${state.journey.completed.length === 3 ? "Four towns are saved. The journey is complete." : "The company prepares to answer another town’s call."}`);
+  state.conclusion = campaignSummary(state);
+  state.carryHeroIds = state.party.length <= 2 ? state.party.map(unit => unit.hero.id) : [];
+}
+
+function chooseLegacy(id) {
+  if (state.view !== "campaign_victory" || state.journey.completed.length >= 3 || !LEGACIES[state.flavorKey].some(reward => reward.id === id)) return;
+  state.victoryRewardId = id;
+  persist(); render();
+}
+
+function chooseVeteran(id) {
+  if (state.view !== "campaign_victory" || !livingParty().some(unit => unit.hero.id === id)) return;
+  if (state.carryHeroIds.includes(id)) state.carryHeroIds = state.carryHeroIds.filter(heroId => heroId !== id);
+  else if (state.carryHeroIds.length < Math.min(2,livingParty().length)) state.carryHeroIds.push(id);
+  persist(); render();
+}
+
+function defendNextTown() {
+  if (state.view !== "campaign_victory" || state.journey.completed.length >= 3) return;
+  const reward = LEGACIES[state.flavorKey].find(reward => reward.id === state.victoryRewardId);
+  const veterans = livingParty().filter(unit => state.carryHeroIds.includes(unit.hero.id)).map(unit => ({...unit.hero}));
+  if (!reward || veterans.length !== Math.min(2,livingParty().length) || veterans.length !== state.carryHeroIds.length) return;
+  remember("legacy", `The company chose ${reward.name}. ${reward.description}`);
+  remember("departure", `${veterans.map(hero=>hero.name).join(" and ") || "A new company"} will answer the next town’s call. The other survivors remain as defenders.`);
+  const completed = {...campaignSummary(state),rewardId:reward.id,carriedHeroIds:veterans.map(hero=>hero.id)};
+  const journey = {completed:[...state.journey.completed,completed],legacies:[...state.journey.legacies,reward.id]};
+  archiveChronicle(state);
+  state = createCampaign(journey,veterans);
+  persist(); render();
+  window.scrollTo(0,0);
+  document.querySelector(".town-brand")?.focus({preventScroll:true});
+}
+
+function downloadJourney() {
+  const campaigns = [...state.journey.completed, campaignSummary(state)];
+  const text = campaigns.map(campaign => [`${campaign.town.name} — ${FLAVORS[campaign.flavorKey].name}`, ...campaign.chronicle.map(entry => `Day ${entry.day}${entry.floor === null ? "" : ` · Floor ${entry.floor}`} · ${entry.text}`)].join("\n")).join("\n\n");
+  const url = URL.createObjectURL(new Blob([text],{type:"text/markdown"}));
+  const link = document.createElement("a"); link.href = url; link.download = "vaultbound-journey.md"; link.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
 function resetCampaign() {
   archiveChronicle(state);
   nextHeroId = 1;
   nextEnemyId = 1;
   state = createCampaign();
+  window.scrollTo(0,0);
   persist();
 }
 
 function update(milliseconds) {
   const step = Math.min(100, milliseconds);
+  // Potions have a real-time reuse delay, including while combat is paused.
+  // Battle speed cannot shorten it; remaining time is included in autosaves.
+  state.potionCooldownMs = Math.max(0, Math.round((state.potionCooldownMs - step) * 1000) / 1000);
   if (state.rollRemainingMs > 0) {
     state.rollRemainingMs = Math.max(0, state.rollRemainingMs - step);
     if (state.rollRemainingMs === 0) state.message = `${state.offers.length} contracts revealed. Inspect a hero, then use Hire beneath the portrait. Your company is safe from rerolls.`;
@@ -1463,6 +1552,7 @@ function configureLayout(force = false) {
 
 function render() {
   eventView.render(state);
+  victoryView.render(state);
   const townVisible = state.view === "town";
   townView.render({
     visible: townVisible,
@@ -1475,6 +1565,10 @@ function render() {
     flavorKey: state.flavorKey,
     message: state.message,
     rolledToday: state.rolledToday,
+    journeyNumber: state.journey.completed.length+1,
+    heroLevelCap: heroLevelCap(state.journey),
+    legacies: legacyRewards(state.journey),
+    potionRecoveryPercent: Math.round(potionRecoveryChance(state.buildings.alchemist.level,state.journey)*100),
     graves: state.graves,
   });
   const battleVisible = ["battle", "floor_result", "day_result", "campaign_end"].includes(state.view);
@@ -1497,6 +1591,7 @@ function render() {
   };
   rosterView.render(state.view === "tavern" ? {
     visible: true, day: state.day, gold: state.gold, flavor: currentFlavor().name,
+    maxHeroLevel: heroLevelCap(state.journey), journeyNumber: state.journey.completed.length+1,
     rolledToday: state.rolledToday, rollRemainingMs: state.rollRemainingMs,
     rerollCost: state.rerollCost, nextRollCost: townRollCost(state), freeRerollsRemaining: state.freeRerollsRemaining, dailyOffers: offerCount(state.day),
     tavernLevel: state.buildings.tavern.level, odds: offerLevelOddsText().replace(/^Tavern L\d+: /, ""),
@@ -1545,6 +1640,8 @@ function battlePresentation() {
     speed: state.battleSpeed,
     potions: state.potionsRemaining,
     potionHealPercent: Math.round(state.potionHealRatio * 100),
+    potionRecoveryPercent: Math.round(potionRecoveryChance(state.buildings.alchemist.level,state.journey)*100),
+    potionCooldownMs: state.potionCooldownMs,
     fleeCost: midBattleFleeCost(),
     levelChance: manualFleeLevelChance(),
     levelResult: retreatLevelResultText(),
@@ -1659,6 +1756,13 @@ window.render_game_to_text = () => {
   return JSON.stringify({
     coordinateSystem: "Town, recruitment, and battle use responsive HTML controls. Daily flow: town → company → dungeon. All seven battle commands are visible from the start.",
     game: "Vaultbound",
+    journey: {invasion:state.journey.completed.length+1,levelCap:heroLevelCap(state.journey),
+      completed:state.journey.completed.map(c=>({town:c.town.name,flavor:c.flavorKey,day:c.day,reward:c.rewardId})),
+      remaining:remainingInvasions(state.journey).filter(f=>!state.victoryAchieved || f!==state.flavorKey),
+      legacies:legacyRewards(state.journey).map(r=>({id:r.id,name:r.name,description:r.description})),
+      complete:state.victoryAchieved && state.journey.completed.length===3,
+      selectedReward:state.victoryRewardId,selectedVeterans:state.carryHeroIds},
+    conclusion:state.view === "campaign_victory" ? state.conclusion : null,
     layout: layoutMode,
     view: state.view,
     events: { clears: state.events.clears, encountered: state.events.next, pending: state.events.pending, dayPower: state.events.dayPower, nextCommand: state.events.nextCommand, nextAttack: state.events.nextAttack, activeAttack: state.events.activeAttack, nextDayRerolls: state.events.nextDayRerolls },
@@ -1674,7 +1778,7 @@ window.render_game_to_text = () => {
       victoryDay: state.victoryDay,
       currentFloorIsBoss: isBossFloor(state.floor),
       bossType: state.bossType,
-      canContinueAfterVictory: true,
+      canContinueAfterVictory: false,
     },
     flavor: { key: state.flavorKey, ...currentFlavor(), roster: FLAVOR_ROSTERS[state.flavorKey] },
     teamCapacity: teamCapacity(state.day),
@@ -1760,8 +1864,10 @@ window.render_game_to_text = () => {
       remaining: state.potionsRemaining,
       healingPercent: Math.round(state.potionHealRatio * 100),
       choosingTarget: state.potionTargeting,
+      cooldownMs: Math.ceil(state.potionCooldownMs),
+      reuseDelayMs: 2000,
       replenishes: "at the start of each daily expedition",
-      floorRecoveryChance: 0.5,
+      floorRecoveryChance: potionRecoveryChance(state.buildings.alchemist.level,state.journey),
       recoveredThisFloor: Boolean(state.floorPotionRecovered),
     },
     midBattleFleeCost: state.view === "battle" ? midBattleFleeCost() : null,
@@ -1825,10 +1931,16 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Defeat the campaign boss on floor 10 to win; Continue remains available afterward. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Divine Aegis shields one selected hero for six seconds. Mark Prey requires selecting an enemy. Every cleared floor has a 50% chance to restore a potion. Potion requires selecting a wounded hero. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee pauses combat and asks for confirmation before costing half your gold. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
+    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Divine Aegis shields one selected hero for six seconds. Mark Prey requires selecting an enemy. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Potion requires selecting a wounded hero and has a two-second reuse delay that continues while paused, unaffected by battle speed. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee pauses combat and asks for confirmation before costing half your gold. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
   });
 };
 
+if (state.victoryAchieved && !state.conclusion) {
+  if (!livingParty().length) state.party = buildParty(state.bench.filter(hero=>hero.active));
+  state.floor = BOSS_FLOOR;
+  concludeCampaign();
+  persist();
+}
 configureLayout(true);
 render();
 requestAnimationFrame(frame);

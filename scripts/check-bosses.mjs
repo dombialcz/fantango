@@ -14,11 +14,13 @@ try {
     const response = await route.fetch();
     await route.fulfill({ response, body: `${await response.text()}
       window.bossTest = { get state() { return state; }, resetCampaign, finishDay, advanceDay, makeEnemy, generateEnemies, actEnemy, actHero, dealDamage, updateBattle, enemyInterval, enemyEmpowered, continueExpedition, render,
-        stage(flavor, type) {
+        stage(flavor, type, lateCompany = false) {
+          state.conclusion=null; state.victoryAchieved=false; state.victoryDay=null; state.campaignId=crypto.randomUUID();
           state.events.clears=0; state.events.next=0; state.events.pending=null; state.events.plan.forEach(event=>event.at=9999);
-          state.flavorKey = flavor; state.bossType = type; state.floor = 10;
-          state.party = buildParty(['knight', 'cleric', 'ranger', 'mage'].map((type, index) => ({ id: 500 + index, name: HERO_TYPES[type].label, type, level: 5, active: true })));
-          state.expeditionStartCount = 4; state.commandMeter = 0;
+          state.flavorKey = flavor; state.bossType = type; state.floor = 10; state.day = lateCompany ? 9 : 1;
+          const classes = lateCompany ? ['knight', 'knight', 'cleric', 'cleric', 'ranger', 'mage', 'barbarian', 'bard'] : ['knight', 'cleric', 'ranger', 'mage'];
+          state.party = buildParty(classes.map((type, index) => ({ id: 500 + index, name: HERO_TYPES[type].label, type, level: 5, active: true })));
+          state.expeditionStartCount = classes.length; state.commandMeter = 0;
           prepareFloor(); state.battlePaused = true; render();
         }
       };` });
@@ -28,7 +30,7 @@ try {
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto(`${baseURL}/dungeon.html`);
   await page.waitForFunction(() => window.bossTest);
-  const stage = async (flavor, type) => page.evaluate(([f,t]) => window.bossTest.stage(f,t), [flavor,type]);
+  const stage = async (flavor, type, lateCompany = false) => page.evaluate(([f,t,late]) => window.bossTest.stage(f,t,late), [flavor,type,lateCompany]);
   for (const [flavor, choices] of Object.entries(CAMPAIGN_BOSSES)) for (const type of choices) {
     await stage(flavor, type);
     const boss = page.locator('.battle-unit.is-boss');
@@ -175,21 +177,21 @@ try {
     return state.party.filter((hero,index)=>hero.hp<before[index]).length===1 && state.party.filter(hero=>hero.row==='back').every((hero,index)=>hero.hp===before[index+2]);
   }),true);
 
-  // All eight encounters can clear, award victory once, and continue beyond floor 10.
+  // All eight encounters conclude the invasion and cannot continue beyond floor ten.
   for (const [flavor,choices] of Object.entries(CAMPAIGN_BOSSES)) for (const type of choices) {
     await stage(flavor,type);
     const result=await page.evaluate(()=>{
       const {state,updateBattle,continueExpedition,generateEnemies}=window.bossTest;
       const chosen=state.bossType;generateEnemies(10);const stable=state.bossType===chosen;
       state.enemies.forEach(enemy=>enemy.hp=0);state.battlePaused=false;updateBattle(1);
-      const won=state.victoryAchieved&&state.view==='floor_result',copy=state.resultCopy;
-      continueExpedition();return {stable,won,copy,floor:state.floor,noBoss:state.enemies.every(enemy=>!enemy.boss)};
+      const won=state.victoryAchieved&&state.view==='campaign_victory',copy=state.resultCopy;
+      continueExpedition();return {stable,won,copy,floor:state.floor,stopped:state.view==='campaign_victory'};
     });
-    assert.ok(result.stable&&result.won&&result.noBoss);assert.equal(result.floor,11);assert.ok(result.copy.includes(BOSS_DEFINITIONS[type].label));
+    assert.ok(result.stable&&result.won&&result.stopped);assert.equal(result.floor,10);assert.ok(result.copy.includes(BOSS_DEFINITIONS[type].label));
   }
-  // Exercise complete timed fights, not only isolated ability calls.
+  // Full timed fights use a day-nine company at its actual eight-hero capacity.
   for (const [flavor,choices] of Object.entries(CAMPAIGN_BOSSES)) for (const type of choices) {
-    await stage(flavor,type);
+    await stage(flavor,type,true);
     const outcome=await page.evaluate(()=>{
       const {state,updateBattle}=window.bossTest;
       for(let frame=0;frame<1900&&state.view==='battle';frame++) {
@@ -198,7 +200,7 @@ try {
       return {view:state.view,time:state.battleTime,victory:state.victoryAchieved};
     });
     assert.notEqual(outcome.view,'battle',`${type} never resolved`);
-    assert.equal(outcome.view,'floor_result',`${type} should be beatable by a trained level-five company`);
+    assert.equal(outcome.view,'campaign_victory',`${type} should be beatable by a full late-campaign level-five company`);
   }
   await stage('undead','evilSpirit');
   assert.deepEqual(await page.evaluate(()=>{
@@ -222,6 +224,6 @@ try {
   await page.setContent(`<style>body{background:#14212a;color:#efd39b;font:16px Georgia;padding:20px}main{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}figure{margin:0;text-align:center}img{width:190px;height:230px;object-fit:contain}figcaption{margin-top:5px}</style><main>${[...Object.entries(BOSS_DEFINITIONS).map(([id,boss])=>[id,boss.label]),['goblin','Goblin'],['orc','Orc'],['goblinArcher','Goblin Archer'],['orcShaman','Orc Hexer']].map(([id,label])=>`<figure><img src="${baseURL}/assets/enemies/${id}.webp"><figcaption>${label}</figcaption></figure>`).join('')}</main>`);
   await page.evaluate(()=>Promise.all([...document.images].map(image=>image.decode())));
   await page.screenshot({path:'output/boss-check/portrait-gallery.png',fullPage:true});
-  console.log('All 8 bosses: portraits, permanent gold borders, abilities, pause/freeze, escorts, victory/continuation and four viewport layouts passed.');
+  console.log('All 8 bosses: portraits, permanent gold borders, abilities, pause/freeze, escorts, victory/conclusion and four viewport layouts passed.');
   await context.close();
 } finally {await browser.close();}

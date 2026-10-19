@@ -73,7 +73,7 @@ try {
   // Tavern level-four rolls can now become level-five underused-class offers.
   await page.evaluate(()=>{
     const t=window.balanceTest;t.state.gold=100;t.state.buildings.tavern.level=5;
-    let draw=0;Math.random=()=>[.99,.99,0,0,0][draw++%5];t.render();
+    let draw=0;Math.random=()=>[.99,.99,0,0,0,.05][draw++%6];t.render();
   });
   await page.locator('[data-roster-action="roll"]').click();await page.evaluate(()=>advanceTime(1500));
   assert.ok((await snapshot()).offers.every(hero=>hero.level===5&&hero.selectionLevelBonus===1));

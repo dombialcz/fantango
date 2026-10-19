@@ -37,9 +37,14 @@ for (const c of cases) {
   }, c);
   const state = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
   assert.equal(state.morale.tone, c.name);
-  assert.equal(state.lastExpedition.clearedFloor, c.cleared);
-  assert.equal(state.day, c.day + 1);
-  assert.equal(await page.locator('.town-panorama h2').innerText(), state.morale.text);
+  if(c.name==='victory') {
+    assert.equal(state.view,'campaign_victory');assert.equal(state.day,c.day);
+    assert.match(await page.locator('.victory-header').innerText(),/Vault Tyrant has fallen/);
+  } else {
+    assert.equal(state.lastExpedition.clearedFloor, c.cleared);
+    assert.equal(state.day, c.day + 1);
+    assert.equal(await page.locator('.town-panorama h2').innerText(), state.morale.text);
+  }
   await page.screenshot({ path: `output/town-morale/${c.name}.png`, fullPage: true });
 }
 await page.setViewportSize({ width: 320, height: 740 });

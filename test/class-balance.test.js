@@ -43,3 +43,9 @@ test('crowding is one flat 20% penalty for three or more, never for just two',()
   for(const count of [0,1,2]) assert.equal(classCrowdingMultiplier(count),1);
   for(const count of [3,4,5,8]) assert.equal(classCrowdingMultiplier(count),.8);
 });
+
+test('later campaigns allow underused contracts at six but never seven or eight', () => {
+  assert.equal(boostedOfferLevel(5, 'mage', {classes:['mage']}, 6), 6);
+  assert.equal(boostedOfferLevel(5, 'mage', {classes:['mage']}, 8), 6);
+  assert.equal(boostedOfferLevel(5, 'knight', {classes:['mage']}, 8), 5);
+});
