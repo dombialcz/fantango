@@ -54,6 +54,7 @@ await page.evaluate(async () => {
     const effects = t.heroEffects(s.classType);
     const party = t.buildParty([hero(s.classType)]);
     assert(party[0].critChance === effects.critChance, 'crit integration');
+    assert(party[0].evasionChance === effects.evasionChance, 'dodge integration');
     assert(party[0].healRatio === effects.healRatio, 'heal integration');
     assert(party[0].maxHp === Math.round(100 * ({ knight: 1, thief: .6, bard: .6, cleric: .8, barbarian: 1.2, ranger: .8, mage: .5 }[s.classType]) * effects.healthMultiplier), 'health integration');
   }
@@ -61,6 +62,7 @@ await page.evaluate(async () => {
   const buffed = t.buildParty([{ id: 1, type: 'bard', name: 'Bard', level: 1 }, { id: 2, type: 'knight', name: 'Knight', level: 1 }]);
   assert(Math.abs(buffed[1].power - 120.6) < 1e-9, 'Market strengthens actual bard buff');
   const target = { hp: 1000, side: 'hero', label: 'Test', row: 'back', damageReduction: 0 };
+  t.state.party = []; // This synthetic target has no party guards; isolate the town trait.
   t.state.divineAegisMs = 0;
   t.state.town.prefix = PREFIXES[0];
   assert(t.dealDamage(target, 400, { side: 'enemy', label: 'Enemy' }) === 99, 'Walled enemy damage');

@@ -126,7 +126,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
     card.querySelector(".battle-unit__info small").textContent = isHero ? `${definition.label} · L${unit.hero.level}` : unit.boss ? "FLOOR 10 · BOSS" : definition.label;
     card.querySelector(".battle-unit__health i").style.width = `${Math.max(0, unit.hp / unit.maxHp) * 100}%`;
     card.querySelector(".battle-unit__hp").textContent = `${Math.ceil(unit.hp)} / ${unit.maxHp} HP`;
-    card.querySelector(".battle-unit__status").textContent = frozen ? "FROZEN" : unit.evadeFlash > 0 ? "EVADE" : isHero && state.effects.aegis > 0 ? "AEGIS" : state.markedEnemyId === unit.id ? "MARKED" : unit.empowered ? "EMPOWERED" : "";
+    card.querySelector(".battle-unit__status").textContent = frozen ? "FROZEN" : unit.evadeFlash > 0 ? "EVADE" : unit.interceptFlash > 0 ? "INTERCEPT" : isHero && state.effects.aegis > 0 ? "AEGIS" : state.markedEnemyId === unit.id ? "MARKED" : unit.empowered ? "EMPOWERED" : "";
     card.title = definition.summary ?? definition.label;
     card.setAttribute("aria-label", `${unit.label}${unit.boss ? ", final boss" : ""}, ${definition.label}, ${Math.ceil(unit.hp)} of ${unit.maxHp} health${frozen ? ", frozen" : ""}${targetable ? ", select target" : ""}`);
     const row = rows.get(`${unit.side}-${unit.row}`);
@@ -147,7 +147,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       line.setAttribute("y1", source.y + source.height / 2 - bounds.y + arena.scrollTop);
       line.setAttribute("x2", target.x + target.width / 2 - bounds.x);
       line.setAttribute("y2", target.y + target.height / 2 - bounds.y + arena.scrollTop);
-      line.setAttribute("stroke", effect.kind === "heal" ? "#83d4b3" : effect.kind === "freeze" ? "#a2c8f4" : effect.sourceSide === "hero" ? "#ead298" : "#dc8279");
+      line.setAttribute("stroke", effect.kind === "heal" ? "#83d4b3" : effect.kind === "freeze" ? "#a2c8f4" : effect.kind === "intercept" ? "#a1cce3" : effect.sourceSide === "hero" ? "#ead298" : "#dc8279");
       line.setAttribute("opacity", Math.min(0.8, effect.remaining / 700));
       line.setAttribute("stroke-width", "2");
       strikeGroup.append(line);

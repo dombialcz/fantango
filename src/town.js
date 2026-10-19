@@ -1,9 +1,11 @@
+import { cappedCombatPercent } from "./combat-rules.js";
+
 export const BUILDING_DEFINITIONS = {
   knight: {
     name: "Barracks",
     classLabel: "Knight",
     commandLabel: "HOLD THE LINE",
-    core: (level) => `${(level - 1) * 5}% damage reduction`,
+    core: (level) => `${Math.round(cappedCombatPercent(.2 + (level - 1) * .05) * 100)}% damage reduction · 50% intercept`,
     pathA: { label: "FORTIFY", short: "+15% health" },
     pathB: { label: "DRILL", short: "+10% speed" },
   },
@@ -11,8 +13,8 @@ export const BUILDING_DEFINITIONS = {
     name: "Thieves’ Guild",
     classLabel: "Thief",
     commandLabel: "PILFER",
-    core: (level) => `+${(level - 1) * 15}% damage to wounded foes`,
-    pathA: { label: "PRECISION", short: "+5% crit" },
+    core: (level) => `20% base dodge · +${(level - 1) * 15}% damage to wounded foes`,
+    pathA: { label: "EVASION", short: "+5% dodge" },
     pathB: { label: "HASTE", short: "+10% speed" },
   },
   bard: {
@@ -114,6 +116,7 @@ export function buildingEffects(type, building) {
     damageMultiplier: 1,
     damageReduction: 0,
     critChance: 0,
+    evasionChance: 0,
     executeBonus: 0,
     bardBuff: 0.2,
     bardTargets: 1,
@@ -122,12 +125,12 @@ export function buildingEffects(type, building) {
   };
 
   if (type === "knight") {
-    effects.damageReduction = (level - 1) * 0.05;
+    effects.damageReduction = .2 + (level - 1) * 0.05;
     effects.healthMultiplier += pathA * 0.15;
     effects.speedMultiplier += pathB * 0.1;
   } else if (type === "thief") {
     effects.executeBonus = (level - 1) * 0.15;
-    effects.critChance = pathA * 0.05;
+    effects.evasionChance = .2 + pathA * 0.05;
     effects.speedMultiplier += pathB * 0.1;
   } else if (type === "bard") {
     effects.bardBuff = 0.2 + (level - 1) * 0.05;
@@ -151,5 +154,6 @@ export function buildingEffects(type, building) {
     effects.speedMultiplier += pathB * 0.1;
   }
 
+  for (const key of ["damageReduction", "critChance", "evasionChance"]) effects[key] = cappedCombatPercent(effects[key]);
   return effects;
 }

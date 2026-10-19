@@ -5,6 +5,7 @@ import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
 import { BOSS_FLOOR, floorGoldReward, isBossFloor } from "./dungeon-progression.js";
 import { enemyTypeForRoll, FLAVOR_ROSTERS } from "./enemy-rosters.js";
 import { BOSS_DEFINITIONS, BOSS_RULES, rollCampaignBoss } from "./bosses.js";
+import { cappedCombatPercent, interceptingKnight, totalDamageReduction } from "./combat-rules.js";
 import { createTownView } from "./town-view.js";
 import { createBattleView } from "./battle-view.js";
 import { createRosterView } from "./roster-view.js";
@@ -43,17 +44,17 @@ const HERO_TYPES = {
     interval: 1200,
     color: "#9bb4c8",
     image: "assets/heroes/knight.png",
-    summary: "Guards the front and strikes a random front enemy.",
+    summary: "Front-line defender. 50% chance to intercept single-target attacks on allies while unfrozen. Area attacks cannot be intercepted.",
   },
   thief: {
     label: "Thief",
-    row: "back",
+    row: "front",
     hp: 0.6,
     damage: 0.4,
     interval: 900,
     color: "#7594c8",
     image: "assets/heroes/thief.png",
-    summary: "Finishes the weakest enemy in the front row.",
+    summary: "Dodges on the front line and finishes the weakest enemy in the enemy front row.",
   },
   bard: {
     label: "Bard",
@@ -526,6 +527,7 @@ function buildParty(heroes) {
       damageMultiplier: effects.damageMultiplier,
       damageReduction: effects.damageReduction,
       critChance: effects.critChance,
+      evasionChance: effects.evasionChance,
       executeBonus: effects.executeBonus,
       healRatio: effects.healRatio,
       mageTargets: effects.mageTargets,
@@ -780,36 +782,46 @@ function addCombatEffect(source, target, kind = "attack") {
   state.combatEffects = state.combatEffects.slice(-8);
 }
 
-function dealDamage(target, amount, source) {
+function damageReductionFor(unit) {
+  const armor = unit.row === "front" && state.holdLineMs > 0 ? state.holdArmorBonus : 0;
+  return totalDamageReduction(unit.damageReduction ?? 0, armor, state.town.prefix.enemyDamage ?? 1);
+}
+
+function dealDamage(target, amount, source, { area = false, logStrike = false } = {}) {
   if (!target || target.hp <= 0) return;
-  if (target.type === "shadowAssassin" && target.side === "enemy" && Math.random() < BOSS_RULES.evasion) {
-    target.evadeFlash = 700;
-    logBattle("The Shadow Assassin evades the hit.");
-    return 0;
-  }
-  const sourceLabel = typeof source === "string" ? source : source.label;
+  const enemyAttack = target.side === "hero" && typeof source === "object" && source.side === "enemy";
   if (target.side === "hero" && state.divineAegisMs > 0) {
     target.flash = 240;
     return 0;
   }
-  if (target.side === "hero" && typeof source === "object" && source.side === "enemy") {
-    if (state.town.prefix.evasion && Math.random() < state.town.prefix.evasion) {
-      logBattle(`${target.label} evades the attack.`);
-      return 0;
+  let protectedAlly = null;
+  if (enemyAttack && !area) {
+    const knight = interceptingKnight(livingParty(), target);
+    if (knight) {
+      protectedAlly = target;
+      target = knight;
+      target.interceptFlash = 700;
+      addCombatEffect(knight, protectedAlly, "intercept");
     }
-    amount *= state.town.prefix.enemyDamage ?? 1;
   }
+  const dodge = target.side === "enemy"
+    ? target.type === "shadowAssassin" ? BOSS_RULES.evasion : target.evasionChance ?? 0
+    : enemyAttack ? target.evasionChance ?? state.town.prefix.evasion ?? 0 : 0;
+  if (dodge > 0 && Math.random() < cappedCombatPercent(dodge)) {
+    target.evadeFlash = 700;
+    if (typeof source === "object") addCombatEffect(source, target, "dodge");
+    logBattle(protectedAlly ? `${target.label} intercepts for ${protectedAlly.label} and dodges the attack.` : `${target.label} evades the hit.`);
+    return 0;
+  }
+  const sourceLabel = typeof source === "string" ? source : source.label;
   const critical = typeof source === "object"
     && source.side === "hero"
     && source.critChance > 0
-    && Math.random() < source.critChance;
+    && Math.random() < cappedCombatPercent(source.critChance);
   const criticalAmount = critical ? amount * 2 : amount;
-  const holdArmor = target.side === "hero" && target.row === "front" && state.holdLineMs > 0
-    ? state.holdArmorBonus
-    : 0;
   const reducedAmount = target.side === "hero"
-    ? criticalAmount * (1 - Math.min(0.8, (target.damageReduction ?? 0) + holdArmor))
-    : criticalAmount;
+    ? criticalAmount * (1 - damageReductionFor(target))
+    : criticalAmount * (1 - cappedCombatPercent(target.damageReduction));
   const damage = Math.max(1, Math.round(reducedAmount * COMBAT_DAMAGE_SCALE));
   const previousHp = target.hp;
   target.hp = Math.max(0, target.hp - damage);
@@ -818,6 +830,8 @@ function dealDamage(target, amount, source) {
   if (typeof source === "object") addCombatEffect(source, target);
   if (critical) logBattle(`${sourceLabel} lands a critical hit.`);
   if (target.hp === 0) logBattle(`${sourceLabel} defeats ${target.label}.`);
+  else if (logStrike) logBattle(`${sourceLabel} strikes ${target.label}.`);
+  if (protectedAlly) logBattle(`${target.label} intercepts the attack on ${protectedAlly.label} (${actualDamage} damage).`);
   if (typeof source === "object" && source.side !== target.side) gainCommandMeter(actualDamage);
   return actualDamage;
 }
@@ -951,10 +965,11 @@ function actEnemy(unit) {
   if (skill === "rowAttack") {
     const front = unitsInRow(heroes, "front");
     const targets = front.length ? front : unitsInRow(heroes, "back");
-    const damage = targets.reduce((total, target) => total + dealDamage(target, attackDamage, unit), 0);
+    const damage = targets.reduce((total, target) => total + dealDamage(target, attackDamage, unit, { area: true }), 0);
     logBattle(damage > 0
       ? `${unit.label} ${unit.type === "infernalDragon" ? "breathes fire across" : "cleaves through"} the ${front.length ? "front" : "back"} row.`
-      : `Divine Aegis turns aside ${unit.label}'s attack.`);
+      : state.divineAegisMs > 0 ? `Divine Aegis turns aside ${unit.label}'s attack.`
+        : `The ${front.length ? "front" : "back"} row evades ${unit.label}'s attack.`);
     return;
   }
 
@@ -971,8 +986,7 @@ function actEnemy(unit) {
   } else {
     target = targetFrontFirst(heroes);
   }
-  const damage = dealDamage(target, attackDamage, unit);
-  if (damage > 0 && target.hp > 0 && skill !== "heal") logBattle(`${unit.label} strikes ${target.label}.`);
+  dealDamage(target, attackDamage, unit, { logStrike: skill !== "heal" });
 }
 
 function updateBattle(milliseconds) {
@@ -988,6 +1002,7 @@ function updateBattle(milliseconds) {
     unit.actionFlash = Math.max(0, unit.actionFlash - delta);
     unit.potionFlash = Math.max(0, (unit.potionFlash ?? 0) - delta);
     unit.evadeFlash = Math.max(0, (unit.evadeFlash ?? 0) - delta);
+    unit.interceptFlash = Math.max(0, (unit.interceptFlash ?? 0) - delta);
     if (unit.side === "enemy" && enemiesFrozen && unit.returnAt !== null) unit.returnAt += delta;
   }
 
@@ -1154,6 +1169,7 @@ function clearCombatFeedback() {
     unit.actionFlash = 0;
     unit.potionFlash = 0;
     unit.evadeFlash = 0;
+    unit.interceptFlash = 0;
     unit.frozenMs = 0;
   }
 }
@@ -1261,6 +1277,8 @@ function render() {
     let summary = definition.summary;
     if (hero.type === "mage") summary = `Strikes up to ${effects.mageTargets} different enemies per attack, starting in the back row. Spell targets come from the Mage Guild.`;
     if (hero.type === "bard") summary = `Gives ${effects.bardTargets} random non-bard ${effects.bardTargets === 1 ? "ally" : "allies"} +${Math.round(effects.bardBuff * 100)}% power at expedition start.`;
+    if (hero.type === "thief") summary += ` ${Math.round(effects.evasionChance * 100)}% dodge chance, including town bonuses.`;
+    if (hero.type === "knight") summary += ` ${Math.round(totalDamageReduction(effects.damageReduction, 0, state.town.prefix.enemyDamage ?? 1) * 100)}% damage reduction, including town bonuses.`;
     return { ...hero, power, health: Math.round(power * definition.hp * effects.healthMultiplier), damage: Math.round(power * definition.damage * effects.damageMultiplier), summary };
   };
   rosterView.render(state.view === "tavern" ? {
@@ -1512,6 +1530,9 @@ window.render_game_to_text = () => {
       bardBuffPercent: unit.bardBuffPercent,
       attackIntervalMs: Number.isFinite(heroInterval(unit)) ? Math.round(heroInterval(unit)) : null,
       critChance: unit.critChance,
+      evasionChance: unit.evasionChance,
+      interceptChance: unit.type === "knight" ? .5 : 0,
+      effectiveDamageReduction: damageReductionFor(unit),
       damageMultiplier: unit.damageMultiplier,
       damageReduction: unit.damageReduction,
       healRatio: unit.healRatio,

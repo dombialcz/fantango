@@ -36,11 +36,27 @@ test("mage targets and ranger speed come from their buildings", () => {
 
 test("class specialization picks stack independently", () => {
   const knight = buildingEffects("knight", { level: 4, pathA: 2, pathB: 1 });
-  assert.ok(Math.abs(knight.damageReduction - 0.15) < Number.EPSILON);
+  assert.ok(Math.abs(knight.damageReduction - 0.35) < Number.EPSILON);
   assert.equal(knight.healthMultiplier, 1.3);
   assert.equal(knight.speedMultiplier, 1.1);
 
   const bard = buildingEffects("bard", { level: 3, pathA: 0, pathB: 2 });
   assert.ok(Math.abs(bard.bardBuff - 0.3) < Number.EPSILON);
   assert.equal(bard.bardTargets, 3);
+});
+
+test("rogues replace class crit bonuses with dodge, while Rangers keep crit", () => {
+  const rogue = buildingEffects("thief", {level: 5, pathA: 4, pathB: 0});
+  assert.equal(rogue.evasionChance, .4);
+  assert.equal(rogue.critChance, 0);
+  assert.equal(buildingEffects("thief").evasionChance, .2);
+  assert.equal(buildingEffects("knight").damageReduction, .2);
+  assert.equal(buildingEffects("ranger", {level:5,pathA:4}).critChance, .2);
+});
+
+test("all percentage-based building combat stats stop at 90%", () => {
+  for (const type of ["knight", "thief", "ranger", "barbarian"]) {
+    const result=buildingEffects(type,{level:100,pathA:100,pathB:100});
+    for (const key of ["damageReduction","evasionChance","critChance"]) assert.ok(result[key]>=0&&result[key]<=.9);
+  }
 });

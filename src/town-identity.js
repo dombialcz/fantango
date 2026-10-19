@@ -1,4 +1,5 @@
 // Campaign identity: small, independent bonuses; geographical names are cosmetic.
+import { cappedCombatPercent } from "./combat-rules.js";
 export const PREFIXES = [
   { name: "Walled", bonus: "Enemies deal 1% less damage", enemyDamage: 0.99 },
   { name: "Grand", bonus: "Start with 1 extra gold", gold: 1 },
@@ -10,7 +11,7 @@ export const PREFIXES = [
 export const SETTLEMENTS = [
   { name: "Reach", bonus: "Rangers deal 3% more damage", classType: "ranger", damage: 1.03 },
   { name: "Haven", bonus: "Knights take 3% less damage", classType: "knight", reduction: 0.03 },
-  { name: "Hollow", bonus: "Thieves gain +2 percentage points of crit chance", classType: "thief", crit: 0.02 },
+  { name: "Hollow", bonus: "Thieves gain +2 percentage points of dodge chance", classType: "thief", evasion: 0.02 },
   { name: "Sanctum", bonus: "Clerics restore 3% more health", classType: "cleric", healing: 1.03 },
   { name: "Spire", bonus: "Mages deal 3% more damage", classType: "mage", damage: 1.03 },
   { name: "Hold", bonus: "Barbarians gain 3% maximum health", classType: "barbarian", health: 1.03 },
@@ -47,8 +48,9 @@ export function townHeroEffects(type, building, town) {
     healthMultiplier: building.healthMultiplier * (prefix.health ?? 1) * (local.health ?? 1),
     speedMultiplier: building.speedMultiplier * (prefix.speed ?? 1),
     damageMultiplier: building.damageMultiplier * (local.damage ?? 1),
-    damageReduction: 1 - (1 - building.damageReduction) * (1 - (local.reduction ?? 0)),
-    critChance: building.critChance + (prefix.crit ?? 0) + (local.crit ?? 0),
+    damageReduction: cappedCombatPercent(1 - (1 - building.damageReduction) * (1 - (local.reduction ?? 0))),
+    critChance: cappedCombatPercent(building.critChance + (prefix.crit ?? 0) + (local.crit ?? 0)),
+    evasionChance: cappedCombatPercent((building.evasionChance ?? 0) + (prefix.evasion ?? 0) + (local.evasion ?? 0)),
     healRatio: building.healRatio * (local.healing ?? 1),
     bardBuff: building.bardBuff * (local.bardBuff ?? 1),
   };
