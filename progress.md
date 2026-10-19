@@ -336,3 +336,30 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Replaced the inline improvement choices with one Upgrade entry button. A compact native dialog shows the next level benefit, two class improvement choices or one service upgrade, exact gold prices, a flavor passage and Cancel. Opening is free even when unaffordable; purchases retain the existing costs and effects. Cancel, Escape and backdrop dismissal restore focus. Successful purchases close the dialog and restore focus to the replacement Upgrade button (or heading at level five). Mobile uses the same dialog above the district sheet.
 - Added 51 selected passages from the user's fantasy-city-flavor-texts.md across all ten buildings, including the Cemetery. Building visits and successful upgrades advance separate shuffled pools without repeats until exhausted, including protection against immediate repeats across shuffle boundaries. Ordinary renders preserve the passage. Cosmetic cryptographic randomness does not consume gameplay rolls. Cemetery selections avoid claims about campaign-specific fresh graves.
 - Added a shuffle/cycle unit test and scripts/check-building-upgrades.mjs covering class paths, service upgrades through level five, costs, cancellation/Escape/focus, insufficient gold, stable and rotating flavor, and Cemetery at 1440/390/320/844px widths. All pass; all 48 unit tests pass. Updated existing browser scripts for the new dialog entry step; gold UI, six-viewport town art, roster flow and hero-defense regressions pass. Ran the web-game skill client and inspected its capture plus desktop and small-phone choice dialogs. No remaining implementation TODOs for this request.
+
+## 2026-10-19 — Campaign artwork on the town flavour panel
+
+- Reused the active campaign’s existing battle-descent painting behind the town’s morale/Prepare your company panel, through the shared BATTLE_BACKDROPS mapping. Desktop crops the surface section at 5%; phones anchor the top to keep the entrance visible. The source images are reused without new assets or animation.
+- Included flavorKey in the town render snapshot/signature so changing campaigns refreshes the image. Preserved the morale line, roll status, readability overlays and party-select action.
+- Browser-checked all four campaigns at 1440px desktop, 390px/320px phones and 844px landscape: correct resource, no horizontal overflow, stable flavour line and working party-select navigation. Inspected all four desktop panoramas plus phone/landscape crops. Ran the web-game client and inspected its capture. No application console/page errors.
+- Preserved unrelated in-progress class/roster/town edits already present in the workspace.
+
+- Upgrade dialog clarity: placed the automatic next-level benefit in a warm, muted brown panel labelled “Included with either choice” (or “Included in this upgrade” for services). It remains visually distinct from the gold purchase buttons. Existing upgrade-flow checks pass at four viewports; inspected the small-phone dialog.
+
+## 2026-10-19 — Contract reel arrows and larger portraits
+
+- Added accessible Previous/Next hero buttons at the reel edges. Each moves by one card width plus its gap; end positions clamp and visibly gray out the unavailable direction. Both buttons disable for sealed/spinning/empty reels or when every card fits. Scroll/resize observers keep controls current after swipes, trackpad movement, hiring and viewport changes. Repeated smooth clicks retain the intended target; reduced-motion users get immediate steps.
+- Increased contract portraits to 120% visual scale, shifted them down 5px, and added a small portrait wrapper/gap so the larger artwork does not collide with hero labels or Hire. Other portrait contexts remain unchanged.
+- Added check-reel-navigation.mjs: one-card movement, endpoint clamping/disabled states, Enter activation, direct scrolling, hiring at the end, reroll reset, reduced motion, smooth scrolling and resize from fitting to overflowing at desktop/390px/320px/landscape. All pass. Existing roster flow and all viewport regressions pass. Verified a 14-contract small-phone endpoint separately; reviewed desktop/phone portraits and both ends. Ran the skill Playwright client and inspected its capture.
+- Preserved the existing campaign-panorama and other in-progress changes. No remaining implementation TODOs for this request.
+
+## 2026-10-19 — Explicit Tavern hero-level chance copy
+
+- Replaced L2/L3/L4 shorthand with shared wording such as “20% chance to reach hero level 2 → then 10% chance to reach level 3” in the Tavern benefit, next-upgrade dialog and contract reel. The text is generated from the existing chance table so all locations remain consistent.
+- Explained that each higher level requires the previous level to succeed, and underused-class levels are added afterward. Level-one copy now says base heroes start at level 1. No odds or recruitment mechanics changed.
+- The eight offer-level/town unit tests pass. Browser-checked Tavern levels 1/3/5 plus current/next-upgrade text on desktop and 320px phone; no overflow. Inspected the phone reel and upgrade dialog plus the web-game client capture.
+
+## 2026-10-19 — Recruitment chance wording
+
+- Changed the town-name geography hint to “Ranger recruitment chance +10%” (and the equivalent class label for every geography). The town renderer also replaces the legacy “weight” wording from existing saved campaigns. Recruitment probabilities remain unchanged.
+- All five town-identity unit tests pass. Browser-verified both newly generated hints and a reloaded save containing the old label.

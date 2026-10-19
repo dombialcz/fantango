@@ -30,12 +30,13 @@ body.roster-open > .back-link, body.roster-open > .sidegame-link { display: none
 .roster-section-heading h2 { font-size: 20px; font-weight: normal; margin: 0; }
 .roster-section-heading > span { font: 10px/1.5 Arial, sans-serif; color: #a6afa9; text-align: right; }
 .contract-window { position: relative; min-height: 255px; border-radius: 8px; background: #080f14; border: 1px solid #d5b67935; overflow: hidden; }
-.contract-reel { display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 48px) / 5); overflow-x: auto; gap: 12px; padding: 12px; scrollbar-width: thin; scrollbar-color: #917644 #131b23; scroll-snap-type: x proximity; min-height: 255px; }
+.contract-reel { display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 48px) / 5); overflow-x: auto; gap: 12px; padding: 12px; scrollbar-width: thin; scrollbar-color: #917644 #131b23; scroll-snap-type: x proximity; scroll-padding-inline: 12px; min-height: 255px; }
 .contract-card { min-width: 0; border: 1px solid #a2b3bf26; background: linear-gradient(#29343d9c, #172029); border-radius: 5px; overflow: hidden; scroll-snap-align: start; transition: border-color .18s, box-shadow .18s; }
 .contract-card:hover { border-color: #cbb48185; }
 .contract-card.is-selected { border-color: #e0bf7d; box-shadow: inset 0 0 0 1px #d9b37160; }
 .contract-inspect { display: flex; flex-direction: column; align-items: center; position: relative; width: 100%; padding: 10px 5px 12px; color: #e5dbc5; background: transparent; border: 0; }
-.contract-inspect img { width: 100%; height: 114px; object-fit: contain; filter: drop-shadow(0 6px 12px #0007); }
+.contract-portrait { display: block; width: 100%; height: 114px; margin: 3px 0 10px; flex-shrink: 0; }
+.contract-inspect img { width: 100%; height: 100%; transform: translateY(5px) scale(1.2); object-fit: contain; filter: drop-shadow(0 6px 12px #0007); }
 .contract-level { position: absolute; z-index: 1; top: 9px; left: 9px; border: 1px solid #dbc08e60; color: #f1dcae; background: #121b25dc; padding: 4px; font: 9px Arial, sans-serif; border-radius: 2px; }
 .contract-class { color: var(--hero-color); font: 9px/1.6 Arial, sans-serif; text-transform: uppercase; letter-spacing: .12em; margin-top: 4px; }
 .contract-inspect strong { font-size: 16px; line-height: 1.5; font-weight: normal; }
@@ -152,9 +153,9 @@ body.roster-open > .back-link, body.roster-open > .sidegame-link { display: none
   .roster-section-heading { gap: 8px; margin-bottom: 12px; }
   .roster-section-heading h2 { font-size: 18px; }
   .roster-section-heading > span { font-size: 8px; max-width: 130px; }
-  .contract-reel { grid-auto-columns: 44%; gap: 10px; padding: 10px; min-height: 240px; }
+  .contract-reel { grid-auto-columns: 44%; gap: 10px; padding: 10px; scroll-padding-inline: 10px; min-height: 240px; }
   .contract-window { min-height: 240px; }
-  .contract-inspect img { height: 103px; }
+  .contract-portrait { height: 103px; }
   .contract-inspect strong { font-size: 16px; }
   .contract-inspect small { font-size: 8px; }
   .contract-class { font-size: 8px; }
@@ -192,3 +193,11 @@ body.roster-open > .back-link, body.roster-open > .sidegame-link { display: none
   .roster-message { margin-bottom: max(22px, env(safe-area-inset-bottom)); }
 }
 @media (prefers-reduced-motion: reduce) { .roster-screen *, .roster-screen *::before { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+
+.contract-carousel { position: relative; min-width: 0; }
+.roster-screen .contract-reel-nav { position: absolute; z-index: 3; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 36px; min-height: 46px; padding: 0; border: 1px solid #bfa06f; border-radius: 6px; color: #f1d596; background: #15232aee; box-shadow: 0 3px 12px #0009; font: 32px/1 Georgia, serif; }
+.contract-reel-nav--previous { left: -16px; }
+.contract-reel-nav--next { right: -16px; }
+.roster-screen .contract-reel-nav:hover:not(:disabled) { background: #354238; border-color: #f0cd88; }
+.roster-screen .contract-reel-nav:disabled { opacity: 1; cursor: default; color: #68747b; border-color: #46535b; background: #17212aee; box-shadow: none; }

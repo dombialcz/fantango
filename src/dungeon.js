@@ -3,7 +3,7 @@ import { createEventView } from "./event-view.js";
 import { recordChronicle, saveCampaign, loadCampaign, archiveChronicle, createChronicleView } from "./campaign-chronicle.js";
 import { expeditionOutcome, townMorale } from "./town-morale.js";
 import { createTownIdentity, townHeroEffects, rollTownClass, townRollCost } from "./town-identity.js";
-import { offerLevelChances, rollOfferLevel } from "./hero-offers.js";
+import { offerLevelChances, offerLevelChancesText, rollOfferLevel } from "./hero-offers.js";
 import { classCounts, recordClassSelection, classSelectionBonus, boostedOfferLevel, classCrowdingMultiplier } from "./class-balance.js";
 import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
 import { BOSS_FLOOR, floorGoldReward, isBossFloor } from "./dungeon-progression.js";
@@ -194,11 +194,7 @@ function upgradeCost(level) {
 }
 
 function offerLevelOddsText() {
-  const tavernLevel = state.buildings.tavern.level;
-  const chances = offerLevelChances(tavernLevel);
-  if (!chances.length) return `Tavern L${tavernLevel}: level 1 contracts`;
-  const copy = chances.map(({ level, chance }) => `L${level} ${chance}%`).join("  →  ");
-  return `Tavern L${tavernLevel}: ${copy}`;
+  return `Tavern L${state.buildings.tavern.level}: ${offerLevelChancesText(state.buildings.tavern.level)}`;
 }
 
 function makeHero(type = randomItem(HERO_KEYS), tavernLevel = 1) {
@@ -1415,6 +1411,7 @@ function render() {
     gold: state.gold,
     day: state.day,
     flavorName: currentFlavor().name,
+    flavorKey: state.flavorKey,
     message: state.message,
     rolledToday: state.rolledToday,
     graves: state.graves,

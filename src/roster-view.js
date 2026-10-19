@@ -11,7 +11,7 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
     <nav class="campaign-steps" aria-label="Daily expedition"><button type="button" data-roster-action="town"><b>01</b> Town</button><span aria-current="step"><b>02</b> Company</span><span><b>03</b> Dungeon</span></nav>
     <div class="roster-intro"><div><span class="roster-eyebrow">A COMPANY WORTH GAMBLING ON</span><h1>The Contract Reel</h1><p>Roll for strangers. Hire your favorites. Keep them alive.</p></div><span class="roster-flavor"></span></div>
     <section class="contract-machine" aria-label="Hero slot machine">
-      <div class="contract-machine__main"><div class="roster-section-heading"><h2>Today's contracts</h2><span class="roster-offer-count"></span></div><div class="contract-window"><div class="contract-reel"></div><div class="contract-seal"><span aria-hidden="true">✦</span><h3>Fortune has yet to turn.</h3><p>Your first roll is free. Improve the Tavern in town before you roll for better hero odds.</p></div></div><p class="contract-help"></p></div>
+      <div class="contract-machine__main"><div class="roster-section-heading"><h2>Today's contracts</h2><span class="roster-offer-count"></span></div><div class="contract-carousel"><div class="contract-window"><div class="contract-reel" id="contract-reel"></div><div class="contract-seal"><span aria-hidden="true">✦</span><h3>Fortune has yet to turn.</h3><p>Your first roll is free. Improve the Tavern in town before you roll for better hero odds.</p></div></div><button class="contract-reel-nav contract-reel-nav--previous" type="button" data-reel-step="-1" aria-label="Previous hero" aria-controls="contract-reel" disabled><span aria-hidden="true">‹</span></button><button class="contract-reel-nav contract-reel-nav--next" type="button" data-reel-step="1" aria-label="Next hero" aria-controls="contract-reel" disabled><span aria-hidden="true">›</span></button></div><p class="contract-help"></p></div>
       <div class="contract-controls"><span class="roster-eyebrow">THE TAVERN'S GAMBLE</span><div class="reel-emblem" aria-hidden="true">✦</div><button type="button" class="roster-roll-button" data-roster-action="roll"></button><p class="reel-cost-note"></p><div class="reel-odds"></div><button class="reel-town-link" type="button" data-roster-action="town">Improve the Tavern ↗</button></div>
     </section>
     <div class="roster-lower"><section class="company-board" aria-label="Locked company"><div class="roster-section-heading"><div><span class="roster-eyebrow">SAFE FROM REROLLS</span><h2>Your company</h2></div><span class="roster-team-count"></span></div><p class="company-help">Hired heroes stay locked. Select one to train, reserve, or dismiss.</p><div class="company-party"></div><div class="reserve-heading"><span>RESERVES</span><span>Two extra places · do not enter battle</span></div><div class="company-reserves"></div></section><aside class="roster-inspector" aria-label="Hero details" aria-live="polite"></aside></div>
@@ -21,9 +21,35 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
   root.querySelector('.company-help').insertAdjacentHTML('afterend', '<p class="company-balance" role="status"></p>');
   const contextualHelp = createRosterContext(root, heroTypes);
 
+  const reel = root.querySelector(".contract-reel");
+  const previous = root.querySelector('[data-reel-step="-1"]');
+  const next = root.querySelector('[data-reel-step="1"]');
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let reelAvailable = false;
+  let scrollTarget = null;
+  function updateReelNavigation() {
+    const maximum = Math.max(0, reel.scrollWidth - reel.clientWidth);
+    previous.disabled = !reelAvailable || reel.scrollLeft <= 1;
+    next.disabled = !reelAvailable || reel.scrollLeft >= maximum - 1;
+    if (scrollTarget !== null && Math.abs(reel.scrollLeft - scrollTarget) <= 1) scrollTarget = null;
+  }
+  reel.addEventListener("scroll", updateReelNavigation, { passive: true });
+  for (const input of ["pointerdown", "wheel"]) reel.addEventListener(input, () => { scrollTarget = null; }, { passive: true });
+  new ResizeObserver(updateReelNavigation).observe(reel);
+  function scrollOneHero(direction) {
+    if (!reelAvailable) return;
+    const card = reel.querySelector(".contract-card");
+    if (!card) return;
+    const stride = card.getBoundingClientRect().width + parseFloat(getComputedStyle(reel).columnGap);
+    const maximum = Math.max(0, reel.scrollWidth - reel.clientWidth);
+    scrollTarget = Math.max(0, Math.min(maximum, (scrollTarget ?? reel.scrollLeft) + direction * stride));
+    reel.scrollTo({ left: scrollTarget, behavior: reducedMotion.matches ? "instant" : "smooth" });
+    updateReelNavigation();
+  }
+
   function offerCard(hero, snapshot) {
     const type = heroTypes[hero.type];
-    return `<article class="contract-card ${snapshot.selectedOfferId === hero.id ? "is-selected" : ""}" data-contract="${hero.id}" style="--hero-color:${type.color}"><button class="contract-inspect" type="button" data-offer="${hero.id}" aria-label="Inspect ${escape(hero.name)}, ${type.label}, level ${hero.level}${hero.selectionLevelBonus ? ', includes underused class bonus' : ''}" aria-pressed="${snapshot.selectedOfferId === hero.id}"><span class="contract-level">LV ${hero.level}</span><img src="${type.image}" alt=""/><span class="contract-class">${type.label}</span><strong>${escape(hero.name)}</strong><small>${type.row === "front" ? "Front" : "Back"} row · ${hero.power} power</small>${hero.selectionLevelBonus ? '<span class="contract-variety">+1 UNDERUSED CLASS</span>' : ''}</button><button class="contract-hire" type="button" data-hire="${hero.id}" ${snapshot.bench.length >= snapshot.benchCapacity ? "disabled" : ""}>Hire <span class="gold-free">FREE +</span></button></article>`;
+    return `<article class="contract-card ${snapshot.selectedOfferId === hero.id ? "is-selected" : ""}" data-contract="${hero.id}" style="--hero-color:${type.color}"><button class="contract-inspect" type="button" data-offer="${hero.id}" aria-label="Inspect ${escape(hero.name)}, ${type.label}, level ${hero.level}${hero.selectionLevelBonus ? ', includes underused class bonus' : ''}" aria-pressed="${snapshot.selectedOfferId === hero.id}"><span class="contract-level">LV ${hero.level}</span><span class="contract-portrait"><img src="${type.image}" alt=""/></span><span class="contract-class">${type.label}</span><strong>${escape(hero.name)}</strong><small>${type.row === "front" ? "Front" : "Back"} row · ${hero.power} power</small>${hero.selectionLevelBonus ? '<span class="contract-variety">+1 UNDERUSED CLASS</span>' : ''}</button><button class="contract-hire" type="button" data-hire="${hero.id}" ${snapshot.bench.length >= snapshot.benchCapacity ? "disabled" : ""}>Hire <span class="gold-free">FREE +</span></button></article>`;
   }
 
   function lockedCard(hero, reserve = false) {
@@ -42,6 +68,8 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
   }
 
   root.addEventListener("click", (event) => {
+    const navigation = event.target.closest("[data-reel-step]");
+    if (navigation) { if (!navigation.disabled) scrollOneHero(Number(navigation.dataset.reelStep)); return; }
     const hire = event.target.closest("[data-hire]");
     if (hire && !hire.disabled) {
       const keyboard = event.detail === 0;
@@ -71,11 +99,12 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
       root.querySelector(".roster-day").textContent = `DAY ${snapshot.day} / 10`;
       updateGoldBalance(root.querySelector(".roster-gold"), snapshot.gold);
       root.querySelector(".roster-flavor").textContent = snapshot.flavor;
-      root.querySelector(".roster-offer-count").textContent = !snapshot.rolledToday ? `${snapshot.dailyOffers} to discover` : rolling ? "Rolling…" : `${snapshot.offers.length} available · swipe / scroll to browse`;
-      const reel = root.querySelector(".contract-reel");
+      root.querySelector(".roster-offer-count").textContent = !snapshot.rolledToday ? `${snapshot.dailyOffers} to discover` : rolling ? "Rolling…" : `${snapshot.offers.length} available · arrows or swipe to browse`;
+      reelAvailable = snapshot.rolledToday && !rolling && snapshot.offers.length > 0;
       const reelKey = JSON.stringify([snapshot.rolledToday, rolling, snapshot.offers.map((hero) => hero.id), snapshot.selectedOfferId, snapshot.bench.length >= snapshot.benchCapacity]);
       if (reel.dataset.key !== reelKey) {
         const scroll = reel.scrollLeft;
+        scrollTarget = null;
         const focusedOffer = reel.contains(document.activeElement) ? document.activeElement.dataset.offer : null;
         reel.dataset.key = reelKey;
         reel.classList.toggle("is-rolling", rolling);
@@ -85,6 +114,7 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
         reel.scrollLeft = wasRolling ? 0 : scroll;
         if (focusedOffer) reel.querySelector(`[data-offer="${focusedOffer}"]`)?.focus({ preventScroll: true });
       }
+      updateReelNavigation();
       wasRolling = rolling;
       root.querySelector(".contract-seal").hidden = snapshot.rolledToday;
       root.querySelector(".contract-help").textContent = rolling ? "The reel is turning. Your locked company stays safe." : snapshot.rolledToday && snapshot.bench.length >= snapshot.benchCapacity ? `Company full (${snapshot.bench.length}/${snapshot.benchCapacity}). Dismiss a hired hero to make room for another contract.` : snapshot.rolledToday ? "Inspect a portrait. Hire below it. Unhired contracts disappear on a reroll." : "No contracts are generated until you roll. The Tavern's level at that moment sets the odds.";
@@ -98,7 +128,7 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
       rollButton.title = rolling ? "Reel is turning" : price ? `Pay ${price} gold to replace all unhired contracts. Hired heroes stay.` : snapshot.rolledToday ? "Daily bonus: free reroll" : "First daily roll is free";
       rollButton.innerHTML = rolling ? `Rolling<span class="roll-caption">The fates are deciding…</span>` : `${snapshot.rolledToday ? "Reroll heroes" : "Roll for heroes"}${price ? goldPrice(price) : `<span class="gold-free">${snapshot.rolledToday ? "BONUS ROLL" : "FIRST ROLL"} · FREE ↻</span>`}`;
       root.querySelector(".reel-cost-note").innerHTML = snapshot.rolledToday ? `${snapshot.gold < price ? `<span class="gold-shortfall">Need ${price - snapshot.gold} more gold.</span>` : price > 0 ? "Spends gold immediately. " : "Your bonus reroll is free. "}After this: ${goldAmount(snapshot.rerollCost + (price > 0 ? 1 : 0))}<br/>Hired heroes stay.` : `${snapshot.freeRerollsRemaining ? `${snapshot.freeRerollsRemaining} additional free reroll${snapshot.freeRerollsRemaining === 1 ? "" : "s"}, then ` : "Later rolls cost "}${goldAmount(1)}, then 2, 3… today.`;
-      root.querySelector(".reel-odds").innerHTML = `<span>TAVERN · LEVEL ${snapshot.tavernLevel}</span><strong>${escape(snapshot.odds)}</strong><small>Bonus levels roll in sequence; each step must succeed.</small>`;
+      root.querySelector(".reel-odds").innerHTML = `<span>TAVERN · LEVEL ${snapshot.tavernLevel}</span><strong>${escape(snapshot.odds)}</strong><small>Higher levels require the previous level to succeed. Underused-class levels are added afterward.</small>`;
       root.querySelectorAll('[data-roster-action="town"]').forEach((button) => { button.disabled = rolling; });
       root.querySelector(".roster-team-count").textContent = `${snapshot.activeCount} / ${snapshot.teamCapacity} active`;
       const active = snapshot.bench.filter((hero) => hero.active);

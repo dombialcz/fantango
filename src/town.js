@@ -1,3 +1,5 @@
+import { offerLevelChancesText } from "./hero-offers.js";
+
 import { cappedCombatPercent } from "./combat-rules.js";
 
 export const BUILDING_DEFINITIONS = {
@@ -74,16 +76,7 @@ export const BUILDING_DEFINITIONS = {
     utility: true,
     glyph: "◆",
     color: "#d7ae5d",
-    core: (level) => {
-      const odds = [
-        "level 1 contracts only",
-        "L2 10%",
-        "L2 20% → L3 10%",
-        "L2 30% → L3 15%",
-        "L2 40% → L3 20% → L4 10%",
-      ];
-      return odds[Math.max(1, Math.min(5, level)) - 1];
-    },
+    core: offerLevelChancesText,
   },
 };
 

@@ -40,7 +40,7 @@ export function createTownIdentity(random = Math.random) {
   return { prefix, settlement, favoredClass: geography.classType,
     name: `${prefix.name} ${settlement.name} ${geography.format(place)}`,
     flavor: geography.flavor,
-    bonuses: [prefix.bonus, settlement.bonus, `${geography.label} recruitment weight +10%`],
+    bonuses: [prefix.bonus, settlement.bonus, `${geography.label} recruitment chance +10%`],
   };
 }
 export function townHeroEffects(type, building, town) {

@@ -16,3 +16,11 @@ export function rollOfferLevel(tavernLevel, random = Math.random) {
   }
   return level;
 }
+
+export function offerLevelChancesText(tavernLevel) {
+  const chances = offerLevelChances(Math.max(1, Math.min(5, tavernLevel)));
+  if (!chances.length) return "Base heroes start at level 1";
+  return chances.map(({ level, chance }, index) =>
+    `${chance}% chance to reach ${index === 0 ? "hero " : ""}level ${level}`,
+  ).join(" → then ");
+}

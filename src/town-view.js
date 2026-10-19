@@ -1,3 +1,4 @@
+import { BATTLE_BACKDROPS } from "./battle-backdrop.js";
 import { BUILDING_DEFINITIONS, buildingUpgradeCost } from "./town.js";
 import { goldAmount, goldPrice, updateGoldBalance } from "./gold-ui.js";
 import { observeTownRestoration } from "./town-art-feedback.js";
@@ -17,7 +18,7 @@ const DISTRICTS = {
   ranger: { color: "#9cb887", title: "Eyes beyond the city walls", copy: "Trackers gather at the edge of town. Build a home for the Rangers who never lose their quarry.", command: "Mark Prey focuses a chosen enemy and speeds up attacks against it. More living Rangers increase the speed bonus." },
   mage: { color: "#b39bdb", title: "Knowledge above the rooftops", copy: "Every new floor of the tower opens another page of forbidden knowledge for your Mages.", command: "Time Freeze stops enemy attacks, summoning, and movement. More living Mages make the spell last longer." },
   alchemist: { color: "#82c9b1", title: "A remedy for the road below", copy: "Glass, herbs, and a carefully measured spark. Stock the company with healing for the next expedition.", command: "Potions restore a hero's maximum health. Supplies restock at the start of each daily expedition." },
-  tavern: { color: "#dab979", title: "Every expedition starts here", copy: "Keep the hearth warm and the contract reel turning. A better Tavern draws more seasoned adventurers.", command: "Improves the chance of level 2–4 heroes in new offers. Reroll the reel to find your next company." },
+  tavern: { color: "#dab979", title: "Every expedition starts here", copy: "Keep the hearth warm and the contract reel turning. A better Tavern draws more seasoned adventurers.", command: "New heroes can reach levels 2–4. Each higher level is rolled only after the previous level succeeds. Underused-class bonus levels are added afterward." },
   cemetery: { color: "#a7b6aa" },
 };
 
@@ -160,7 +161,7 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
     upgradeDialog.innerHTML = `<span class="town-eyebrow">LEVEL ${building.level} → ${building.level + 1}</span>
       <h2 id="town-upgrade-title">Upgrade ${escape(definition.name)}</h2>
       <p class="town-building-flavor" id="town-upgrade-flavor">${escape(flavor.current(type))}</p>
-      <p class="town-upgrade-dialog__benefit">Next level: ${escape(definition.core(building.level + 1))}</p>
+      <div class="town-upgrade-dialog__benefit"><span>${definition.utility ? "INCLUDED IN THIS UPGRADE" : "INCLUDED WITH EITHER CHOICE"}</span><strong>${escape(definition.core(building.level + 1))}</strong></div>
       <div class="town-upgrade-options">${definition.utility ? upgradeButton(type, building, snapshot.gold) : upgradeButton(type, building, snapshot.gold, "pathA") + upgradeButton(type, building, snapshot.gold, "pathB")}</div>
       <p class="town-upgrades__help">${snapshot.gold < cost ? `Need ${cost - snapshot.gold} more gold.` : `Choose ${definition.utility ? "Upgrade" : "one improvement"} to spend ${cost} gold.`}</p>
       <button type="button" class="town-upgrade-cancel" data-town-action="cancel-upgrade" autofocus>Cancel</button>`;
@@ -234,15 +235,20 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
       const traits = root.querySelector(".town-traits");
       if (traits.dataset.town !== next.town.name) {
         traits.replaceChildren(...next.town.bonuses.map((bonus) => {
-          const item = document.createElement("li"); item.textContent = bonus; return item;
+          const item = document.createElement("li"); item.textContent = bonus.replace("recruitment weight", "recruitment chance"); return item;
         }));
         traits.dataset.town = next.town.name;
       }
-      const nextSignature = JSON.stringify([next.day, next.gold, next.flavorName, next.message, next.buildings, next.rolledToday, next.town, next.morale, next.graves]);
+      const nextSignature = JSON.stringify([next.day, next.gold, next.flavorKey, next.flavorName, next.message, next.buildings, next.rolledToday, next.town, next.morale, next.graves]);
       if (nextSignature === signature && wasVisible) return;
       signature = nextSignature;
-      root.querySelector(".town-panorama h2").textContent = next.morale.text;
-      root.querySelector(".town-panorama").dataset.morale = next.morale.tone;
+      const panorama = root.querySelector(".town-panorama");
+      const backdrop = BATTLE_BACKDROPS[next.flavorKey];
+      if (backdrop) panorama.style.setProperty("--town-campaign-scene", `url("${backdrop.image}")`);
+      else panorama.style.removeProperty("--town-campaign-scene");
+      panorama.dataset.campaign = next.flavorKey ?? "";
+      panorama.querySelector("h2").textContent = next.morale.text;
+      panorama.dataset.morale = next.morale.tone;
       const countdown = root.querySelector(".town-countdown");
       countdown.dataset.urgency = next.day === 10 ? "last" : next.day >= 7 ? "urgent" : "steady";
       countdown.setAttribute("aria-label", `Day ${next.day} of 10. ${next.day === 10 ? "Final day." : `${11 - next.day} days left, including today.`}`);
