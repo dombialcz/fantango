@@ -409,6 +409,14 @@ const battleView = createBattleView({
   root: document.querySelector("#battle-screen"),
   heroTypes: HERO_TYPES,
   enemyTypes: ENEMY_TYPES,
+  getUnitDetails: battleUnitDetails,
+  onInspect: (id) => {
+    if (state.view !== "battle" || state.potionTargeting || state.commandTargeting) return;
+    state.battlePaused = true;
+    state.commandAutoPaused = false;
+    battleView.inspect(id);
+    render();
+  },
   onCommand: (id) => {
     useBattleCommand(id);
     render();
@@ -1607,6 +1615,87 @@ function render() {
   canvas.hidden = true;
 }
 
+// Inspection reads the same modifiers and timing helpers used by combat.
+function battleUnitDetails(id) {
+  const unit = [...state.party, ...state.enemies].find(unit => unit.id === id && unit.hp > 0);
+  if (!unit) return null;
+  const hero = unit.side === "hero";
+  const definition = hero ? HERO_TYPES[unit.type] : ENEMY_TYPES[unit.type];
+  const percent = value => `${Number((value * 100).toFixed(2))}%`;
+  const number = value => Number(value.toFixed(2));
+  const seconds = ms => `${Number((ms / 1000).toFixed(2))}s`;
+  const interval = hero ? heroInterval(unit) : enemyInterval(unit);
+  const rawDamage = hero
+    ? unit.power * definition.damage * unit.damageMultiplier * heroCommandDamageMultiplier(unit)
+    : unit.damage * (enemyEmpowered(unit) ? BOSS_RULES.allyDamage : 1);
+  const damage = rawDamage > 0 ? Math.max(1, Math.round(rawDamage * COMBAT_DAMAGE_SCALE)) : 0;
+  const crit = hero ? cappedCombatPercent(unit.critChance) : 0;
+  const dodge = unit.type === "shadowAssassin" ? BOSS_RULES.evasion : cappedCombatPercent(unit.evasionChance);
+  const reduction = hero ? damageReductionFor(unit) : cappedCombatPercent(unit.damageReduction);
+  const frozen = hero ? unit.frozenMs ?? 0 : state.enemyFreezeMs;
+  const stats = [
+    ["Health", `${Math.ceil(unit.hp)} / ${number(unit.maxHp)} HP`],
+    ["Damage / hit", damage],
+    ["Attack interval", Number.isFinite(interval) ? seconds(interval) : "Does not attack"],
+    ["Critical chance", percent(crit)],
+    ["Critical hit damage", crit > 0 ? Math.max(1, Math.round(rawDamage * 2 * COMBAT_DAMAGE_SCALE)) : "No critical hits"],
+    ["Dodge chance", percent(dodge)],
+    ["Damage reduction", percent(reduction)],
+  ];
+  const bonuses = [], effects = [];
+  if (hero) {
+    const building = state.buildings[unit.type];
+    const district = BUILDING_DEFINITIONS[unit.type];
+    stats.splice(1, 0, ["Power", number(unit.power)]);
+    stats.push(["Permanent attack speed", `×${number(unit.buildingSpeed)}`]);
+    bonuses.push(`Level ${unit.hero.level}: ${heroPower(unit.hero.level)} base power${["mage", "ranger", "bard"].includes(unit.type) ? "" : `; +${percent(speedMultiplier(unit.hero.level) - 1)} attack speed`}.`);
+    const guards = livingParty().some(ally => ally.id !== unit.id && ally.type === "knight" && !(ally.frozenMs > 0));
+    stats.push(["Ally intercept chance", guards ? "50% · single-target enemy attacks" : "0% · no available Knight"]);
+    if (unit.type === "knight") stats.push(["Intercept for allies", frozen || livingParty().length < 2 ? "0% · unavailable" : "50% · single-target attacks"]);
+    if (unit.type === "mage") stats.push(["Spell targets", unit.mageTargets]);
+    if (unit.type === "cleric") stats.push(["Healing / action", `${Math.max(1, Math.round(unit.power * unit.healRatio * COMBAT_DAMAGE_SCALE * state.events.dayPower))} HP · one wounded ally`]);
+    if (unit.type === "thief") stats.push(["Damage vs ≤50% HP", Math.max(1, Math.round(rawDamage * (1 + unit.executeBonus) * COMBAT_DAMAGE_SCALE))]);
+    bonuses.push(`${district.name} · level ${building.level}: ${district.core(building.level)}`);
+    for (const path of ["pathA", "pathB"]) if (building[path] > 0 && district[path]) bonuses.push(`${district[path].label} ×${building[path]}: ${district[path].short} per upgrade`);
+    if (unit.bardBuffPercent) bonuses.push(`Bard blessing: +${unit.bardBuffPercent}% power (included in health and damage).`);
+    if (unit.cemeteryBonusPercent) bonuses.push(`Cemetery: +${unit.cemeteryBonusPercent}% maximum health.`);
+    if (unit.crowdingPenaltyPercent) bonuses.push(`Crowding: −${unit.crowdingPenaltyPercent}% maximum health and damage for this expedition.`);
+    const prefix = state.town.prefix;
+    if (["health", "speed", "crit", "evasion", "enemyDamage"].some(key => prefix[key] !== undefined)) bonuses.push(`Town · ${prefix.name}: ${prefix.bonus}`);
+    if (state.town.settlement.classType === unit.type) bonuses.push(`Town · ${state.town.settlement.name}: ${state.town.settlement.bonus}`);
+    for (const legacy of legacyRewards(state.journey)) if (["healthMultiplier", "damageMultiplier", "critChance", "damageReduction", "evasionChance"].some(key => legacy[key] !== undefined)) bonuses.push(`Legacy · ${legacy.name}: ${legacy.description}`);
+    if (unit.type === "bard") {
+      const bard = heroEffects("bard");
+      bonuses.push(`Blesses ${bard.bardTargets} non-Bard ${bard.bardTargets === 1 ? "ally" : "allies"} with +${percent(bard.bardBuff)} power when the expedition begins. Does not attack.`);
+    }
+    if (state.holdLineMs > 0 && unit.row === "front") effects.push(`Hold the Line: +${percent(state.holdArmorBonus)} armor and +${percent(state.holdDamageBonus)} damage · ${seconds(state.holdLineMs)}`);
+    if (state.rallyMs > 0) effects.push(`Rally: +${percent(state.rallySpeedBonus)} attack speed · ${seconds(state.rallyMs)}`);
+    const marked = activeMarkedEnemy();
+    if (marked && heroCanReach(unit, marked)) effects.push(`Mark Prey: +${percent(state.markSpeedBonus)} attack speed against ${marked.label} · ${seconds(state.markMs)}`);
+    if (state.events.dayPower !== 1) effects.push(`Shared cache: +${percent(state.events.dayPower - 1)} damage and healing today.`);
+    if (state.events.activeAttack !== 1) effects.push(`Event: ${percent(state.events.activeAttack - 1)} attack damage this battle.`);
+    if (hasDivineAegis(unit)) effects.push(`Divine Aegis: invulnerable · ${seconds(state.divineAegisMs)}`);
+  } else {
+    bonuses.push(`Floor ${state.floor}: ×${number(floorScale(state.floor))} base health/damage scaling; ×${number(enemyHealthMultiplier(state.floor))} additional enemy health. Included above.`);
+    if (enemyEmpowered(unit)) effects.push(`Guild Master: +${percent(BOSS_RULES.allyDamage - 1)} damage and +${percent(BOSS_RULES.allySpeed - 1)} attack speed.`);
+    if (state.markedEnemyId === unit.id && state.markMs > 0) effects.push(`Marked: reachable heroes focus this enemy and attack faster · ${seconds(state.markMs)}`);
+  }
+  if (frozen > 0) effects.push(`Frozen: attacks stopped · ${seconds(frozen)}`);
+  const enemyBehavior = {
+    necromancer: "Summons a skeleton each action while fewer than 14 enemies remain, then attacks a random hero.",
+    assassin: "Blinks forward to strike the lowest-health hero, then retreats.",
+    archdemon: "Targets the back row first.",
+    boneMage: "Attacks a random living hero.", warlock: "Attacks a random living hero.",
+    marksman: "Attacks a random living hero.", goblinArcher: "Attacks a random living hero.", orcShaman: "Attacks a random living hero.",
+  };
+  return { id, name: unit.label, type: unit.type, side: unit.side,
+    subtitle: `${definition.label}${hero ? ` · Level ${unit.hero.level}` : unit.boss ? " · Boss" : ""} · ${unit.row === "front" ? "Front line" : "Rear guard"}`,
+    behavior: hero ? definition.summary : BOSS_DEFINITIONS[unit.type]?.summary ?? enemyBehavior[unit.type] ?? "Attacks the front row, reaching the rear when the front falls.",
+    stats, bonuses, effects,
+    note: "Damage is per target, before the target’s armor, dodge or shields; critical hits double the unrounded damage. Attack intervals use battle time and include current speed bonuses. Critical chance, dodge and damage reduction are capped at 90%.",
+  };
+}
+
 function battlePresentation() {
   return {
     visible: true,
@@ -1874,6 +1963,7 @@ window.render_game_to_text = () => {
     manualFleeLevelChance: ["battle", "floor_result"].includes(state.view) ? manualFleeLevelChance() : null,
     battleTimeMs: Math.round(state.battleTime),
     battleBackdrop: battleView.backdropSnapshot(),
+    inspectedUnitId: battleView.inspectedUnit(),
     combatEffects: state.combatEffects.map((effect) => ({
       sourceId: effect.sourceId,
       targetId: effect.targetId,
@@ -1931,7 +2021,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Divine Aegis shields one selected hero for six seconds. Mark Prey requires selecting an enemy. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Potion requires selecting a wounded hero and has a two-second reuse delay that continues while paused, unaffected by battle speed. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee pauses combat and asks for confirmation before costing half your gold. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
+    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Divine Aegis shields one selected hero for six seconds. Mark Prey requires selecting an enemy. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second reuse delay that continues while paused, unaffected by battle speed. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee pauses combat and asks for confirmation before costing half your gold. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
   });
 };
 

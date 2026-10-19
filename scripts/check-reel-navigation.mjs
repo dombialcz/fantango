@@ -47,8 +47,15 @@ for (const [name, viewport] of Object.entries({ desktop: { width: 1440, height: 
  // Touch/trackpad-style scrolling updates both arrows too.
  await reel.evaluate(el => { el.scrollLeft = 0; });
  await page.waitForFunction(() => document.querySelector('[data-reel-step="-1"]').disabled);
- const scale = await page.locator('.contract-portrait img').first().evaluate(el => getComputedStyle(el).transform);
- assert.match(scale, /matrix\(1\.2, 0, 0, 1\.2, 0, 5\)/);
+ // Portraits fill the card width while their crop stays clear of class/name labels.
+ const portraits = await page.locator('.contract-card').evaluateAll(cards => cards.map(card => {
+  const portrait = card.querySelector('.contract-portrait'), image = portrait.querySelector('img');
+  const frame = portrait.getBoundingClientRect(), art = image.getBoundingClientRect();
+  return { fillsWidth: frame.width >= card.clientWidth - 1, coversFrame: art.width >= frame.width && art.height >= frame.height,
+   clearOfLabel: frame.bottom <= card.querySelector('.contract-class').getBoundingClientRect().top,
+   clipsArt: getComputedStyle(portrait).overflow === 'hidden' };
+ }));
+ assert.ok(portraits.every(p => p.fillsWidth && p.coversFrame && p.clearOfLabel && p.clipsArt));
  await page.screenshot({ path: `output/reel-navigation/${name}-start.png`, fullPage: true });
  // Hiring from the end shrinks the reel; its new endpoint disables the next arrow.
  for (let i = 0; i < 20 && !await next.isDisabled(); i++) await next.click();

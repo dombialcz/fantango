@@ -278,3 +278,35 @@ body.battle-open > .back-link, body.battle-open > .sidegame-link { display: none
   .battle-controls .battle-potion small { font-size: 7px; }
   .battle-controls > div { align-items: stretch; }
 }
+
+.battle-unit:not(:disabled):not(.is-targetable) { cursor: zoom-in; }
+.battle-unit:not(:disabled):hover { border-color: #d8bd83; }
+.battle-unit:focus-visible { outline: 2px solid #e2c78d; outline-offset: 2px; }
+.battle-unit-dialog { box-sizing: border-box; width: min(940px, calc(100% - 32px)); max-height: calc(100dvh - 32px); padding: 0; overflow-y: auto; border: 1px solid #ad8e5d; border-radius: 12px; background: #14212a; color: #e9dfcd; box-shadow: 0 20px 80px #000b; }
+.battle-unit-dialog::backdrop { background: #02090dcc; backdrop-filter: blur(5px); }
+.battle-unit-dialog__close { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 46px; padding: 10px 22px; border: 0; border-bottom: 1px solid #b79b6940; background: #14212afa; color: #ead8b6; font: 13px Georgia, serif; }
+.battle-unit-dialog__close span { font-size: 24px; }
+.battle-unit-dialog__close:focus-visible { outline: 2px solid #d5bb82; outline-offset: -4px; }
+.battle-unit-dialog__content { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); align-items: start; }
+.battle-unit-dialog__portrait { position: sticky; top: 46px; padding: 22px; background: radial-gradient(ellipse at center, #53605c55, transparent 70%); }
+.battle-unit-dialog__portrait img { display: block; width: 100%; height: auto; max-height: 65dvh; object-fit: contain; }
+.battle-unit-dialog__body { min-width: 0; padding: 24px 24px 16px; }
+.battle-unit-dialog h2 { margin: 8px 0; font: 28px/1.2 Georgia, serif; }
+.battle-unit-dialog h3 { margin: 24px 0 12px; color: #d6be8a; font: 16px Georgia, serif; }
+.battle-unit-dialog p, .battle-unit-dialog li { font: 13px/1.65 Georgia, serif; color: #bec6c3; }
+.battle-unit-dialog ul { margin: 0; padding-left: 18px; }
+.battle-unit-dialog li + li { margin-top: 8px; }
+.battle-unit-dialog__subtitle { color: #d9c49d !important; }
+.battle-unit-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.battle-unit-stats > div { min-width: 0; padding: 10px; border: 1px solid #aa8d5a40; border-radius: 5px; background: #263032; }
+.battle-unit-stats dt { color: #b9b29f; font: 10px/1.4 Arial, sans-serif; }
+.battle-unit-stats dd { margin: 5px 0 0; overflow-wrap: anywhere; color: #f1e1bf; font: 14px/1.5 Georgia, serif; }
+.battle-unit-dialog .battle-unit-dialog__note { margin-top: 20px; font-size: 11px; color: #9ba8ab; }
+.battle-unit-dialog .battle-unit-dialog__pause { margin: 0; padding: 14px 24px; border-top: 1px solid #ad8e5d55; background: #302920; color: #d9c6a3; }
+@media (max-width: 600px) {
+ .battle-unit-dialog__content { grid-template-columns: minmax(0, 1fr); }
+ .battle-unit-dialog__portrait { position: static; padding: 14px 24px 0; }
+ .battle-unit-dialog__portrait img { max-height: 240px; }
+ .battle-unit-dialog__body { padding: 18px; }
+ .battle-unit-dialog h2 { font-size: 24px; }
+}

@@ -3,6 +3,7 @@ import { ENEMY_PORTRAITS } from "./enemy-art.js";
 import { goldPrice, updateGoldBalance } from "./gold-ui.js";
 import { BATTLE_BACKDROPS } from "./battle-backdrop.js";
 import { createBattleContext } from "./contextual-help.js";
+import { createUnitInspector } from "./battle-unit-inspector.js";
 
 const COMMAND_COPY = {
   hold: "The friendly front row gains armor and damage for six seconds. More living Knights strengthen both bonuses.",
@@ -23,7 +24,7 @@ function powerCopy(id, power) {
   return `×${power.damageMultiplier.toFixed(2)} front-row sweep`;
 }
 
-export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTarget, onAction }) {
+export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTarget, onAction, onInspect, getUnitDetails }) {
   let current = null;
   let selectedCommand = null;
   const cards = new Map();
@@ -78,6 +79,8 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
     if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onAction("flee-cancel");
   });
   const actionButtons = new Map(["potion", "flee", "pause", "speed"].map((id) => [id, root.querySelector(`[data-battle-action="${id}"]`)]));
+  const unitInspector = createUnitInspector({ root, heroTypes, getDetails: getUnitDetails,
+    restoreFocus: id => (cards.get(id) ?? actionButtons.get("pause"))?.focus({ preventScroll: true }) });
 
   function explainCommand(id) {
     if (!current) return;
@@ -95,7 +98,11 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       return;
     }
     const target = event.target.closest("[data-unit]");
-    if (target && current?.targeting) onTarget(target.dataset.unit);
+    if (target && !target.disabled) {
+      if (current?.targeting) onTarget(target.dataset.unit);
+      else if (current?.view === "battle") onInspect(target.dataset.unit);
+      return;
+    }
     const action = event.target.closest("[data-battle-action]");
     if (action && !action.disabled) onAction(action.dataset.battleAction);
   });
@@ -139,7 +146,9 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
     const isHero = unit.side === "hero";
     const targetable = state.targeting === "mark" ? !isHero : state.targeting === "aegis" ? isHero : state.targeting === "potion" && isHero && unit.hp < unit.maxHp;
     const shielded = isHero && state.effects.aegis > 0 && state.divineAegisTargetId === unit.id;
-    card.disabled = !targetable;
+    card.disabled = state.targeting ? !targetable : state.view !== "battle";
+    if (!state.targeting) { card.setAttribute("aria-haspopup", "dialog"); card.setAttribute("aria-controls", "battle-unit-details"); }
+    else { card.removeAttribute("aria-haspopup"); card.removeAttribute("aria-controls"); }
     card.classList.toggle("is-targetable", targetable);
     card.classList.toggle("is-hit", unit.flash > 0);
     card.classList.toggle("is-acting", unit.actionFlash > 0);
@@ -157,8 +166,8 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
     card.querySelector(".battle-unit__hp").textContent = `${Math.ceil(unit.hp)} / ${unit.maxHp} HP`;
     card.querySelector(".battle-unit__status").textContent = frozen ? "FROZEN" : unit.evadeFlash > 0 ? "EVADE" : unit.interceptFlash > 0 ? "INTERCEPT" : shielded ? "AEGIS" : state.markedEnemyId === unit.id ? "MARKED" : unit.empowered ? "EMPOWERED" : unit.crowdingPenaltyPercent ? "CROWDED −20%" : "";
     const crowdingNote = unit.crowdingPenaltyPercent ? " −20% maximum health and damage: three or more of this class departed together. Applies for the whole expedition." : "";
-    card.title = (definition.summary ?? definition.label) + crowdingNote;
-    card.setAttribute("aria-label", `${unit.label}${unit.boss ? ", final boss" : ""}, ${definition.label}, ${Math.ceil(unit.hp)} of ${unit.maxHp} health${crowdingNote}${frozen ? ", frozen" : ""}${targetable ? ", select target" : ""}`);
+    card.title = (definition.summary ?? definition.label) + crowdingNote + (state.targeting ? "" : " Click to inspect full portrait and combat stats.");
+    card.setAttribute("aria-label", `${unit.label}${unit.boss ? ", final boss" : ""}, ${definition.label}, ${Math.ceil(unit.hp)} of ${unit.maxHp} health${crowdingNote}${frozen ? ", frozen" : ""}${targetable ? ", select target" : state.targeting ? "" : ", inspect character"}`);
     const row = rows.get(`${unit.side}-${unit.row}`);
     if (card.parentElement !== row) row.append(card);
   }
@@ -185,6 +194,8 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
   }
 
   return {
+    inspect(id) { unitInspector.select(id); },
+    inspectedUnit() { return unitInspector.selected(); },
     backdropSnapshot() {
       if (root.hidden || !current) return null;
       const depth = current.backdrop;
@@ -197,7 +208,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       const wasVisible = !root.hidden;
       root.hidden = !state.visible;
       document.body.classList.toggle("battle-open", state.visible);
-      if (!state.visible) { if (fleeDialog.open) fleeDialog.close(); return; }
+      if (!state.visible) { if (fleeDialog.open) fleeDialog.close(); unitInspector.render(false); return; }
       current = state;
       const theme = BATTLE_BACKDROPS[state.flavorKey] ? state.flavorKey : "undead";
       if (theme !== backdropTheme) {
@@ -309,6 +320,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       if (selectedCommand) explainCommand(selectedCommand);
       if (!wasVisible) { selectedCommand = null; arena.scrollTop = 0; }
       drawStrikes(state.combatEffects);
+      unitInspector.render(state.view === "battle");
       if (state.view === "battle" && state.fleeConfirmation) {
         const dialogSignature = `${state.fleeCost}:${state.levelChance}`;
         if (fleeDialog.dataset.signature !== dialogSignature) {
