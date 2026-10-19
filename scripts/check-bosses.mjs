@@ -96,7 +96,8 @@ try {
   assert.equal(await page.locator('[data-side="hero"].is-frozen').count(), 4);
   await page.screenshot({path:'output/boss-check/party-frozen.png'});
   await page.locator('[data-command="aegis"]').click();
-  assert.equal(await page.locator('[data-side="hero"].is-shielded.is-frozen').count(),4);
+  await page.locator('[data-side="hero"].is-targetable').first().click();
+  assert.equal(await page.locator('[data-side="hero"].is-shielded.is-frozen').count(),1);
   await page.evaluate(()=>{const {state,render}=window.bossTest;state.potionsRemaining=1;render();});
   const wounded=page.locator('[data-side="hero"]').filter({hasText:'Cleric'});
   const hpBefore=await wounded.locator('.battle-unit__hp').textContent();

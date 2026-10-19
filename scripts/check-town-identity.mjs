@@ -42,6 +42,7 @@ assert.equal((await state()).gold, gold - 1);
 assert.equal((await state()).nextRollCost, 2);
 await page.locator('[data-hire]').first().click();
 await page.locator('[data-roster-action="start"]').click();
+  if (await page.locator('.roster-departure-dialog').evaluate(dialog => dialog.open)) await page.locator('[data-departure="confirm"]').click();
 await page.screenshot({ path: 'output/town-identity/battle.png', fullPage: true });
 await page.evaluate(async () => {
   const { PREFIXES, SETTLEMENTS } = await import('./src/town-identity.js');

@@ -1,6 +1,7 @@
 export const COMMAND_MAX = 100;
 export const COMMAND_START = 50;
 export const COMMAND_GAIN_PER_DAMAGE = 0.6;
+export const TIME_FREEZE_COOLDOWN_MS = 10000;
 
 export const BATTLE_COMMANDS = Object.freeze({
   hold: Object.freeze({ classType: "knight", label: "Hold the Line", shortLabel: "HOLD", cost: 50 }),
@@ -9,7 +10,7 @@ export const BATTLE_COMMANDS = Object.freeze({
   aegis: Object.freeze({ classType: "cleric", label: "Divine Aegis", shortLabel: "AEGIS", cost: 70 }),
   bloodlust: Object.freeze({ classType: "barbarian", label: "Bloodlust", shortLabel: "BLOODLUST", cost: 60 }),
   mark: Object.freeze({ classType: "ranger", label: "Mark Prey", shortLabel: "MARK PREY", cost: 40 }),
-  freeze: Object.freeze({ classType: "mage", label: "Time Freeze", shortLabel: "FREEZE", cost: 65 }),
+  freeze: Object.freeze({ classType: "mage", label: "Time Freeze", shortLabel: "FREEZE", cost: 100 }),
 });
 
 export const COMMAND_IDS = Object.freeze(Object.keys(BATTLE_COMMANDS));
@@ -24,7 +25,7 @@ export function commandPower(commandId, matchingHeroes) {
     case "freeze":
       return { durationMs: count ? 2000 + count * 750 : 0 };
     case "aegis":
-      return { durationMs: count ? 1000 + count * 500 : 0 };
+      return { durationMs: count ? 6000 : 0 };
     case "rally":
       return { durationMs: count ? 6000 : 0, speedBonus: count * 0.15 };
     case "mark":

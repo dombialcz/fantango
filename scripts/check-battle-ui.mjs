@@ -27,6 +27,7 @@ async function battle(classes, viewport = { width: 1440, height: 1000 }) {
     await page.locator('[data-hire]').first().click();
   }
   await page.locator('[data-roster-action="start"]').click();
+  if (await page.locator('.roster-departure-dialog').evaluate(dialog => dialog.open)) await page.locator('[data-departure="confirm"]').click();
   await page.locator("#battle-screen").waitFor({ state: "visible" });
   await page.waitForFunction(() => [...document.querySelectorAll("[data-command] img")].every((image) => image.complete && image.naturalWidth > 0));
   assert.equal(await page.locator("[data-command]").count(), 7);
@@ -91,6 +92,12 @@ try {
       assert.equal(after.party.find((hero) => hero.class === "knight").attackIntervalMs, before.party.find((hero) => hero.class === "knight").attackIntervalMs);
       assert.ok(after.party.find((hero) => hero.class === "ranger").attackIntervalMs < before.party.find((hero) => hero.class === "ranger").attackIntervalMs);
     }
+    if (id === "aegis") {
+      assert.equal(after.commands.targeting, "aegis");
+      await game.page.locator('[data-side="hero"].is-targetable').first().click();
+      after = await game.state();
+      assert.equal(await game.page.locator('[data-side="hero"].is-shielded').count(), 1);
+    }
     if (id === "freeze" || id === "aegis") {
       const hp = after.party.map((hero) => hero.hp);
       const effect = id === "freeze" ? "enemyFreezeMs" : "divineAegisMs";
@@ -102,7 +109,8 @@ try {
       await game.page.locator('[data-battle-action="pause"]').click();
       const advanced = await game.state();
       assert.ok(advanced.commands.effects[effect] < after.commands.effects[effect]);
-      assert.ok(advanced.party.every((hero, index) => hero.hp >= hp[index]));
+      if (id === "freeze") assert.ok(advanced.party.every((hero, index) => hero.hp >= hp[index]));
+      else assert.ok(advanced.party[0].hp >= hp[0]);
     }
     if (id === "bloodlust") {
       before.party.forEach((hero, index) => {

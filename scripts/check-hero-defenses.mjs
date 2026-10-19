@@ -77,7 +77,7 @@ try {
 
   await stage();
   assert.equal(await page.evaluate(()=>{
-    const {state,dealDamage}=window.defenseTest;state.divineAegisMs=1000;
+    const {state,dealDamage}=window.defenseTest;state.divineAegisMs=1000;state.divineAegisTargetId=state.party[1].id;
     Math.random=()=>{throw Error('Invulnerability must not roll for interception or evasion');};
     return dealDamage(state.party[1],100,state.enemies[0]);
   }),0);

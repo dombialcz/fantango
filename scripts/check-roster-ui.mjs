@@ -87,9 +87,11 @@ try {
   assert.equal((await state()).bench.filter((hero) => hero.active).length, 4);
   await page.screenshot({ path: "output/roster-ui/company.png", fullPage: true });
   await page.locator('[data-roster-action="start"]').click();
+  if (await page.locator('.roster-departure-dialog').evaluate(dialog => dialog.open)) await page.locator('[data-departure="confirm"]').click();
   assert.equal((await state()).view, "battle");
   await page.locator('[data-battle-action="pause"]').click();
   await page.locator('[data-battle-action="flee"]').click();
+  await page.locator('[data-battle-action="flee-confirm"]').click();
   await page.locator('[data-battle-action="next-day"]').click();
   assert.equal((await state()).view, "town");
   assert.equal((await state()).day, 2);

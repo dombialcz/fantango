@@ -21,6 +21,7 @@ import {
   COMMAND_IDS,
   COMMAND_MAX,
   COMMAND_START,
+  TIME_FREEZE_COOLDOWN_MS,
   commandPower,
 } from "./battle-commands.js";
 import {
@@ -255,11 +256,15 @@ function createCampaign() {
     battleTime: 0,
     battleSpeed: 1,
     battlePaused: false,
+    fleeConfirmation: false,
     commandAutoPaused: false,
+    commandAutoPauseEnabled: true,
     commandMeter: COMMAND_START,
     commandTargeting: null,
     enemyFreezeMs: 0,
+    freezeCooldownMs: 0,
     divineAegisMs: 0,
+    divineAegisTargetId: null,
     rallyMs: 0,
     rallySpeedBonus: 0,
     markedEnemyId: null,
@@ -282,6 +287,7 @@ function createCampaign() {
     retreatLevelChance: 0,
     retreatLevelUpIds: [],
     floorReward: 0,
+    floorPotionRecovered: false,
     resultTitle: "",
     resultCopy: "",
     message: "Welcome, Mayor. Improve your town, then prepare your company. Upgrade the Tavern before your free first roll for better contracts.",
@@ -291,6 +297,11 @@ function createCampaign() {
 const savedCampaign = loadCampaign();
 let state = savedCampaign?.state ?? createCampaign();
 state.selectionHistory ??= []; // Saves made before class balancing have no selection history.
+state.commandAutoPauseEnabled ??= true;
+state.freezeCooldownMs ??= 0;
+state.divineAegisTargetId ??= null;
+// Legacy party-wide shields cannot remain active without a selected hero.
+if (state.divineAegisTargetId === null) state.divineAegisMs = 0;
 if (savedCampaign) { nextHeroId = savedCampaign.nextHeroId; nextEnemyId = savedCampaign.nextEnemyId; }
 function remember(category, text, floor = null) { recordChronicle(state, category, text, floor); }
 function persist() { saveCampaign(state, nextHeroId, nextEnemyId); }
@@ -358,6 +369,7 @@ const rosterView = createRosterView({
     if (action === "roll") rerollOffers();
     if (action === "town") openTown();
     if (action === "start") startExpedition();
+    if (action === "confirm-start") startExpedition(true);
     if (action === "upgrade") upgradeSelected();
     if (action === "toggle") toggleSelectedActive();
     if (action === "dismiss") dismissSelected();
@@ -384,14 +396,18 @@ const battleView = createBattleView({
   onTarget: (id) => {
     const target = [...state.party, ...state.enemies].find((unit) => unit.id === id);
     if (state.commandTargeting === "mark" && target?.side === "enemy") markEnemy(target);
+    else if (state.commandTargeting === "aegis" && target?.side === "hero") shieldHero(target);
     else if (state.potionTargeting && target?.side === "hero") usePotionOn(target);
     render();
   },
   onAction: (id) => {
     if (id === "potion") togglePotionTargeting();
     if (id === "pause") toggleBattlePause();
+    if (id === "auto-pause") toggleCommandAutoPause();
     if (id === "speed") state.battleSpeed = state.battleSpeed === 1 ? 2 : 1;
-    if (id === "flee") fleeMidBattle();
+    if (id === "flee") requestFleeMidBattle();
+    if (id === "flee-confirm") fleeMidBattle();
+    if (id === "flee-cancel") state.fleeConfirmation = false;
     if (id === "flee-safe") fleeExpedition();
     if (id === "continue") continueExpedition();
     if (id === "next-day") advanceDay();
@@ -541,11 +557,15 @@ function dismissSelected() {
   state.message = `${hero.name} leaves the company.`;
 }
 
-function startExpedition() {
+function startExpedition(confirmed = false) {
   if (state.view !== "tavern" || state.rollRemainingMs > 0) return;
   const chosen = activeBench();
   if (!chosen.length) {
     state.message = "Choose at least one active hero before entering the dungeon.";
+    return;
+  }
+  if (!confirmed && chosen.length < teamCapacity(state.day)) {
+    rosterView.warnEmptySlots(chosen.length, teamCapacity(state.day));
     return;
   }
   state.selectedHeroId = null;
@@ -562,6 +582,7 @@ function startExpedition() {
   const supplies = alchemistSupplies(state.buildings.alchemist.level);
   state.potionsRemaining = supplies.count;
   state.potionHealRatio = supplies.healRatio;
+  state.commandAutoPauseEnabled = true;
   state.potionTargeting = false;
   state.battleLog = [];
   prepareFloor();
@@ -710,7 +731,10 @@ function resetFloorCommands() {
   state.events.nextAttack = 1;
   state.commandTargeting = null;
   state.enemyFreezeMs = 0;
+  state.freezeCooldownMs = 0;
   state.divineAegisMs = 0;
+  state.divineAegisTargetId = null;
+  state.floorPotionRecovered = false;
   state.rallyMs = 0;
   state.rallySpeedBonus = 0;
   state.markedEnemyId = null;
@@ -744,6 +768,7 @@ function commandUnavailableReason(commandId) {
   const command = BATTLE_COMMANDS[commandId];
   if (state.view !== "battle") return "battle only";
   if (commandHeroCount(commandId) === 0) return `needs ${HERO_TYPES[command.classType].label}`;
+  if (commandId === "freeze" && state.freezeCooldownMs > 0) return `cooldown ${(state.freezeCooldownMs / 1000).toFixed(1)}s`;
   if (state.commandMeter < command.cost) return `needs ${command.cost}`;
   if (commandId === "pilfer" && state.pilferUsed) return "used this floor";
   if (commandId === "freeze" && state.enemyFreezeMs > 0) return "already active";
@@ -769,8 +794,8 @@ function flashCommandHeroes(commandId) {
 
 function useBattleCommand(commandId) {
   if (commandUnavailableReason(commandId)) return;
-  if (commandId === "mark") {
-    state.commandTargeting = "mark";
+  if (commandId === "mark" || commandId === "aegis") {
+    state.commandTargeting = commandId;
     state.potionTargeting = false;
     return;
   }
@@ -782,10 +807,8 @@ function useBattleCommand(commandId) {
 
   if (commandId === "freeze") {
     state.enemyFreezeMs = power.durationMs;
+    state.freezeCooldownMs = power.durationMs + TIME_FREEZE_COOLDOWN_MS;
     logBattle(`${count} Mage${count === 1 ? "" : "s"} freeze time for ${(power.durationMs / 1000).toFixed(1)} seconds.`);
-  } else if (commandId === "aegis") {
-    state.divineAegisMs = power.durationMs;
-    logBattle(`Divine Aegis shields the party for ${(power.durationMs / 1000).toFixed(1)} seconds.`);
   } else if (commandId === "rally") {
     state.rallyMs = power.durationMs;
     state.rallySpeedBonus = power.speedBonus;
@@ -834,11 +857,25 @@ function markEnemy(target) {
   logBattle(`${target.label} is marked: attackers gain +${Math.round(power.speedBonus * 100)}% speed against it.`);
 }
 
+function shieldHero(target) {
+  if (state.commandTargeting !== "aegis" || !target || target.side !== "hero" || target.hp <= 0 || commandUnavailableReason("aegis")) return;
+  const power = commandPower("aegis", commandHeroCount("aegis"));
+  spendCommand("aegis");
+  flashCommandHeroes("aegis");
+  state.divineAegisTargetId = target.id;
+  state.divineAegisMs = power.durationMs;
+  logBattle(`Divine Aegis shields ${target.label} for six seconds.`);
+}
+
+function hasDivineAegis(target) {
+  return target?.side === "hero" && state.divineAegisMs > 0 && state.divineAegisTargetId === target.id;
+}
+
 function gainCommandMeter(damage) {
   if (state.view !== "battle" || damage <= 0) return;
   const previous = state.commandMeter;
   state.commandMeter = Math.min(COMMAND_MAX, state.commandMeter + damage * COMMAND_GAIN_PER_DAMAGE);
-  if (state.view === "battle" && previous < COMMAND_MAX && state.commandMeter === COMMAND_MAX) {
+  if (state.commandAutoPauseEnabled && previous < COMMAND_MAX && state.commandMeter === COMMAND_MAX) {
     state.battlePaused = true;
     state.commandAutoPaused = true;
     logBattle("Command full. Battle paused — choose an order, then Resume.");
@@ -894,7 +931,7 @@ function rememberFallenHero(unit, source) {
 function dealDamage(target, amount, source, { area = false, logStrike = false } = {}) {
   if (!target || target.hp <= 0) return;
   const enemyAttack = target.side === "hero" && typeof source === "object" && source.side === "enemy";
-  if (target.side === "hero" && state.divineAegisMs > 0) {
+  if (hasDivineAegis(target)) {
     target.flash = 240;
     return 0;
   }
@@ -907,6 +944,11 @@ function dealDamage(target, amount, source, { area = false, logStrike = false } 
       target.interceptFlash = 700;
       addCombatEffect(knight, protectedAlly, "intercept");
     }
+  }
+  // A shielded Knight also blocks attacks they intercept for another hero.
+  if (hasDivineAegis(target)) {
+    target.flash = 240;
+    return 0;
   }
   const dodge = target.side === "enemy"
     ? target.type === "shadowAssassin" ? BOSS_RULES.evasion : target.evasionChance ?? 0
@@ -1075,7 +1117,7 @@ function actEnemy(unit) {
     const damage = targets.reduce((total, target) => total + dealDamage(target, attackDamage, unit, { area: true }), 0);
     logBattle(damage > 0
       ? `${unit.label} ${unit.type === "infernalDragon" ? "breathes fire across" : "cleaves through"} the ${front.length ? "front" : "back"} row.`
-      : state.divineAegisMs > 0 ? `Divine Aegis turns aside ${unit.label}'s attack.`
+      : targets.every(hasDivineAegis) ? `Divine Aegis turns aside ${unit.label}'s attack.`
         : `The ${front.length ? "front" : "back"} row evades ${unit.label}'s attack.`);
     return;
   }
@@ -1142,7 +1184,12 @@ function updateBattle(milliseconds) {
   }
 
   state.enemyFreezeMs = Math.max(0, state.enemyFreezeMs - delta);
+  state.freezeCooldownMs = Math.max(0, state.freezeCooldownMs - delta);
   state.divineAegisMs = Math.max(0, state.divineAegisMs - delta);
+  if (state.divineAegisMs === 0 || !livingParty().some(hero => hero.id === state.divineAegisTargetId)) {
+    state.divineAegisMs = 0;
+    state.divineAegisTargetId = null;
+  }
   state.rallyMs = Math.max(0, state.rallyMs - delta);
   state.markMs = Math.max(0, state.markMs - delta);
   state.holdLineMs = Math.max(0, state.holdLineMs - delta);
@@ -1164,6 +1211,7 @@ function updateBattle(milliseconds) {
 }
 
 function finishFloor() {
+  if (state.view !== "battle") return;
   snapBackdropFloor(state.backdrop, state.floor);
   state.expeditionClearedFloor = state.floor;
   clearCombatFeedback();
@@ -1191,6 +1239,12 @@ function finishFloor() {
     const lootCopy = state.floorPilferGold ? ` Thieves also secure ${state.floorPilferGold} pilfered gold.` : "";
     state.resultCopy = `${survivorCopy}. The vault yields ${state.floorReward} gold for day ${state.day}.${lootCopy}`;
     state.message = "Take the winnings and flee, or press deeper with your current health.";
+  }
+  state.floorPotionRecovered = Math.random() < 0.5;
+  if (state.floorPotionRecovered) {
+    state.potionsRemaining += 1;
+    state.resultCopy += " Recovered one healing potion.";
+    remember("supplies", "Recovered one healing potion after clearing the floor.", state.floor);
   }
   if (state.victoryDay === state.day && isBossFloor(state.floor)) remember("victory", `${BOSS_DEFINITIONS[state.bossType].label} was defeated. Victory is secured.`, state.floor);
   state.events.clears += 1;
@@ -1289,6 +1343,7 @@ function usePotionOn(unit) {
 }
 
 function clearCombatFeedback() {
+  state.fleeConfirmation = false;
   state.battlePaused = false;
   state.commandAutoPaused = false;
   state.potionTargeting = false;
@@ -1313,8 +1368,14 @@ function midBattleFleeCost() {
   return Math.ceil(state.gold / 2);
 }
 
-function fleeMidBattle() {
+function requestFleeMidBattle() {
   if (state.view !== "battle") return;
+  state.battlePaused = true;
+  state.fleeConfirmation = true;
+}
+
+function fleeMidBattle() {
+  if (state.view !== "battle" || !state.fleeConfirmation) return;
   const cost = midBattleFleeCost();
   state.gold -= cost;
   finishDay(
@@ -1476,8 +1537,11 @@ function battlePresentation() {
     ],
     targeting: state.potionTargeting ? "potion" : state.commandTargeting,
     markedEnemyId: state.markedEnemyId,
+    divineAegisTargetId: state.divineAegisTargetId,
     paused: state.battlePaused,
+    fleeConfirmation: Boolean(state.fleeConfirmation),
     commandAutoPaused: state.commandAutoPaused,
+    commandAutoPauseEnabled: state.commandAutoPauseEnabled,
     speed: state.battleSpeed,
     potions: state.potionsRemaining,
     potionHealPercent: Math.round(state.potionHealRatio * 100),
@@ -1500,6 +1564,16 @@ function battlePresentation() {
       hold: state.holdLineMs,
     },
   };
+}
+
+function toggleCommandAutoPause() {
+  if (state.view !== "battle") return;
+  state.commandAutoPauseEnabled = !state.commandAutoPauseEnabled;
+  if (state.commandAutoPauseEnabled && state.commandMeter >= COMMAND_MAX && !state.battlePaused) {
+    state.battlePaused = true;
+    state.commandAutoPaused = true;
+    logBattle("Command full. Battle paused — choose an order, then Resume.");
+  }
 }
 
 function toggleBattlePause() {
@@ -1535,6 +1609,7 @@ window.addEventListener("keydown", (event) => {
     state.potionTargeting = false;
     render();
   } else if (event.key === "Enter") {
+    event.preventDefault();
     if (state.view === "tavern") startExpedition();
     else if (state.view === "floor_result") continueExpedition();
     else if (state.view === "day_result") advanceDay();
@@ -1643,7 +1718,9 @@ window.render_game_to_text = () => {
     deepestFloor: state.deepestFloor,
     battleSpeed: state.battleSpeed,
     battlePaused: state.battlePaused,
+    fleeConfirmation: Boolean(state.fleeConfirmation),
     commandAutoPaused: state.commandAutoPaused,
+    commandAutoPauseEnabled: state.commandAutoPauseEnabled,
     commands: {
       meter: Math.floor(state.commandMeter),
       maximum: COMMAND_MAX,
@@ -1666,7 +1743,9 @@ window.render_game_to_text = () => {
       })),
       effects: {
         enemyFreezeMs: Math.round(state.enemyFreezeMs),
+        freezeCooldownMs: Math.round(state.freezeCooldownMs),
         divineAegisMs: Math.round(state.divineAegisMs),
+        divineAegisTargetId: state.divineAegisTargetId,
         rallyMs: Math.round(state.rallyMs),
         rallySpeedBonus: state.rallySpeedBonus,
         markedEnemyId: state.markedEnemyId,
@@ -1682,6 +1761,8 @@ window.render_game_to_text = () => {
       healingPercent: Math.round(state.potionHealRatio * 100),
       choosingTarget: state.potionTargeting,
       replenishes: "at the start of each daily expedition",
+      floorRecoveryChance: 0.5,
+      recoveredThisFloor: Boolean(state.floorPotionRecovered),
     },
     midBattleFleeCost: state.view === "battle" ? midBattleFleeCost() : null,
     manualFleeLevelChance: ["battle", "floor_result"].includes(state.view) ? manualFleeLevelChance() : null,
@@ -1744,7 +1825,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Defeat the campaign boss on floor 10 to win; Continue remains available afterward. All seven battle commands are visible from the start; click one or press 1–7. Combat auto-pauses when Command reaches full; choose an order, then Resume or press P. Damage fills Command, and matching living heroes determine command power. Mark Prey requires selecting an enemy. Potion requires selecting a wounded hero. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee costs half your gold. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
+    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Defeat the campaign boss on floor 10 to win; Continue remains available afterward. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Divine Aegis shields one selected hero for six seconds. Mark Prey requires selecting an enemy. Every cleared floor has a 50% chance to restore a potion. Potion requires selecting a wounded hero. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee pauses combat and asks for confirmation before costing half your gold. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
   });
 };
 

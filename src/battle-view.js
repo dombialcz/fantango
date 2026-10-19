@@ -8,15 +8,15 @@ const COMMAND_COPY = {
   hold: "The friendly front row gains armor and damage for six seconds. More living Knights strengthen both bonuses.",
   pilfer: "Reserve one gold per living Thief (up to four), paid only if this floor is cleared. Once per floor.",
   rally: "The whole company attacks faster for six seconds. More living Bards increase the speed bonus.",
-  aegis: "Protect the whole party from damage. More living Clerics make the shield last longer.",
+  aegis: "Choose one hero to make invulnerable for six seconds.",
   bloodlust: "Sacrifice 10% maximum health from every friendly frontliner, leaving at least 1 HP, then strike the whole enemy front row. More Barbarians increase damage.",
   mark: "Choose an enemy. Heroes who can reach it focus their attacks and strike faster. More Rangers increase the speed bonus.",
-  freeze: "Stop enemy attacks, summoning, movement, and timers. More living Mages make the freeze last longer.",
+  freeze: "Stop enemy attacks, summoning, movement, and timers. More living Mages make the freeze last longer. Costs 100 Command, with a ten-second cooldown after the freeze ends.",
 };
 
 function powerCopy(id, power) {
   if (id === "freeze") return `${(power.durationMs / 1000).toFixed(1)}s enemy freeze`;
-  if (id === "aegis") return `${(power.durationMs / 1000).toFixed(1)}s invulnerability`;
+  if (id === "aegis") return `${(power.durationMs / 1000).toFixed(1)}s shield · one hero`;
   if (id === "rally" || id === "mark") return `+${Math.round(power.speedBonus * 100)}% attack speed`;
   if (id === "hold") return `+${Math.round(power.armorBonus * 100)}% armor & damage`;
   if (id === "pilfer") return `+${power.gold} gold on victory`;
@@ -43,8 +43,17 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       <div class="battle-command-deck">${COMMAND_IDS.map((id, index) => `<button class="battle-command" type="button" data-command="${id}" aria-describedby="command-description"><span class="battle-command__art"><img src="assets/commands/${id}.webp" alt=""/><span class="battle-command__key">${index + 1}</span><span class="battle-command__cost">${BATTLE_COMMANDS[id].cost}<small>CMD</small></span><span class="battle-command__count"></span><span class="battle-command__active"></span></span><strong>${BATTLE_COMMANDS[id].label}</strong><span class="battle-command__power"></span><span class="battle-command__reason"></span></button>`).join("")}</div>
       <p class="battle-command-description" id="command-description">Damage dealt and received fills Command. Orders grow stronger with matching living heroes.</p>
     </section>
-    <footer class="battle-controls"><span class="battle-target-help"></span><div><button data-battle-action="potion" type="button"></button><button data-battle-action="flee" class="battle-flee" type="button"></button><button data-battle-action="pause" type="button"></button><button data-battle-action="speed" type="button"></button></div></footer>
-  </div>`;
+    <footer class="battle-controls"><span class="battle-control-preferences"><button class="battle-auto-pause" data-battle-action="auto-pause" type="button" aria-pressed="true" title="Pause combat when Command reaches 100. Starts on every expedition.">Auto pause at 100: ON</button><span class="battle-target-help"></span></span><div><button data-battle-action="potion" type="button"></button><button data-battle-action="flee" class="battle-flee" type="button"></button><button data-battle-action="pause" type="button"></button><button data-battle-action="speed" type="button"></button></div></footer>
+  </div>
+  <dialog id="battle-flee-confirmation" class="battle-flee-dialog" aria-labelledby="flee-dialog-title" aria-describedby="flee-dialog-description">
+    <span class="battle-eyebrow">LEAVE THE EXPEDITION</span>
+    <h2 id="flee-dialog-title">Abandon this battle?</h2>
+    <p id="flee-dialog-description">Your surviving heroes will return to town. Escaping during a fight costs half your gold, rounded up.</p>
+    <div class="battle-flee-summary"><span>Gold lost on escape</span><strong class="battle-flee-confirm-cost"></strong></div>
+    <p class="battle-flee-levels"></p>
+    <p class="battle-flee-paused">Combat is paused. Cancel keeps it paused.</p>
+    <div class="battle-flee-actions"><button type="button" data-battle-action="flee-cancel" autofocus>Cancel</button><button type="button" class="gold-purchase" data-battle-action="flee-confirm"></button></div>
+  </dialog>`;
 
   const rows = new Map(rowKeys.map((key) => [key, root.querySelector(`[data-rank="${key}"] .battle-rank__units`)]));
   const contextualHelp = createBattleContext(root, heroTypes);
@@ -61,6 +70,13 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
   backdropImage.addEventListener("error", () => backdrop.classList.remove("is-loaded"));
   const strikeGroup = root.querySelector(".battle-strikes g");
   const description = root.querySelector(".battle-command-description");
+  const fleeDialog = root.querySelector(".battle-flee-dialog");
+  fleeDialog.addEventListener("cancel", event => { event.preventDefault(); onAction("flee-cancel"); });
+  fleeDialog.addEventListener("click", event => {
+    if (event.target !== fleeDialog) return;
+    const bounds = fleeDialog.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onAction("flee-cancel");
+  });
   const actionButtons = new Map(["potion", "flee", "pause", "speed"].map((id) => [id, root.querySelector(`[data-battle-action="${id}"]`)]));
 
   function explainCommand(id) {
@@ -121,7 +137,8 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       cards.set(unit.id, card);
     }
     const isHero = unit.side === "hero";
-    const targetable = state.targeting === "mark" ? !isHero : state.targeting === "potion" && isHero && unit.hp < unit.maxHp;
+    const targetable = state.targeting === "mark" ? !isHero : state.targeting === "aegis" ? isHero : state.targeting === "potion" && isHero && unit.hp < unit.maxHp;
+    const shielded = isHero && state.effects.aegis > 0 && state.divineAegisTargetId === unit.id;
     card.disabled = !targetable;
     card.classList.toggle("is-targetable", targetable);
     card.classList.toggle("is-hit", unit.flash > 0);
@@ -130,7 +147,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
     const frozen = isHero ? unit.frozenMs > 0 : state.effects.freeze > 0;
     card.classList.toggle("is-frozen", frozen);
     card.classList.toggle("is-boss", Boolean(unit.boss));
-    card.classList.toggle("is-shielded", isHero && state.effects.aegis > 0);
+    card.classList.toggle("is-shielded", shielded);
     card.classList.toggle("is-holding", isHero && unit.row === "front" && state.effects.hold > 0);
     card.classList.toggle("is-healed", (unit.potionFlash ?? 0) > 0);
     card.dataset.side = unit.side;
@@ -138,7 +155,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
     card.querySelector(".battle-unit__info small").textContent = isHero ? `${definition.label} · L${unit.hero.level}` : unit.boss ? "FLOOR 10 · BOSS" : definition.label;
     card.querySelector(".battle-unit__health i").style.width = `${Math.max(0, unit.hp / unit.maxHp) * 100}%`;
     card.querySelector(".battle-unit__hp").textContent = `${Math.ceil(unit.hp)} / ${unit.maxHp} HP`;
-    card.querySelector(".battle-unit__status").textContent = frozen ? "FROZEN" : unit.evadeFlash > 0 ? "EVADE" : unit.interceptFlash > 0 ? "INTERCEPT" : isHero && state.effects.aegis > 0 ? "AEGIS" : state.markedEnemyId === unit.id ? "MARKED" : unit.empowered ? "EMPOWERED" : unit.crowdingPenaltyPercent ? "CROWDED −20%" : "";
+    card.querySelector(".battle-unit__status").textContent = frozen ? "FROZEN" : unit.evadeFlash > 0 ? "EVADE" : unit.interceptFlash > 0 ? "INTERCEPT" : shielded ? "AEGIS" : state.markedEnemyId === unit.id ? "MARKED" : unit.empowered ? "EMPOWERED" : unit.crowdingPenaltyPercent ? "CROWDED −20%" : "";
     const crowdingNote = unit.crowdingPenaltyPercent ? " −20% maximum health and damage: three or more of this class departed together. Applies for the whole expedition." : "";
     card.title = (definition.summary ?? definition.label) + crowdingNote;
     card.setAttribute("aria-label", `${unit.label}${unit.boss ? ", final boss" : ""}, ${definition.label}, ${Math.ceil(unit.hp)} of ${unit.maxHp} health${crowdingNote}${frozen ? ", frozen" : ""}${targetable ? ", select target" : ""}`);
@@ -180,7 +197,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       const wasVisible = !root.hidden;
       root.hidden = !state.visible;
       document.body.classList.toggle("battle-open", state.visible);
-      if (!state.visible) return;
+      if (!state.visible) { if (fleeDialog.open) fleeDialog.close(); return; }
       current = state;
       const theme = BATTLE_BACKDROPS[state.flavorKey] ? state.flavorKey : "undead";
       if (theme !== backdropTheme) {
@@ -219,7 +236,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       root.querySelector(".battle-side--enemies h2 span").textContent = state.enemies.filter((unit) => unit.hp > 0).length;
       const result = state.view !== "battle";
       root.querySelector(".battle-report > h2").textContent = result ? state.resultTitle : state.targeting ? "Choose your target" : state.commandAutoPaused ? "Command full — battle paused" : state.paused ? "Battle paused" : "Into the depths";
-      root.querySelector(".battle-report__copy").textContent = result ? state.resultCopy : state.targeting === "mark" ? "Select a highlighted enemy to mark." : state.targeting === "potion" ? "Select a wounded hero to heal." : state.commandAutoPaused ? "Choose an order, then Resume or press P to continue." : state.paused ? "Take a breath. Your orders still work." : state.log[0] ?? "The company fights on.";
+      root.querySelector(".battle-report__copy").textContent = result ? state.resultCopy : state.targeting === "mark" ? "Select a highlighted enemy to mark." : state.targeting === "aegis" ? "Select a hero to shield for six seconds." : state.targeting === "potion" ? "Select a wounded hero to heal." : state.commandAutoPaused ? "Choose an order, then Resume or press P to continue." : state.paused ? "Take a breath. Your orders still work." : state.log[0] ?? "The company fights on.";
       const logSignature = JSON.stringify(state.log);
       const log = root.querySelector(".battle-log");
       if (log.dataset.signature !== logSignature) {
@@ -266,10 +283,17 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
         flee.dataset.priceSignature = fleeSignature;
         flee.classList.add("gold-purchase");
         flee.dataset.goldCost = state.fleeCost;
+        flee.setAttribute("aria-haspopup", "dialog");
+        flee.setAttribute("aria-controls", "battle-flee-confirmation");
         flee.innerHTML = `Flee ${goldPrice(state.fleeCost, "LOSE")}<span class="flee-penalty-note">Half your gold</span><small>${state.levelChance}% level-up chance</small>`;
-        flee.title = `Flee now and lose ${state.fleeCost} gold (half your gold, rounded up). ${state.levelChance}% level-up chance per survivor. Retreat between floors to avoid the gold penalty.`;
-        flee.setAttribute("aria-label", `Flee now. Lose ${state.fleeCost} gold, half your gold rounded up. ${state.levelChance}% level-up chance per survivor.`);
+        flee.title = `Review retreat. Confirming loses ${state.fleeCost} gold (half your gold, rounded up). ${state.levelChance}% level-up chance per survivor. Retreat between floors to avoid the gold penalty.`;
+        flee.setAttribute("aria-label", `Review retreat. Lose ${state.fleeCost} gold only if confirmed, half your gold rounded up. ${state.levelChance}% level-up chance per survivor.`);
       }
+      const autoPause = root.querySelector('[data-battle-action="auto-pause"]');
+      autoPause.setAttribute("aria-pressed", String(state.commandAutoPauseEnabled));
+      autoPause.textContent = `Auto pause at 100: ${state.commandAutoPauseEnabled ? "ON" : "OFF"}`;
+      autoPause.disabled = result;
+      actionButtons.get("potion").title = "Heal one hero. Each cleared floor has a 50% chance to restore one potion.";
       actionButtons.get("pause").textContent = state.paused ? "Resume" : "Pause";
       actionButtons.get("speed").textContent = `Speed ×${state.speed}`;
       for (const [id, button] of actionButtons) if (id !== "potion") button.disabled = result;
@@ -277,6 +301,25 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       if (selectedCommand) explainCommand(selectedCommand);
       if (!wasVisible) { selectedCommand = null; arena.scrollTop = 0; }
       drawStrikes(state.combatEffects);
+      if (state.view === "battle" && state.fleeConfirmation) {
+        const dialogSignature = `${state.fleeCost}:${state.levelChance}`;
+        if (fleeDialog.dataset.signature !== dialogSignature) {
+          fleeDialog.dataset.signature = dialogSignature;
+          fleeDialog.querySelector(".battle-flee-confirm-cost").innerHTML = goldPrice(state.fleeCost, "LOSE");
+          fleeDialog.querySelector(".battle-flee-levels").textContent = `Each eligible survivor has a ${state.levelChance}% chance to gain a level.`;
+          const confirm = fleeDialog.querySelector('[data-battle-action="flee-confirm"]');
+          confirm.innerHTML = `Confirm flee ${goldPrice(state.fleeCost, "LOSE")}`;
+          confirm.dataset.goldCost = state.fleeCost;
+        }
+        if (!fleeDialog.open) {
+          fleeDialog.showModal();
+          fleeDialog.querySelector('[data-battle-action="flee-cancel"]').focus();
+        }
+      } else if (fleeDialog.open) {
+        fleeDialog.close();
+        if (state.view === "battle") actionButtons.get("flee").focus({ preventScroll: true });
+        else root.querySelector(".battle-result-actions button")?.focus({ preventScroll: true });
+      }
     },
   };
 }

@@ -85,6 +85,7 @@ try {
     await page.screenshot({path:`output/contextual-help/explanation-${label}.png`,fullPage:true});
     await summary.click();
     await page.locator('[data-hire="900"]').click();await page.locator('[data-roster-action="start"]').click();
+  if (await page.locator('.roster-departure-dialog').evaluate(dialog => dialog.open)) await page.locator('[data-departure="confirm"]').click();
     await page.locator('[data-battle-action="pause"]').click();
     const battle=page.locator('.battle-party-context');
     assert.equal(await battle.isVisible(),true);assert.match(await battle.locator('summary').textContent(),/Crowded ranks.*−20%/);

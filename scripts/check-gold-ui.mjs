@@ -92,6 +92,7 @@ try {
     if (width <= 760) await page.locator('[data-town-action="dismiss"]').click();
     await page.locator('.town-panorama button').click();
     await page.locator('[data-roster-action="start"]').click();
+  if (await page.locator('.roster-departure-dialog').evaluate(dialog => dialog.open)) await page.locator('[data-departure="confirm"]').click();
     await page.locator('[data-battle-action="pause"]').click();
     const flee = page.locator('[data-battle-action="flee"]');
     await verifyCost(flee, 1, 'LOSE');
@@ -100,6 +101,7 @@ try {
     await noOverflow();
     await page.screenshot({ path: `output/gold-check/battle-${name}.png` });
     await flee.click();
+    await page.locator('[data-battle-action="flee-confirm"]').click();
     assert.equal((await state()).gold, 0);
     assert.equal(await page.locator('.battle-gold .gold-value').textContent(), '0');
     await context.close();

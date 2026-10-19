@@ -16,7 +16,26 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
     </section>
     <div class="roster-lower"><section class="company-board" aria-label="Locked company"><div class="roster-section-heading"><div><span class="roster-eyebrow">SAFE FROM REROLLS</span><h2>Your company</h2></div><span class="roster-team-count"></span></div><p class="company-help">Hired heroes stay locked. Select one to train, reserve, or dismiss.</p><div class="company-party"></div><div class="reserve-heading"><span>RESERVES</span><span>Two extra places · do not enter battle</span></div><div class="company-reserves"></div></section><aside class="roster-inspector" aria-label="Hero details" aria-live="polite"></aside></div>
     <footer class="roster-launch"><div><span class="roster-eyebrow">WHEN YOUR COMPANY IS READY</span><p class="roster-launch-copy"></p></div><button type="button" class="roster-deploy" data-roster-action="start">Enter the dungeon <span aria-hidden="true">→</span></button></footer><p class="roster-message" role="status" aria-live="polite"></p>
+    <dialog class="roster-departure-dialog" aria-labelledby="departure-title" aria-describedby="departure-copy">
+      <span class="roster-eyebrow">BEFORE YOU DESCEND</span><h2 id="departure-title">Your company has empty slots</h2>
+      <p id="departure-copy"></p>
+      <div class="roster-departure-actions"><button type="button" data-departure="cancel" autofocus>Back to company</button><button type="button" data-departure="confirm">Enter anyway →</button></div>
+    </dialog>
   </div>`;
+  const departureDialog = root.querySelector('.roster-departure-dialog');
+  function cancelDeparture() {
+    departureDialog.close();
+    root.querySelector('.roster-deploy').focus({ preventScroll: true });
+  }
+  departureDialog.addEventListener('cancel', event => { event.preventDefault(); cancelDeparture(); });
+  departureDialog.addEventListener('click', event => {
+    const choice = event.target.closest('[data-departure]')?.dataset.departure;
+    if (choice === 'cancel') cancelDeparture();
+    if (choice === 'confirm' && departureDialog.open) {
+      departureDialog.close();
+      onAction('confirm-start');
+    }
+  });
   root.querySelector('.reel-odds').insertAdjacentHTML('afterend', '<div class="reel-variety" aria-label="Underused class bonus"></div>');
   root.querySelector('.company-help').insertAdjacentHTML('afterend', '<p class="company-balance" role="status"></p>');
   const contextualHelp = createRosterContext(root, heroTypes);
@@ -87,11 +106,16 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
   });
 
   return {
+    warnEmptySlots(active, capacity) {
+      const empty = capacity - active;
+      root.querySelector('#departure-copy').textContent = `Only ${active} of ${capacity} hero slots are filled. You have ${empty} empty ${empty === 1 ? 'slot' : 'slots'}. Hire more heroes or move reserves into your active party before descending, or enter with your current company.`;
+      if (!departureDialog.open) departureDialog.showModal();
+    },
     render(snapshot) {
       const wasVisible = !root.hidden;
       root.hidden = !snapshot.visible;
       document.body.classList.toggle("roster-open", snapshot.visible);
-      if (!snapshot.visible) { if (wasVisible) window.scrollTo(0, 0); return; }
+      if (!snapshot.visible) { if (departureDialog.open) departureDialog.close(); if (wasVisible) window.scrollTo(0, 0); return; }
       const rolling = snapshot.rollRemainingMs > 0;
       const nextSignature = JSON.stringify({ ...snapshot, rollRemainingMs: rolling });
       if (signature === nextSignature && wasVisible) return;

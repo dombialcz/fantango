@@ -40,6 +40,7 @@ try {
   await page.locator('[data-hero="102"]').click();await page.locator('[data-roster-action="toggle"]').click();
 
   await page.locator('[data-roster-action="start"]').click();
+  if (await page.locator('.roster-departure-dialog').evaluate(dialog => dialog.open)) await page.locator('[data-departure="confirm"]').click();
   let state=await snapshot();
   assert.equal(state.classBalance.selectionHistory.length,1);
   assert.equal(state.classBalance.selectionHistory[0].counts.knight,3); // Excludes fourth Knight on the bench.
@@ -84,9 +85,9 @@ try {
   const days=await page.evaluate(()=>{
     const t=window.balanceTest;Math.random=()=>.99;
     t.state.bench=['bard','cleric','barbarian','ranger'].map((type,index)=>({id:200+index,type,name:type,level:1,active:true}));
-    t.startExpedition();const during=t.selectionBonus();t.finishDay('Test return');t.advanceDay();const day3=t.selectionBonus();
+    t.startExpedition(true);const during=t.selectionBonus();t.finishDay('Test return');t.advanceDay();const day3=t.selectionBonus();
     t.state.view='tavern';t.state.bench=['mage','thief','knight','knight'].map((type,index)=>({id:300+index,type,name:type,level:1,active:true}));
-    t.startExpedition();t.finishDay('Test return');t.advanceDay();t.render();
+    t.startExpedition(true);t.finishDay('Test return');t.advanceDay();t.render();
     return {during,day3,day4:t.selectionBonus()};
   });
   assert.deepEqual(days.during.classes,['bard','cleric','barbarian','ranger','mage']);

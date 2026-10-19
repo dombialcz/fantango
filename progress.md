@@ -363,3 +363,30 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 
 - Changed the town-name geography hint to “Ranger recruitment chance +10%” (and the equivalent class label for every geography). The town renderer also replaces the legacy “weight” wording from existing saved campaigns. Recruitment probabilities remain unchanged.
 - All five town-identity unit tests pass. Browser-verified both newly generated hints and a reloaded save containing the old label.
+
+## 2026-10-19 — Confirm departures with empty party slots
+
+- Central startExpedition guard now opens a native confirmation when active heroes fall below the current day's team capacity. Shows occupied/total and empty-slot counts with Back to company (default focus) and Enter anyway. Reserves do not count as deployed; zero active heroes remain blocked, and full parties depart directly. Cancel/Escape restore the launch button's focus. Confirmation closes before combat begins.
+- Covered both launch clicks and global Enter; prevented Enter's default action so the opening keypress cannot also activate the dialog's default Cancel. Added scripts/check-departure-warning.mjs for click/keyboard entry, cancel/Escape/focus, deliberate confirmation, reserves, zero/full party, and growing day-three capacity at desktop/390/320px. All pass; inspected desktop and small-phone captures, plus web-game skill capture. All 53 unit tests pass. Updated existing browser checks/fixtures to acknowledge the new deliberate departure step; roster and battle UI regression checks run. No required TODOs remain.
+
+## 2026-10-19 — Confirm mid-battle retreat
+
+- Clicking battle Flee now pauses combat and opens a native Confirm/Cancel dialog. It shows the exact rounded half-gold penalty and each eligible survivor’s level-up chance. Only Confirm applies the existing retreat/charge; cancelling, Escape and outside clicks leave the fight paused and return focus to Flee. Cancel has initial focus. Safe retreat between cleared floors remains free and immediate.
+- Added a saved confirmation flag and guards against applying the penalty without the dialog or charging twice. Reload restores an outstanding confirmation on the paused battle. Clearing combat/result transitions remove the flag and close the dialog. Battle shortcuts cannot resume combat behind the modal.
+- check-flee-confirmation.mjs passes at desktop, 390px/320px phones and short landscape: pause/frozen time/HP/gold, reload, Cancel/Escape/focus, explicit single charge, zero-gold confirmation and free between-floor retreat. Normal recruitment-to-battle flow also passes. Existing gold UI and roster regressions pass; updated their Flee flows plus the backdrop check for the extra confirmation step.
+- Inspected phone and landscape dialog captures, fixing short-landscape layout so the full heading, penalty and both buttons fit without scrolling. Ran the web-game client and inspected its capture. Preserved the separate in-progress empty-party departure warning.
+
+## 2026-10-19 — Full-card battle portraits
+
+- Hero and enemy portraits now fill each unit card with object-fit cover and an upper-focused crop (18%) that preserves faces. Names, class/level and HP sit at the bottom over a dark gradient for legibility. Portraits clip to the card radius while external status/target indicators remain visible; fallback enemy glyphs still fill the card.
+- Increased unit-card heights modestly for face space and removed fixed miniature portrait sizes at every responsive breakpoint. Mobile keeps the existing scrollable formation above the command station.
+- Hero-defense/combat regression suite passes, including four battle viewports; inspected desktop and 320px battle captures for both sides. Ran the web-game client. No remaining TODOs for this request.
+
+## 2026-10-19 — Battle balance and optional command auto-pause
+
+- Time Freeze now costs 100 Command. Added ten seconds of cooldown after its existing Mage-scaled freeze ends (total recast delay = freeze duration + 10s); cooldown pauses with combat, follows combat speed, survives reloads, and resets with commands on the next floor. The command card displays its remaining cooldown.
+- Divine Aegis now selects one living hero, shielding that hero for exactly six seconds for the existing 70 Command. Entering/cancelling targeting does not spend resources; only a valid selection does. Protected targets block damage before interception, and shielded Knights can also block hits they intercept. Area attacks still damage all unshielded targets. Selection, shield visuals and saved state name the protected hero; old party-wide shield saves are cleared safely.
+- Every cleared floor rolls an independent 50% chance to restore one potion at the current expedition's Alchemist healing strength. Recovery appears in the floor report and chronicle, stacks with event supplies, and cannot be duplicated by revisiting/reloading results. No roll on entering a floor or retreating.
+- Added an accessible Auto pause at 100 ON/OFF control, visible on desktop, phones and short landscape. Setting persists through floors and reloads, resets ON on every expedition departure. OFF allows full-meter combat to continue; switching ON at a full meter pauses immediately; switching OFF leaves an already-paused battle paused. Existing resume-at-full behavior is preserved.
+- Updated town command/supply descriptions, gameplay text snapshot and README. Added check-battle-balance.mjs for resource/cooldown boundaries, cancellation/targeting, shielded interception/AoE, exact durations, potion probability boundaries and once-only/event/use flows, save compatibility, toggle persistence/default reset, keyboard activation and four viewport layouts. Updated the existing Aegis browser checks for a selected target.
+- Validation: all 54 unit tests pass. All seven battle command flows, hero defenses, command-full pausing, campaign events, all eight bosses and flee confirmation pass. Inspected cooldown, potion recovery and mobile/landscape shield+toggle captures. Preserved unrelated in-progress departure warning and portrait work. Changes remain local.

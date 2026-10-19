@@ -83,7 +83,7 @@ try{
   }
   for(const outcome of ['flee','defeat','loss','stalemate']){
     await stage('undead',4);await page.evaluate(()=>advanceTime(1000));
-    if(outcome==='flee') await page.locator('[data-battle-action="flee"]').click();
+    if(outcome==='flee') { await page.locator('[data-battle-action="flee"]').click(); await page.locator('[data-battle-action="flee-confirm"]').click(); }
     else await page.evaluate(outcome=>{
       const {state}=window.sceneryTest;
       if(outcome==='stalemate')state.battleTime=90000;
@@ -96,7 +96,7 @@ try{
   // Each new daily expedition starts at town again, even with the same cached art.
   await page.evaluate(()=>{
     const {state,startExpedition,render}=window.sceneryTest;
-    state.view='tavern';state.bench=[{id:500,type:'knight',name:'Knight',level:1,active:true}];startExpedition();state.battlePaused=true;render();
+    state.view='tavern';state.bench=[{id:500,type:'knight',name:'Knight',level:1,active:true}];startExpedition(true);state.battlePaused=true;render();
   });
   await assertPosition(0);assert.equal((await snapshot()).battleBackdrop.targetDepthPercent,10);
 
