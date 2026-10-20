@@ -79,7 +79,7 @@ body.battle-open > .back-link, body.battle-open > .sidegame-link { display: none
 .battle-resource__track { height: 5px; border-radius: 5px; overflow: hidden; background: #3342508c; }
 .battle-resource__track > i { display: block; height: 100%; background: linear-gradient(90deg, #8b8e73, #e4c87e); transition: width 120ms; }
 .battle-active-effects { color: #a4c6bf; font: 10px/1.7 Arial, sans-serif; }
-.battle-command-deck { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; }
+.battle-command-deck { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px; }
 .battle-command { position: relative; display: flex; flex-direction: column; align-items: stretch; min-width: 0; padding: 0 0 9px; border: 1px solid #b5c4cc30; background: #17212b; color: #cec8b9; border-radius: 7px; overflow: hidden; text-align: left; }
 .battle-command__art { position: relative; display: block; height: clamp(64px, 9vh, 92px); background: #0b121c; }
 .battle-command__art img { width: 100%; height: 100%; object-fit: contain; object-position: center; opacity: .76; }
@@ -101,6 +101,7 @@ body.battle-open > .back-link, body.battle-open > .sidegame-link { display: none
 .battle-command.is-active .battle-command__art img { opacity: .9; filter: saturate(1); }
 .battle-command__active:not(:empty) { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; background: #09121d77; color: #f2e6c4; font-size: 25px; }
 .battle-command.is-targeting { border-color: #edda9f; }
+.battle-potion.is-empty .battle-command__art img { filter: grayscale(1); opacity: .3; }
 .battle-command-description { min-height: 29px; margin: 10px 0 0; color: #869aa7; font: 10px/1.6 Arial, sans-serif; }
 .battle-controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; border-top: 1px solid #bec9d51e; padding: 8px 0; flex-shrink: 0; background: #0b1522e0; }
 .battle-control-preferences { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; }
@@ -108,16 +109,6 @@ body.battle-open > .back-link, body.battle-open > .sidegame-link { display: none
 .battle-controls .battle-auto-pause[aria-pressed="true"] { color: #e5d1a1; border-color: #c4ac6f80; background: #78602b30; }
 .battle-target-help { color: #8b9ca5; font-size: 11px; line-height: 1.5; }
 .battle-controls > div { display: flex; flex-shrink: 0; gap: 8px; }
-.battle-supplies { flex: 0 0 190px; padding: 8px 14px; border: 1px solid #88654b80; border-radius: 8px; background: #30241ee8; }
-.battle-supplies > .battle-eyebrow { display: block; margin-bottom: 5px; color: #d4b38e; font-size: 8px; }
-.battle-controls .battle-potion { position: relative; overflow: hidden; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 52px; padding: 4px 6px; border-color: #bd8163; background: #58342a; color: #f3dfc3; text-align: left; }
-.battle-potion > img { flex: 0 0 42px; width: 42px; height: 46px; object-fit: contain; }
-.battle-potion > span:not(.battle-potion__cooldown) { position: relative; z-index: 1; }
-.battle-potion__label { display: block; font: 13px Georgia, serif; }
-.battle-controls .battle-potion small { font: 9px/1.4 Arial, sans-serif; color: #d6bbaa; }
-.battle-potion__cooldown { position: absolute; left: 0; bottom: 0; height: 3px; width: var(--potion-cooldown, 0%); background: #eab894; pointer-events: none; }
-.battle-controls .battle-potion:disabled { color: #c6aaa0; background: #352723; border-color: #876453; }
-.battle-controls .battle-potion.is-targeting { outline: 2px solid #edca9b; outline-offset: 2px; }
 .battle-controls button { min-height: 42px; min-width: 80px; padding: 6px 14px; color: #c9cfca; background: #1b2a36; border: 1px solid #bcc7cc35; border-radius: 5px; font-size: 12px; }
 .battle-controls button small { display: block; margin-top: 3px; font-size: 8px; color: #9bacaf; }
 .battle-controls button:disabled { color: #667782; background: #13202b; border-color: #bcc7cc14; }
@@ -268,14 +259,8 @@ body.battle-open > .back-link, body.battle-open > .sidegame-link { display: none
 }
 
 @media (max-width: 760px) {
-  .battle-controls { display: grid; grid-template-columns: minmax(108px, .9fr) minmax(0, 1.6fr); align-items: stretch; gap: 7px; }
+  .battle-controls { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 7px; }
   .battle-control-preferences { grid-column: 1 / -1; }
-  .battle-supplies { min-width: 0; padding: 6px; }
-  .battle-supplies > .battle-eyebrow { font-size: 6px; letter-spacing: .04em; }
-  .battle-controls .battle-potion { min-width: 0; min-height: 45px; gap: 4px; padding: 3px; }
-  .battle-potion > img { flex-basis: 28px; width: 28px; height: 36px; }
-  .battle-potion__label { font-size: 10px; }
-  .battle-controls .battle-potion small { font-size: 7px; }
   .battle-controls > div { align-items: stretch; }
 }
 

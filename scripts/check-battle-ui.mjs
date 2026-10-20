@@ -11,12 +11,16 @@ async function battle(classes, viewport = { width: 1440, height: 1000 }) {
   const context = await browser.newContext({ viewport });
   const sequence = [.05, .05, .05, .05, .05];
   for (let index = 0; index < 5; index += 1) sequence.push(rolls[classes[index] ?? classes.at(-1)], .05);
-  await context.addInitScript((values) => { let index = 0; Math.random = () => values[index++] ?? .05; }, sequence);
+  await context.addInitScript((values) => { window.requestAnimationFrame = () => 0; let index = 0; Math.random = () => values[index++] ?? .05; }, sequence);
+  await context.route('**/src/dungeon.js', async route => {
+    const response = await route.fetch();
+    await route.fulfill({ response, body: `${await response.text()}\nwindow.battleUiTest = { get state() { return state; }, render };` });
+  });
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
-  await page.goto(`${baseURL}/dungeon.html`);
+  await page.goto(`${baseURL}/dungeon.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof window.render_game_to_text === "function");
   const state = async () => JSON.parse(await page.evaluate(() => window.render_game_to_text()));
   assert.equal((await state()).view, "town");
@@ -34,7 +38,12 @@ async function battle(classes, viewport = { width: 1440, height: 1000 }) {
   return { context, page, state, errors };
 }
 
-async function pauseAtMeter(game, cost) {
+async function pauseAtMeter(game, cost, fundCommand = false) {
+  // Command behavior is tested independently of how long a weak first-floor foe survives.
+  // Damage-based earning and full-meter pausing have dedicated integration checks.
+  if (fundCommand) await game.page.evaluate(cost => {
+    const t = window.battleUiTest; t.state.commandMeter = Math.max(t.state.commandMeter, cost); t.render();
+  }, cost);
   let snapshot = await game.state();
   for (let step = 0; step < 300 && snapshot.view === "battle" && snapshot.commands.meter < cost; step += 1) {
     await game.page.evaluate(() => window.advanceTime(200));
@@ -77,7 +86,7 @@ try {
     }[id];
     const game = await battle(classes);
     const cost = (await game.state()).commands.available[id].cost;
-    const before = await pauseAtMeter(game, cost);
+    const before = await pauseAtMeter(game, cost, true);
     let after = await cast(game, id);
     if (id === "hold") assert.equal(after.commands.effects.holdArmorBonus, .2);
     if (id === "rally") assert.ok(after.party.find((hero) => hero.class === "knight").attackIntervalMs < before.party.find((hero) => hero.class === "knight").attackIntervalMs);
@@ -114,7 +123,7 @@ try {
     }
     if (id === "bloodlust") {
       before.party.forEach((hero, index) => {
-        assert.equal(after.party[index].hp, Math.max(1, hero.hp - Math.ceil(hero.maxHp * .1)));
+        assert.equal(after.party[index].hp, hero.hp);
       });
       assert.ok(after.enemies.filter((enemy) => enemy.row === "front").length < before.enemies.filter((enemy) => enemy.row === "front").length);
     }

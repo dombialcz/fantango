@@ -1,6 +1,6 @@
 export const COMMAND_MAX = 100;
 export const COMMAND_START = 50;
-export const COMMAND_GAIN_PER_DAMAGE = 0.6;
+export const COMMAND_GAIN_PER_DAMAGE = 0.12;
 export const TIME_FREEZE_COOLDOWN_MS = 10000;
 
 export const BATTLE_COMMANDS = Object.freeze({
@@ -25,17 +25,17 @@ export function commandPower(commandId, matchingHeroes) {
     case "freeze":
       return { durationMs: count ? 2000 + count * 750 : 0 };
     case "aegis":
-      return { durationMs: count ? 6000 : 0 };
+      return { durationMs: count ? 8000 : 0 };
     case "rally":
       return { durationMs: count ? 6000 : 0, speedBonus: count * 0.15 };
     case "mark":
-      return { durationMs: count ? 6000 : 0, speedBonus: count * 0.2 };
+      return { durationMs: count ? 10000 : 0, speedBonus: count * 0.2 };
     case "hold":
       return { durationMs: count ? 6000 : 0, armorBonus: count / 10, damageBonus: count / 10 };
     case "pilfer":
       return { gold: count };
     case "bloodlust":
-      return { damageMultiplier: count ? 1.25 + (count - 1) * 0.5 : 0, healthCostRatio: 0.1 };
+      return { damageMultiplier: count ? 2 : 0 };
     default:
       throw new Error(`Unknown battle command: ${commandId}`);
   }

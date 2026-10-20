@@ -23,7 +23,7 @@ try {
   });
   const page=await context.newPage();const errors=[];
   page.on('pageerror',e=>errors.push(e.message));page.on('console',e=>{if(e.type()==='error')errors.push(e.text());});
-  await page.goto(`${base}/dungeon.html`);await page.waitForFunction(()=>window.defenseTest);
+  await page.goto(`${base}/dungeon.html`, {waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.defenseTest);
   const stage=()=>page.evaluate(()=>window.defenseTest.stage());
   await stage();
   assert.equal(await page.locator('[data-rank="hero-front"] [data-unit-type="thief"]').count(),1);
@@ -110,7 +110,7 @@ try {
     const {state,dealDamage}=window.defenseTest;state.party[0].hp=1;Math.random=()=>.1;
     dealDamage(state.party[1],100,state.enemies[0]);return {knight:state.party[0].hp,rogue:state.party[1].hp,meter:state.commandMeter,log:state.battleLog};
   });
-  assert.equal(fatal.knight,0);assert.equal(fatal.rogue,60);assert.equal(fatal.meter,.6);assert.ok(fatal.log.some(copy=>copy.includes('defeats Knight')));
+  assert.equal(fatal.knight,0);assert.equal(fatal.rogue,60);assert.equal(fatal.meter,.12);assert.ok(fatal.log.some(copy=>copy.includes('defeats Knight')));
 
   // Real build, town stacking and recruitment inspection all agree with combat stats.
   await stage();

@@ -703,7 +703,7 @@ function commandUnavailableReason(commandId) {
   if (commandId === "rally" && state.rallyMs > 0) return "already active";
   if (commandId === "mark" && state.markMs > 0) return "already active";
   if (commandId === "hold" && state.holdLineMs > 0) return "already active";
-  if (commandId === "bloodlust" && unitsInRow(livingEnemies(), "front").length === 0) return "no enemy front";
+  if (commandId === "bloodlust" && livingEnemies().length === 0) return "no enemies";
   if (commandId === "bloodlust" && unitsInRow(livingParty(), "front").length === 0) return "no allied front";
   return null;
 }
@@ -753,19 +753,12 @@ function useBattleCommand(commandId) {
   } else if (commandId === "bloodlust") {
     const alliedFront = unitsInRow(livingParty(), "front");
     const enemyFront = unitsInRow(livingEnemies(), "front");
-    const strongestBarbarian = livingParty()
-      .filter((unit) => unit.type === "barbarian")
-      .sort((a, b) => b.power * b.damageMultiplier - a.power * a.damageMultiplier)[0];
-    for (const hero of alliedFront) {
-      const healthCost = Math.ceil(hero.maxHp * power.healthCostRatio);
-      hero.hp = Math.max(1, hero.hp - healthCost);
-      hero.flash = 700;
-    }
-    const normalStrike = strongestBarbarian.power
-      * HERO_TYPES.barbarian.damage
-      * strongestBarbarian.damageMultiplier;
-    for (const enemy of enemyFront) dealDamage(enemy, normalStrike * power.damageMultiplier, "Bloodlust");
-    logBattle(`Bloodlust sacrifices the front line and smashes ${enemyFront.length} foe${enemyFront.length === 1 ? "" : "s"}.`);
+    const targets = enemyFront.length ? enemyFront : unitsInRow(livingEnemies(), "back");
+    const combinedStrike = alliedFront.reduce((damage, hero) => damage
+      + hero.power * HERO_TYPES[hero.type].damage * hero.damageMultiplier * heroCommandDamageMultiplier(hero), 0);
+    for (const hero of alliedFront) hero.actionFlash = 850;
+    for (const enemy of targets) dealDamage(enemy, combinedStrike * power.damageMultiplier, "Bloodlust", { area: true });
+    logBattle(`Bloodlust rallies the front line and smashes ${targets.length} foe${targets.length === 1 ? "" : "s"} in the enemy ${enemyFront.length ? "front" : "back"} row.`);
   }
 }
 
@@ -781,7 +774,7 @@ function markEnemy(target) {
   for (const hero of livingParty().filter((unit) => heroCanReach(unit, target))) {
     hero.timer /= 1 + power.speedBonus;
   }
-  logBattle(`${target.label} is marked: attackers gain +${Math.round(power.speedBonus * 100)}% speed against it.`);
+  logBattle(`${target.label} is marked for ten seconds: attackers gain +${Math.round(power.speedBonus * 100)}% speed against it.`);
 }
 
 function shieldHero(target) {
@@ -791,7 +784,7 @@ function shieldHero(target) {
   flashCommandHeroes("aegis");
   state.divineAegisTargetId = target.id;
   state.divineAegisMs = power.durationMs;
-  logBattle(`Divine Aegis shields ${target.label} for six seconds.`);
+  logBattle(`Divine Aegis shields ${target.label} for eight seconds.`);
 }
 
 function hasDivineAegis(target) {
@@ -1112,6 +1105,7 @@ function updateBattle(milliseconds) {
 
   state.enemyFreezeMs = Math.max(0, state.enemyFreezeMs - delta);
   state.freezeCooldownMs = Math.max(0, state.freezeCooldownMs - delta);
+  state.potionCooldownMs = Math.max(0, Math.round((state.potionCooldownMs - delta) * 1000) / 1000);
   state.divineAegisMs = Math.max(0, state.divineAegisMs - delta);
   if (state.divineAegisMs === 0 || !livingParty().some(hero => hero.id === state.divineAegisTargetId)) {
     state.divineAegisMs = 0;
@@ -1430,9 +1424,6 @@ function resetCampaign() {
 
 function update(milliseconds) {
   const step = Math.min(100, milliseconds);
-  // Potions have a real-time reuse delay, including while combat is paused.
-  // Battle speed cannot shorten it; remaining time is included in autosaves.
-  state.potionCooldownMs = Math.max(0, Math.round((state.potionCooldownMs - step) * 1000) / 1000);
   if (state.rollRemainingMs > 0) {
     state.rollRemainingMs = Math.max(0, state.rollRemainingMs - step);
     if (state.rollRemainingMs === 0) state.message = `${state.offers.length} contracts revealed. Inspect a hero, then use Hire beneath the portrait. Your company is safe from rerolls.`;
@@ -1684,6 +1675,9 @@ window.addEventListener("keydown", (event) => {
   } else if (state.view === "battle" && /^[1-7]$/.test(event.key)) {
     useBattleCommand(COMMAND_IDS[Number(event.key) - 1]);
     render();
+  } else if (state.view === "battle" && event.key === "8") {
+    togglePotionTargeting();
+    render();
   } else if (state.view === "battle" && event.key === "Escape") {
     state.commandTargeting = null;
     state.potionTargeting = false;
@@ -1810,6 +1804,7 @@ window.render_game_to_text = () => {
     commandAutoPauseEnabled: state.commandAutoPauseEnabled,
     commands: {
       meter: Math.floor(state.commandMeter),
+      gainPerDamage: COMMAND_GAIN_PER_DAMAGE,
       maximum: COMMAND_MAX,
       visibleFromStart: true,
       targeting: state.commandTargeting,
@@ -1849,6 +1844,7 @@ window.render_game_to_text = () => {
       choosingTarget: state.potionTargeting,
       cooldownMs: Math.ceil(state.potionCooldownMs),
       reuseDelayMs: 2000,
+      cooldownClock: "combat",
       replenishes: "at the start of each daily expedition",
       floorRecoveryChance: potionRecoveryChance(state.buildings.alchemist.level,state.journey),
       recoveredThisFloor: Boolean(state.floorPotionRecovered),
@@ -1915,7 +1911,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Divine Aegis shields one selected hero for six seconds. Mark Prey requires selecting an enemy. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second reuse delay that continues while paused, unaffected by battle speed. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee pauses combat and asks for confirmation before costing half your gold. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
+    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command at 0.12 points per damage, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Divine Aegis shields one selected hero for eight seconds. Mark Prey focuses a selected enemy and speeds up reachable attackers for ten seconds, ending early if the target dies. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second cooldown in combat time, paused with battle and scaled by battle speed. Press 8 to prepare or cancel a potion. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee pauses combat and asks for confirmation before costing half your gold. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
   });
 };
 

@@ -36,6 +36,22 @@ const freeze = page.locator('[data-command="freeze"]');
 const aegis = page.locator('[data-command="aegis"]');
 try {
   await page.goto(`${base}/dungeon.html`); await page.waitForFunction(() => window.balanceTest);
+  await stage();
+  // Damage earns a fifth as much Command: 100 actual damage now earns 12 points.
+  await page.evaluate(() => { const t = window.balanceTest; t.gainCommandMeter(100); t.render(); });
+  assert.equal((await snapshot()).commands.meter, 62);
+  assert.equal((await snapshot()).commands.gainPerDamage, .12);
+  await stage(); await setMeter(0);
+  const earned = await page.evaluate(() => {
+    const t = window.balanceTest, s = t.state;
+    s.enemies[0].hp = s.enemies[0].maxHp = 1000; Math.random = () => .99;
+    const dealt = t.dealDamage(s.enemies[0], 100, s.party[2]);
+    const afterDealt = s.commandMeter;
+    const received = t.dealDamage(s.party[0], 100, s.enemies[0]);
+    return { dealt, afterDealt, received, total: s.commandMeter };
+  });
+  assert.equal(earned.dealt, 25); assert.equal(earned.afterDealt, 3);
+  assert.equal(earned.received, 20); assert.equal(earned.total, 5.4);
   await stage(); await setMeter(99); await freeze.click({ force: true });
   assert.equal((await snapshot()).commands.effects.enemyFreezeMs, 0);
   assert.equal((await snapshot()).commands.meter, 99);
@@ -67,7 +83,8 @@ try {
   assert.equal((await snapshot()).commands.meter, 100);
   await page.keyboard.press('4');
   await page.locator('[data-unit-type="ranger"]').click();
-  s = await snapshot(); assert.equal(s.commands.meter, 30); assert.equal(s.commands.effects.divineAegisMs, 6000);
+  s = await snapshot(); assert.equal(s.commands.meter, 30); assert.equal(s.commands.effects.divineAegisMs, 8000);
+  assert.match(await aegis.locator('.battle-command__power').textContent(), /8.0s shield/);
   assert.equal(s.commands.effects.divineAegisTargetId, 'hero-102');
   assert.equal(await page.locator('[data-side="hero"].is-shielded').count(), 1);
   const damage = await page.evaluate(() => {
@@ -79,15 +96,26 @@ try {
     return { protectedDamage, otherDamage };
   });
   assert.equal(damage.protectedDamage, 0); assert.ok(damage.otherDamage > 0);
-  await page.evaluate(() => advanceTime(1000)); assert.equal((await snapshot()).commands.effects.divineAegisMs, 6000);
+  await page.evaluate(() => advanceTime(1000)); assert.equal((await snapshot()).commands.effects.divineAegisMs, 8000);
   await page.evaluate(() => window.balanceTest.persist()); await page.reload(); await page.waitForFunction(() => window.balanceTest);
   assert.equal(await page.locator('[data-side="hero"].is-shielded').count(), 1);
   assert.equal((await snapshot()).commands.effects.divineAegisTargetId, 'hero-102');
-  await pause.click(); await page.evaluate(() => advanceTime(5990)); await pause.click();
+  await pause.click(); await page.evaluate(() => advanceTime(6000)); await pause.click();
+  assert.equal((await snapshot()).commands.effects.divineAegisMs, 2000);
+  assert.equal(await page.locator('[data-side="hero"].is-shielded').count(), 1);
+  await pause.click(); await page.evaluate(() => advanceTime(1990)); await pause.click();
   assert.ok((await snapshot()).commands.effects.divineAegisMs > 0);
+  assert.equal(await page.evaluate(() => {
+    const t = window.balanceTest; return t.dealDamage(t.state.party[2], 100, t.state.enemies[0]);
+  }), 0);
   await pause.click(); await page.evaluate(() => advanceTime(10)); await pause.click();
   assert.equal((await snapshot()).commands.effects.divineAegisMs, 0);
+  assert.equal((await snapshot()).commands.effects.divineAegisTargetId, null);
   assert.equal(await page.locator('[data-side="hero"].is-shielded').count(), 0);
+  assert.equal(await page.evaluate(() => {
+    const t = window.balanceTest; Math.random = () => .99;
+    return t.dealDamage(t.state.party[2], 100, t.state.enemies[0]);
+  }), 25);
 
   await stage(); await setMeter(100); await aegis.click(); await page.locator('[data-unit-type="knight"]').click();
   const intercept = await page.evaluate(() => {
@@ -103,6 +131,40 @@ try {
   await aegis.click();
   await page.evaluate(() => { const t = window.balanceTest, target = t.state.party[2]; target.hp = 0; t.shieldHero(target); });
   assert.equal((await snapshot()).commands.meter, 100);
+
+  // Mark Prey lasts ten combat seconds; pausing/reload preserve it and target death ends it.
+  await stage(); await setMeter(100);
+  const rangerInterval = (await snapshot()).party.find(hero => hero.class === 'ranger').attackIntervalMs;
+  const mark = page.locator('[data-command="mark"]');
+  await mark.click(); await page.keyboard.press('Escape');
+  assert.equal((await snapshot()).commands.meter, 100);
+  await mark.click(); await page.locator('[data-side="enemy"].is-targetable').first().click();
+  s = await snapshot();
+  assert.equal(s.commands.meter, 60); assert.equal(s.commands.effects.markMs, 10000);
+  assert.equal(s.commands.effects.markSpeedBonus, .2);
+  assert.ok(s.party.find(hero => hero.class === 'ranger').attackIntervalMs < rangerInterval);
+  assert.match(await page.locator('#command-description').textContent(), /ten seconds/);
+  await page.screenshot({ path: 'output/battle-balance/mark-ten-seconds.png' });
+  const markedSave = await page.evaluate(() => { window.balanceTest.persist(); return localStorage.getItem('vaultbound:campaign:v1'); });
+  const markedHtml = (await readFile('dungeon.html', 'utf8')).replace('<head>', `<head><base href="/"><script>localStorage.setItem('vaultbound:campaign:v1', ${JSON.stringify(markedSave)});</script>`);
+  await writeFile('output/battle-balance/mark-client.html', markedHtml);
+  await page.reload(); await page.waitForFunction(() => window.balanceTest);
+  await page.evaluate(() => advanceTime(1000));
+  assert.equal((await snapshot()).commands.effects.markMs, 10000);
+  await pause.click(); await page.evaluate(() => advanceTime(6000)); await pause.click();
+  assert.equal((await snapshot()).commands.effects.markMs, 4000);
+  await pause.click(); await page.evaluate(() => advanceTime(3990)); await pause.click();
+  assert.equal((await snapshot()).commands.effects.markMs, 10);
+  assert.ok((await snapshot()).party.find(hero => hero.class === 'ranger').attackIntervalMs < rangerInterval);
+  await pause.click(); await page.evaluate(() => advanceTime(10)); await pause.click();
+  s = await snapshot(); assert.equal(s.commands.effects.markMs, 0);
+  assert.equal(s.commands.effects.markedEnemyId, null); assert.equal(s.commands.effects.markSpeedBonus, 0);
+  assert.equal(s.party.find(hero => hero.class === 'ranger').attackIntervalMs, rangerInterval);
+  await setMeter(100); await mark.click(); await page.locator('[data-side="enemy"].is-targetable').first().click();
+  await page.evaluate(() => { const t = window.balanceTest; t.state.enemies.find(enemy => enemy.id === t.state.markedEnemyId).hp = 0; });
+  await pause.click(); await page.evaluate(() => advanceTime(1)); await pause.click();
+  s = await snapshot(); assert.equal(s.commands.effects.markMs, 0); assert.equal(s.commands.effects.markedEnemyId, null);
+  assert.equal(s.party.find(hero => hero.class === 'ranger').attackIntervalMs, rangerInterval);
 
   // Toggle controls only future pauses. It persists through floors/reload, resets each expedition.
   await stage(); assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
@@ -185,5 +247,5 @@ try {
   s = await snapshot(); assert.equal(s.commandAutoPauseEnabled, true); assert.equal(s.commands.effects.freezeCooldownMs, 0);
   assert.equal(s.commands.effects.divineAegisMs, 0); assert.equal(await page.locator('.is-shielded').count(), 0);
   assert.deepEqual(errors, []);
-  console.log('Battle balance: Freeze cost/cooldown, targeted six-second Aegis/interception/AoE, 10% potion recovery/once-only/results/events, auto-pause toggle/persistence/new expedition and four layouts passed.');
+  console.log('Battle balance: Freeze cost/cooldown, eight-second Aegis/interception/AoE, ten-second Mark/expiry/target death, potion recovery, auto-pause/persistence and four layouts passed.');
 } finally { await browser.close(); }

@@ -9,9 +9,9 @@ const COMMAND_COPY = {
   hold: "The friendly front row gains armor and damage for six seconds. More living Knights strengthen both bonuses.",
   pilfer: "Reserve one gold per living Thief (up to four), paid only if this floor is cleared. Once per floor.",
   rally: "The whole company attacks faster for six seconds. More living Bards increase the speed bonus.",
-  aegis: "Choose one hero to make invulnerable for six seconds.",
-  bloodlust: "Sacrifice 10% maximum health from every friendly frontliner, leaving at least 1 HP, then strike the whole enemy front row. More Barbarians increase damage.",
-  mark: "Choose an enemy. Heroes who can reach it focus their attacks and strike faster. More Rangers increase the speed bonus.",
+  aegis: "Choose one hero to make invulnerable for eight seconds.",
+  bloodlust: "Deal twice the combined attack damage of all living friendly frontliners to every enemy in the front row. If that row is empty, strike the back row. No health cost.",
+  mark: "Choose an enemy. Heroes who can reach it focus their attacks and strike faster for ten seconds, or until it dies. More Rangers increase the speed bonus.",
   freeze: "Stop enemy attacks, summoning, movement, and timers. More living Mages make the freeze last longer. Costs 100 Command, with a ten-second cooldown after the freeze ends.",
 };
 
@@ -21,7 +21,7 @@ function powerCopy(id, power) {
   if (id === "rally" || id === "mark") return `+${Math.round(power.speedBonus * 100)}% attack speed`;
   if (id === "hold") return `+${Math.round(power.armorBonus * 100)}% armor & damage`;
   if (id === "pilfer") return `+${power.gold} gold on victory`;
-  return `×${power.damageMultiplier.toFixed(2)} front-row sweep`;
+  return `×${power.damageMultiplier.toFixed(2)} combined frontline damage`;
 }
 
 export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTarget, onAction, onInspect, getUnitDetails }) {
@@ -41,10 +41,10 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
     </div>
     <section class="battle-command-station" aria-label="Battle commands">
       <div class="battle-command-heading"><div><span class="battle-eyebrow">THE MAYOR'S ORDERS</span><h2>Battle commands</h2></div><div class="battle-resource"><div><span>COMMAND</span><strong></strong></div><div class="battle-resource__track"><i></i></div></div><div class="battle-active-effects" aria-live="off"></div></div>
-      <div class="battle-command-deck">${COMMAND_IDS.map((id, index) => `<button class="battle-command" type="button" data-command="${id}" aria-describedby="command-description"><span class="battle-command__art"><img src="assets/commands/${id}.webp" alt=""/><span class="battle-command__key">${index + 1}</span><span class="battle-command__cost">${BATTLE_COMMANDS[id].cost}<small>CMD</small></span><span class="battle-command__count"></span><span class="battle-command__active"></span></span><strong>${BATTLE_COMMANDS[id].label}</strong><span class="battle-command__power"></span><span class="battle-command__reason"></span></button>`).join("")}</div>
+      <div class="battle-command-deck">${COMMAND_IDS.map((id, index) => `<button class="battle-command" type="button" data-command="${id}" aria-describedby="command-description"><span class="battle-command__art"><img src="assets/commands/${id}.webp" alt=""/><span class="battle-command__key">${index + 1}</span><span class="battle-command__cost">${BATTLE_COMMANDS[id].cost}<small>CMD</small></span><span class="battle-command__count"></span><span class="battle-command__active"></span></span><strong>${BATTLE_COMMANDS[id].label}</strong><span class="battle-command__power"></span><span class="battle-command__reason"></span></button>`).join("")}<button class="battle-command battle-potion" data-battle-action="potion" type="button" aria-describedby="command-description"><span class="battle-command__art"><img src="assets/items/healing-potion.webp" alt=""/><span class="battle-command__key">8</span><span class="battle-command__cost"><span class="battle-potion__count"></span><small>LEFT</small></span><span class="battle-command__active battle-potion__timer"></span></span><strong class="battle-potion__label"></strong><span class="battle-command__power battle-potion__detail"></span><span class="battle-command__reason battle-potion__reason"></span></button></div>
       <p class="battle-command-description" id="command-description">Damage dealt and received fills Command. Orders grow stronger with matching living heroes.</p>
     </section>
-    <footer class="battle-controls"><span class="battle-control-preferences"><button class="battle-auto-pause" data-battle-action="auto-pause" type="button" aria-pressed="true" title="Pause combat when Command reaches 100. Starts on every expedition.">Auto pause at 100: ON</button><span class="battle-target-help"></span></span><section class="battle-supplies" aria-label="Healing supplies"><span class="battle-eyebrow">ALCHEMIST’S SUPPLIES</span><button class="battle-potion" data-battle-action="potion" type="button"><img src="assets/items/healing-potion.webp" alt=""/><span><strong class="battle-potion__label"></strong><small class="battle-potion__detail"></small></span><span class="battle-potion__cooldown" aria-hidden="true"></span></button></section><div><button data-battle-action="flee" class="battle-flee" type="button"></button><button data-battle-action="pause" type="button"></button><button data-battle-action="speed" type="button"></button></div></footer>
+    <footer class="battle-controls"><span class="battle-control-preferences"><button class="battle-auto-pause" data-battle-action="auto-pause" type="button" aria-pressed="true" title="Pause combat when Command reaches 100. Starts on every expedition.">Auto pause at 100: ON</button><span class="battle-target-help"></span></span><div><button data-battle-action="flee" class="battle-flee" type="button"></button><button data-battle-action="pause" type="button"></button><button data-battle-action="speed" type="button"></button></div></footer>
   </div>
   <dialog id="battle-flee-confirmation" class="battle-flee-dialog" aria-labelledby="flee-dialog-title" aria-describedby="flee-dialog-description">
     <span class="battle-eyebrow">LEAVE THE EXPEDITION</span>
@@ -85,6 +85,10 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
   function explainCommand(id) {
     if (!current) return;
     selectedCommand = id;
+    if (id === "potion") {
+      description.textContent = `Potion · ${current.potions} remaining · restores ${current.potionHealPercent}% maximum health to one wounded hero. No Command cost. Two-second cooldown follows battle speed and pauses with combat.`;
+      return;
+    }
     const command = current.commands[id];
     description.textContent = `${BATTLE_COMMANDS[id].label} · ${powerCopy(id, command.power)}. ${COMMAND_COPY[id]}${command.reason ? ` (${command.reason})` : ""}`;
   }
@@ -104,15 +108,18 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       return;
     }
     const action = event.target.closest("[data-battle-action]");
-    if (action && !action.disabled) onAction(action.dataset.battleAction);
+    if (action && !action.disabled) {
+      if (action.dataset.battleAction === "potion") explainCommand("potion");
+      onAction(action.dataset.battleAction);
+    }
   });
   root.addEventListener("pointerover", (event) => {
-    const button = event.target.closest("[data-command]");
-    if (button) explainCommand(button.dataset.command);
+    const button = event.target.closest("[data-command], .battle-potion");
+    if (button) explainCommand(button.dataset.command ?? "potion");
   });
   root.addEventListener("focusin", (event) => {
-    const button = event.target.closest("[data-command]");
-    if (button) explainCommand(button.dataset.command);
+    const button = event.target.closest("[data-command], .battle-potion");
+    if (button) explainCommand(button.dataset.command ?? "potion");
   });
 
   function updateCard(unit, state) {
@@ -247,7 +254,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       root.querySelector(".battle-side--enemies h2 span").textContent = state.enemies.filter((unit) => unit.hp > 0).length;
       const result = state.view !== "battle";
       root.querySelector(".battle-report > h2").textContent = result ? state.resultTitle : state.targeting ? "Choose your target" : state.commandAutoPaused ? "Command full — battle paused" : state.paused ? "Battle paused" : "Into the depths";
-      root.querySelector(".battle-report__copy").textContent = result ? state.resultCopy : state.targeting === "mark" ? "Select a highlighted enemy to mark." : state.targeting === "aegis" ? "Select a hero to shield for six seconds." : state.targeting === "potion" ? "Select a wounded hero to heal." : state.commandAutoPaused ? "Choose an order, then Resume or press P to continue." : state.paused ? "Take a breath. Your orders still work." : state.log[0] ?? "The company fights on.";
+      root.querySelector(".battle-report__copy").textContent = result ? state.resultCopy : state.targeting === "mark" ? "Select a highlighted enemy to mark." : state.targeting === "aegis" ? "Select a hero to shield for eight seconds." : state.targeting === "potion" ? "Select a wounded hero to heal." : state.commandAutoPaused ? "Choose an order, then Resume or press P to continue." : state.paused ? "Take a breath. Your orders still work." : state.log[0] ?? "The company fights on.";
       const logSignature = JSON.stringify(state.log);
       const log = root.querySelector(".battle-log");
       if (log.dataset.signature !== logSignature) {
@@ -289,13 +296,19 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       const potion = actionButtons.get("potion");
       const cooldown = state.potionCooldownMs ?? 0;
       const cooldownText = `${(Math.ceil(cooldown / 100) / 10).toFixed(1)}s`;
-      potion.querySelector(".battle-potion__label").textContent = state.targeting === "potion" ? "Cancel potion" : `Potion ×${state.potions}`;
-      potion.querySelector(".battle-potion__detail").textContent = cooldown > 0 ? `Ready in ${cooldownText}` : `${state.potionHealPercent}% max HP · 2s cooldown`;
-      potion.style.setProperty("--potion-cooldown", `${Math.min(100, cooldown / 2000 * 100)}%`);
+      const potionReason = state.potions <= 0 ? "No potions" : cooldown > 0 ? "Cooldown" : state.targeting === "potion" ? "Cancel" : !state.party.some(unit => unit.hp > 0 && unit.hp < unit.maxHp) ? "No wounded heroes" : "Ready";
+      potion.querySelector(".battle-potion__label").textContent = state.targeting === "potion" ? "Cancel potion" : "Potion";
+      potion.querySelector(".battle-potion__count").textContent = state.potions;
+      potion.querySelector(".battle-potion__detail").textContent = `${state.potionHealPercent}% max HP · 2s cooldown`;
+      potion.querySelector(".battle-potion__reason").textContent = potionReason;
+      potion.querySelector(".battle-potion__timer").textContent = cooldown > 0 && state.potions > 0 ? cooldownText : "";
       potion.classList.toggle("is-targeting", state.targeting === "potion");
+      potion.classList.toggle("is-empty", state.potions <= 0);
       potion.disabled = result || cooldown > 0 || (state.targeting !== "potion" && (state.potions <= 0 || !state.party.some((unit) => unit.hp > 0 && unit.hp < unit.maxHp)));
+      potion.setAttribute("aria-disabled", String(potion.disabled));
+      potion.classList.toggle("is-ready", !potion.disabled);
       potion.setAttribute("aria-pressed", String(state.targeting === "potion"));
-      potion.setAttribute("aria-label", `Potion, ${state.potions} remaining, heals ${state.potionHealPercent}% maximum health. ${cooldown > 0 ? `Ready in ${cooldownText}.` : state.targeting === "potion" ? "Cancel choosing a hero." : "Choose a wounded hero."}`);
+      potion.setAttribute("aria-label", `Potion, ${state.potions} remaining, heals ${state.potionHealPercent}% maximum health. ${state.potions <= 0 ? "No potions left." : cooldown > 0 ? `Ready in ${cooldownText} of combat time.` : state.targeting === "potion" ? "Cancel choosing a hero." : "Choose a wounded hero."}`);
       const flee = actionButtons.get("flee");
       const fleeSignature = `${state.fleeCost}:${state.levelChance}`;
       if (flee.dataset.priceSignature !== fleeSignature) {
@@ -312,7 +325,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       autoPause.setAttribute("aria-pressed", String(state.commandAutoPauseEnabled));
       autoPause.textContent = `Auto pause at 100: ${state.commandAutoPauseEnabled ? "ON" : "OFF"}`;
       autoPause.disabled = result;
-      actionButtons.get("potion").title = `Heal one wounded hero. Two seconds between uses, including while paused. No Command cost. Each cleared floor has a ${state.potionRecoveryPercent}% chance to restore one potion.`;
+      actionButtons.get("potion").title = `Heal one wounded hero. Two seconds of combat time between uses; pauses with combat and follows battle speed. No Command cost. Each cleared floor has a ${state.potionRecoveryPercent}% chance to restore one potion.`;
       actionButtons.get("pause").textContent = state.paused ? "Resume" : "Pause";
       actionButtons.get("speed").textContent = `Speed ×${state.speed}`;
       for (const [id, button] of actionButtons) if (id !== "potion") button.disabled = result;
