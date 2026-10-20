@@ -103,7 +103,7 @@ const COLORS = {
 const images = {
   background: loadImage("assets/vault-bg.jpg"),
   coin: loadImage("assets/coin-token.png"),
-  thief: loadImage("assets/thief-token.png"),
+  thief: loadImage("assets/thief-token-geometric.png"),
 };
 
 function loadImage(source) {

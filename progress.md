@@ -520,3 +520,15 @@ Original prompt: i want to create a game like tango from linkedin. Can you creat
 - Extended the existing enemy-art browser check across 1440/1920 desktop, 1280 laptop, 1024 tablet, 390/320 phones and 844×390 landscape. Checks square card/portrait bounds on desktop, preserved mobile/compact sizing, contained labels/health and no horizontal overflow. Tests all faction rosters, boss artwork, target selection, freeze, summons, Assassin movement and failed-image fallback. Controlled frames and fresh scroll positions make captures comparable across factions.
 - All seven viewport runs and portrait-asset checks pass with no application errors. Inspected desktop, laptop, tablet and small-phone captures: full faces/shoulders are visible on desktop and the original phone layout is preserved. No remaining implementation TODOs; changes remain local and unpushed.
 - Ran the bundled web-game client: headless capture timed out locally, so retried headed as the skill recommends. Inspected the successful screenshot and text state (four heroes/four enemies, desktop battle), confirming square portraits. The headed browser logged a resource 404; the local server has no favicon.ico, while the dedicated image/interaction suite reports no missing game assets or page errors.
+
+## 2026-10-20 — Original Fantango thief icon
+
+- User requested a better thief icon for the original coin/thief puzzle, inspired by the attached blue moonlit hooded thief illustration.
+- Generated a transparent head-and-shoulders human thief with navy hood, cloth mask, visible human eyes, leather strap and blue rim lighting. Saved as assets/thief-token-v2.png and updated only the original puzzle's thief image reference in src/game.js. Retained the old artwork. Generation prompt and provenance: assets/art-notes/thief-token-v2.md.
+- Ran the required bundled web-game client before/after; inspected its gameplay screenshot/text state and a 390px phone screenshot. Focused browser validation confirms transparent alpha, coin-to-thief marking, undo, difficulty switching and no browser/page errors on desktop and phone. git diff --check passes. No gameplay logic changes or remaining TODOs; changes are local, unpushed.
+
+## 2026-10-20 — Geometric thief playing piece
+
+- User wanted to retain the illustrated thief for general use but simplify the puzzle token toward a pyramid or hexagon with a thief face/mask.
+- Generated a point-up hexagonal emblem with triangular hood/mask, visible human eyes and angular sapphire/navy facets using the built-in image tool. Saved assets/thief-token-geometric.png, with exact prompt in assets/art-notes/thief-token-geometric.md. Updated the original puzzle's image reference; retained both previous thief images.
+- Ran the bundled web-game client and inspected desktop gameplay screenshot/text state plus a 390px phone screenshot. Phone marking/undo and asset loading checks pass without browser errors. git diff --check passes. No remaining TODOs; local and unpushed.
