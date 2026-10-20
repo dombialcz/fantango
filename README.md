@@ -10,6 +10,8 @@ A dark-fantasy daily logic game about a thief, a treasury, and a perfectly balan
 
 **Play Mastermind:** [dombialcz.github.io/fantango/mastermind.html](https://dombialcz.github.io/fantango/mastermind.html)
 
+Mastermind has its own cartoon hero portraits and consistent class colors in clues, the picker and guess history: gold Knight, blue Thief, pink Bard, ivory/teal Cleric, red Barbarian, green Ranger and purple Mage. Distinct headgear, faces and class names complement the colors. The responsive layout uses large portraits and readable controls, showing submitted guesses and the current row as the game progresses. Phones place the hero picker above the board. All ten attempts remain available. These assets live in `assets/mastermind/` and do not replace Vaultbound's campaign artwork. See [the portrait prompts](assets/mastermind/ART_PROMPTS.json). Run `node scripts/check-mastermind-art.mjs` against a local server to verify images, colors, guessing and responsive layouts.
+
 Play by filling the 6×6 vault with coins and thieves:
 
 - every row and column contains three of each;

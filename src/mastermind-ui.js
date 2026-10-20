@@ -12,7 +12,7 @@ const COPY = {
     backVaultbound: "Back to Vaultbound",
     languageLabel: "Language",
     difficultyLabel: "Daily challenge difficulty",
-    guessRowsLabel: "Ten guess rows",
+    guessRowsLabel: "Guess history and current formation",
     heroClassesLabel: "Hero classes",
     feedbackLegendLabel: "Feedback legend",
     easy: "Easy",
@@ -67,7 +67,7 @@ const COPY = {
     backVaultbound: "Wróć do Vaultbound",
     languageLabel: "Język",
     difficultyLabel: "Poziom dzisiejszego wyzwania",
-    guessRowsLabel: "Dziesięć prób",
+    guessRowsLabel: "Historia prób i bieżąca drużyna",
     heroClassesLabel: "Klasy bohaterów",
     feedbackLegendLabel: "Legenda wyników",
     easy: "Łatwy",
@@ -312,12 +312,19 @@ function applyCopy() {
   }).format(new Date(`${dateKey}T00:00:00`));
 }
 
+function applyHeroAppearance(element, hero) {
+  element.dataset.hero = hero.id;
+  element.style.setProperty("--hero-color", hero.color);
+  element.style.setProperty("--hero-tint", `${hero.color}24`);
+}
+
 function makeCluePart(clue) {
   const strings = copy();
   const hero = HERO_BY_ID[clue.type];
   const count = clue.kind === "pair" ? 2 : clue.kind === "trio" ? 3 : 1;
   const chip = document.createElement("article");
   chip.className = `clue-card clue-${clue.kind}`;
+  applyHeroAppearance(chip, hero);
   const image = document.createElement("img");
   image.src = hero.image;
   image.alt = "";
@@ -372,6 +379,7 @@ function makeLineup(challenge, guess, currentRow = false, rowIndex = 0, current 
     for (const type of guess) {
       const tile = document.createElement("span");
       tile.className = "guess-tile";
+      applyHeroAppearance(tile, HERO_BY_ID[type]);
       const image = document.createElement("img");
       image.src = HERO_BY_ID[type].image;
       image.alt = localizedHero(type);
@@ -396,6 +404,7 @@ function makeLineup(challenge, guess, currentRow = false, rowIndex = 0, current 
       tile.setAttribute("aria-hidden", "true");
     }
     if (type) {
+      applyHeroAppearance(tile, HERO_BY_ID[type]);
       const image = document.createElement("img");
       image.src = HERO_BY_ID[type].image;
       image.alt = "";
@@ -419,7 +428,8 @@ function makeLineup(challenge, guess, currentRow = false, rowIndex = 0, current 
 
 function renderBoard(challenge, current) {
   const locked = isFinished();
-  const rows = Array.from({ length: 10 }, (_, index) => {
+  const visibleRows = current.guesses.length + (locked ? 0 : 1);
+  const rows = Array.from({ length: visibleRows }, (_, index) => {
     const row = document.createElement("li");
     row.className = "guess-row";
     row.setAttribute("aria-label", copy().rowLabel(index + 1));
@@ -444,14 +454,6 @@ function renderBoard(challenge, current) {
       pending.textContent = "—";
       pending.setAttribute("aria-hidden", "true");
       row.append(pending);
-    } else {
-      row.classList.add("row-future");
-      row.append(makeLineup(challenge));
-      const pending = document.createElement("span");
-      pending.className = "row-pending";
-      pending.textContent = "· ·";
-      pending.setAttribute("aria-hidden", "true");
-      row.append(pending);
     }
     return row;
   });
@@ -464,6 +466,7 @@ function renderPicker() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "hero-choice";
+    applyHeroAppearance(button, hero);
     button.disabled = locked;
     button.setAttribute("aria-label", copy().heroChoice(localizedHero(hero.id), index + 1));
     const image = document.createElement("img");

@@ -2,13 +2,13 @@ import { createRng, shuffle } from "./random.js";
 import { PARTY_NAMES } from "./mastermind-names.js";
 
 export const HERO_CLASSES = Object.freeze([
-  { id: "knight", label: "Knight", image: "assets/heroes/knight.png" },
-  { id: "thief", label: "Thief", image: "assets/heroes/thief.png" },
-  { id: "bard", label: "Bard", image: "assets/heroes/bard.png" },
-  { id: "cleric", label: "Cleric", image: "assets/heroes/cleric.png" },
-  { id: "barbarian", label: "Barbarian", image: "assets/heroes/barbarian.png" },
-  { id: "ranger", label: "Ranger", image: "assets/heroes/ranger.png" },
-  { id: "mage", label: "Mage", image: "assets/heroes/mage.png" },
+  { id: "knight", label: "Knight", image: "assets/mastermind/knight.webp", color: "#f0bd53" },
+  { id: "thief", label: "Thief", image: "assets/mastermind/thief.webp", color: "#69a7ff" },
+  { id: "bard", label: "Bard", image: "assets/mastermind/bard.webp", color: "#ec83bd" },
+  { id: "cleric", label: "Cleric", image: "assets/mastermind/cleric.webp", color: "#8ce4df" },
+  { id: "barbarian", label: "Barbarian", image: "assets/mastermind/barbarian.webp", color: "#ed765d" },
+  { id: "ranger", label: "Ranger", image: "assets/mastermind/ranger.webp", color: "#89cf70" },
+  { id: "mage", label: "Mage", image: "assets/mastermind/mage.webp", color: "#bd94f5" },
 ]);
 
 export const CHALLENGES = Object.freeze([
