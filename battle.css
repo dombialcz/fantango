@@ -117,11 +117,17 @@ body.battle-open > .back-link, body.battle-open > .sidegame-link { display: none
 .battle-screen.is-result .battle-command-station, .battle-screen.is-result .battle-controls { display: none; }
 .battle-screen.is-result .battle-report { padding: 24px 12px; background: #0b1722e8; border: 1px solid #c8ae7d50; border-radius: 9px; }
 
+/* Keep desktop portraits square instead of cropping them into wide strips. */
+@media (min-width: 761px) and (min-height: 501px) {
+ .battle-rank__units { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+ .battle-unit { aspect-ratio: 1; min-height: 0; }
+}
+
 @media (min-width: 1600px) { .battle-arena { grid-template-columns: minmax(0, 1fr) 240px minmax(0, 1fr); gap: 40px; } }
 @media (min-width: 761px) and (max-width: 1150px) {
  .battle-shell { padding: 0 18px; }
  .battle-arena { grid-template-columns: minmax(0, 1fr) 160px minmax(0, 1fr); gap: 15px; }
- .battle-unit { flex-direction: column; justify-content: flex-end; gap: 4px; padding: 7px; min-height: 126px; }
+ .battle-unit { flex-direction: column; justify-content: flex-end; gap: 4px; padding: 7px; }
  .battle-unit__portrait { width: auto; height: auto; }
  .battle-unit__info { width: 100%; flex: 0 0 auto; }
  .battle-unit__info strong { font-size: 11px; }

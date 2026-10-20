@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { chromium } from "playwright";
 import { ENEMY_PORTRAITS } from "../src/enemy-art.js";
 
@@ -8,13 +8,14 @@ const browser = await chromium.launch({ headless: true });
 await mkdir("output/enemy-art-check", { recursive: true });
 const errors = [];
 try {
-  for (const [name, width, height] of [["desktop", 1440, 1000], ["phone", 390, 844], ["small-phone", 320, 740], ["landscape", 844, 390]]) {
+  for (const [name, width, height] of [["desktop", 1440, 1000], ["wide", 1920, 1080], ["laptop", 1280, 720], ["tablet", 1024, 768], ["phone", 390, 844], ["small-phone", 320, 740], ["landscape", 844, 390]]) {
     const context = await browser.newContext({ viewport: { width, height } });
-    await context.addInitScript(() => { Math.random = () => .05; });
+    await context.addInitScript(() => { window.requestAnimationFrame = () => 0; Math.random = () => .05; });
     await context.route('**/src/dungeon.js', async (route) => {
       const response = await route.fetch();
       await route.fulfill({ response, body: `${await response.text()}
         window.enemyArtTest = {
+          persist,
           stage(flavor, floor = 3) {
             state.flavorKey = flavor; state.floor = floor;
             if (floor === 10) { state.flavorKey = 'demons'; state.bossType = 'vaultTyrant'; }
@@ -22,6 +23,7 @@ try {
             prepareFloor();
             if (floor !== 10) state.enemies = Object.values(FLAVOR_ROSTERS[flavor]).map(type => makeEnemy(type, floor));
             state.battlePaused = true; state.commandMeter = 100; render();
+            document.querySelector('.battle-arena').scrollTop = 0;
           },
           act(type) { actEnemy(state.enemies.find(unit => unit.type === type)); render(); },
           returnFromStrike() { state.battleTime += 1200; state.battlePaused = false; updateBattle(1); state.battlePaused = true; render(); },
@@ -31,7 +33,7 @@ try {
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-    await page.goto(`${baseURL}/dungeon.html`);
+    await page.goto(`${baseURL}/dungeon.html`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => window.enemyArtTest);
     const state = async () => JSON.parse(await page.evaluate(() => window.render_game_to_text()));
     for (const faction of ['undead', 'demons', 'assassins', 'orcs', 'boss']) {
@@ -49,12 +51,32 @@ try {
         assert.match(card.hp, /\d+ \/ \d+ HP/);
       }
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      const cards = await page.locator('.battle-unit').evaluateAll(cards => cards.map(card => {
+        const bounds = card.getBoundingClientRect();
+        const portrait = card.querySelector('.battle-unit__portrait').getBoundingClientRect();
+        const info = card.querySelector('.battle-unit__info').getBoundingClientRect();
+        return { width: bounds.width, height: bounds.height, portraitWidth: portrait.width, portraitHeight: portrait.height,
+          contentFits: info.left >= bounds.left && info.right <= bounds.right + 1 && info.top >= bounds.top && info.bottom <= bounds.bottom,
+          aspect: getComputedStyle(card).aspectRatio };
+      }));
+      for (const card of cards) {
+        assert.ok(card.contentFits, `${name}: labels/health must remain inside the portrait card`);
+        if (width > 760 && height > 500) {
+          assert.ok(Math.abs(card.width - card.height) < 1, `${name}: expected square card, got ${card.width}×${card.height}`);
+          assert.ok(Math.abs(card.portraitWidth - card.portraitHeight) < 1, `${name}: portrait should show the full square artwork`);
+        } else assert.equal(card.aspect, 'auto', `${name}: preserve compact/mobile card sizing`);
+      }
       const buttons = await page.locator('[data-command]').evaluateAll(buttons => buttons.map(button => button.getBoundingClientRect().toJSON()));
       assert.ok(buttons.every(button => button.top >= 0 && button.bottom <= height));
       const before = await state();
       await page.evaluate(() => window.advanceTime(1000));
       assert.deepEqual((await state()).enemies, before.enemies);
       await page.screenshot({ path: `output/enemy-art-check/${faction}-${name}.png` });
+      if (name === 'desktop' && faction === 'orcs') {
+        const saved = await page.evaluate(() => { window.enemyArtTest.persist(); return localStorage.getItem('vaultbound:campaign:v1'); });
+        const html = (await readFile('dungeon.html', 'utf8')).replace('<head>', `<head><base href="/"><script>localStorage.setItem('vaultbound:campaign:v1', ${JSON.stringify(saved)});</script>`);
+        await writeFile('output/enemy-art-check/client.html', html);
+      }
       await page.locator('[data-command="mark"]').click();
       const target = page.locator('[data-side="enemy"]').last();
       const originalSource = await target.locator('img').getAttribute('src');
