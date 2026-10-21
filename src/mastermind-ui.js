@@ -144,8 +144,26 @@ let portraitDrag;
 let pickerFrame = 0;
 
 function updateFloatingPicker() {
-  pickerPanel.classList.toggle("picker-floating", window.matchMedia("(max-width: 1100px)").matches
-    && pickerAnchor.getBoundingClientRect().top <= 8);
+  const floating = window.matchMedia("(max-width: 1100px)").matches
+    && pickerAnchor.getBoundingClientRect().top <= 8;
+  if (floating) {
+    if (!pickerPanel.classList.contains("picker-floating")) {
+      // Keep the expanded selector's place in the document. Shrinking the page
+      // here clamps mobile scrollY and can repeatedly unpin/re-pin the picker.
+      pickerAnchor.style.height = `${pickerPanel.getBoundingClientRect().height}px`;
+      pickerAnchor.classList.add("picker-placeholder");
+      pickerPanel.classList.add("picker-floating");
+    }
+    const bounds = pickerAnchor.parentElement.getBoundingClientRect();
+    pickerPanel.style.left = `${bounds.left}px`;
+    pickerPanel.style.width = `${bounds.width}px`;
+  } else {
+    pickerPanel.classList.remove("picker-floating");
+    pickerAnchor.classList.remove("picker-placeholder");
+    pickerAnchor.style.removeProperty("height");
+    pickerPanel.style.removeProperty("left");
+    pickerPanel.style.removeProperty("width");
+  }
 }
 
 function revealCurrentRow() {

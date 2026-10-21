@@ -345,7 +345,8 @@ noscript { position: fixed; z-index: 20; inset: auto 1rem 1rem; padding: 1rem; b
 }
 
 @media (max-width: 1100px) {
-  .picker-panel.picker-floating { padding: 7px; box-shadow: 0 8px 28px #0009; background: #14212bf5; }
+  .picker-panel.picker-floating { position: fixed; padding: 7px; box-shadow: 0 8px 28px #0009; background: #14212bf5; }
+  .picker-anchor.picker-placeholder { position: relative; order: -1; width: 100%; }
   .guess-row { scroll-margin-top: 100px; }
   .picker-floating .picker-panel-heading, .picker-floating .drag-hint, .picker-floating .game-message { display: none; }
   .picker-floating .game-message.success { display: block; }
