@@ -138,54 +138,18 @@ const heroPicker = document.querySelector("#hero-picker");
 const clearButton = document.querySelector("#clear-button");
 const submitButton = document.querySelector("#submit-button");
 const gameMessage = document.querySelector("#game-message");
-const pickerPanel = document.querySelector(".picker-panel");
-const pickerAnchor = document.querySelector(".picker-anchor");
 let portraitDrag;
-let pickerFrame = 0;
-
-function updateFloatingPicker() {
-  const floating = window.matchMedia("(max-width: 1100px)").matches
-    && pickerAnchor.getBoundingClientRect().top <= 8;
-  if (floating) {
-    if (!pickerPanel.classList.contains("picker-floating")) {
-      // Keep the expanded selector's place in the document. Shrinking the page
-      // here clamps mobile scrollY and can repeatedly unpin/re-pin the picker.
-      pickerAnchor.style.height = `${pickerPanel.getBoundingClientRect().height}px`;
-      pickerAnchor.classList.add("picker-placeholder");
-      pickerPanel.classList.add("picker-floating");
-    }
-    const bounds = pickerAnchor.parentElement.getBoundingClientRect();
-    pickerPanel.style.left = `${bounds.left}px`;
-    pickerPanel.style.width = `${bounds.width}px`;
-  } else {
-    pickerPanel.classList.remove("picker-floating");
-    pickerAnchor.classList.remove("picker-placeholder");
-    pickerAnchor.style.removeProperty("height");
-    pickerPanel.style.removeProperty("left");
-    pickerPanel.style.removeProperty("width");
-  }
-}
 
 function revealCurrentRow() {
   requestAnimationFrame(() => {
-    updateFloatingPicker();
-    requestAnimationFrame(() => {
-      const row = guessBoard.querySelector(".row-active") ?? guessBoard.lastElementChild;
-      if (!row) return;
-      const inset = pickerPanel.classList.contains("picker-floating") ? pickerPanel.getBoundingClientRect().height + 24 : 16;
-      window.scrollTo({
-        top: Math.max(0, row.getBoundingClientRect().top + window.scrollY - inset),
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
-      });
+    const row = guessBoard.querySelector(".row-active") ?? guessBoard.lastElementChild;
+    if (!row) return;
+    window.scrollTo({
+      top: Math.max(0, row.getBoundingClientRect().top + window.scrollY - 16),
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
     });
   });
 }
-
-window.addEventListener("scroll", () => {
-  if (pickerFrame) return;
-  pickerFrame = requestAnimationFrame(() => { pickerFrame = 0; updateFloatingPicker(); });
-}, { passive: true });
-window.addEventListener("resize", updateFloatingPicker);
 
 function copy() {
   return COPY[state.locale];
@@ -580,7 +544,6 @@ function render() {
   renderBoard(challenge, current);
   renderPicker();
   renderMessage(challenge, current);
-  updateFloatingPicker();
   clearButton.disabled = locked || current.draft.every((type) => type === null);
   submitButton.disabled = locked || !completeDraft;
   submitButton.querySelector("[data-i18n]").textContent = locked ? strings.challengeComplete : strings.submitGuess;

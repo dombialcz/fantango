@@ -33,12 +33,13 @@ try {
         await page.waitForTimeout(200);
         const current = await page.evaluate(() => ({ y: scrollY, height: document.documentElement.scrollHeight }));
         assert.ok(current.y >= previous - 2, `A downward swipe must not jump upward (${width}px, ${guesses} guesses: ${previous} → ${current.y})`);
-        assert.ok(Math.abs(current.height - originalHeight) <= 2, "Pinning preserves page height");
+        assert.ok(Math.abs(current.height - originalHeight) <= 2, "Scrolling preserves page height");
         previous = current.y;
       }
       assert.ok(previous > 0, "Touch swipes actually scroll the page");
+      assert.equal(await page.locator(".picker-floating").count(), 0);
+      assert.equal(await page.locator(".picker-panel").evaluate(el => getComputedStyle(el).position), "static");
       if (guesses >= 2) {
-        assert.equal(await page.locator(".picker-floating").count(), 1);
         await page.screenshot({ path: `output/mastermind-mobile-scroll/${width}-${guesses}.png` });
       }
       await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
@@ -46,7 +47,7 @@ try {
       assert.equal(await page.evaluate(() => scrollY), 0);
       assert.deepEqual(errors, []);
       await context.close();
-      console.log(`${width}px / ${guesses} guesses: native swipes preserve scroll direction and page height; unpinning works`);
+      console.log(`${width}px / ${guesses} guesses: native swipes preserve scroll direction and page height; selector stays static`);
     }
   }
 } finally { await browser.close(); }

@@ -201,7 +201,7 @@ button.guess-tile[aria-current="true"] { border-color: var(--gold-light); box-sh
 .board-legend { display: flex; flex-wrap: wrap; gap: 9px 18px; padding: 9px 4px 0; color: #94a2a1; font-size: 0.78rem; }
 .board-legend > span { display: inline-flex; align-items: center; gap: 6px; }
 
-.picker-panel { position: sticky; top: 8px; z-index: 20; max-height: calc(100dvh - 16px); overflow-y: auto; padding: 14px 13px 12px; }
+.picker-panel { position: static; padding: 14px 13px 12px; }
 .picker-panel-heading { margin: 1px 2px 12px; }
 .hero-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .hero-choice { display: grid; grid-template-columns: 64px minmax(0, 1fr); min-width: 0; min-height: 44px; align-items: center; gap: 8px; padding: 3px 8px 3px 4px; border: 1px solid rgba(174, 189, 181, 0.13); border-radius: 8px; color: #c8d2cd; background: linear-gradient(115deg, rgba(13, 23, 29, 0.92), rgba(23, 35, 39, 0.83)); cursor: pointer; text-align: left; transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, color 150ms ease; }
@@ -252,7 +252,6 @@ button.guess-tile[aria-current="true"] { border-color: var(--gold-light); box-sh
 .clue-card[data-hero] img { border-color: var(--hero-color); background: var(--hero-tint); }
 noscript { position: fixed; z-index: 20; inset: auto 1rem 1rem; padding: 1rem; border: 1px solid var(--line-bright); border-radius: 9px; background: #101925; }
 
-.picker-anchor { position: absolute; top: 0; left: 0; width: 1px; height: 1px; pointer-events: none; }
 .board-footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; }
 .board-footer .submit-button { min-width: 180px; min-height: 48px; }
 .drag-hint { margin: 10px 0; color: var(--muted); font-size: .85rem; line-height: 1.45; }
@@ -269,7 +268,7 @@ noscript { position: fixed; z-index: 20; inset: auto 1rem 1rem; padding: 1rem; b
 @media (max-width: 1100px) {
   body { padding-inline: 14px; }
   .play-layout { grid-template-columns: minmax(0, 1fr); }
-  .picker-panel { order: -1; position: sticky; }
+  .picker-panel { order: -1; }
   .hero-picker { grid-template-columns: repeat(7, minmax(0, 1fr)); }
   .picker-footnote, .daily-note { display: none; }
   .hero-choice { grid-template-columns: 1fr; justify-items: center; padding: 6px; text-align: center; }
@@ -313,7 +312,7 @@ noscript { position: fixed; z-index: 20; inset: auto 1rem 1rem; padding: 1rem; b
   .clue-text small { font-size: .7rem; white-space: normal; }
   .rule-note { font-size: .75rem; line-height: 1.35; margin-top: 8px; }
   .play-layout { grid-template-columns: minmax(0, 1fr); margin-top: 8px; gap: 8px; }
-  .picker-panel { order: -1; position: sticky; padding: 10px; }
+  .picker-panel { order: -1; padding: 10px; }
   .picker-panel-heading { margin-bottom: 8px; }
   .section-index { display: none; }
   .picker-panel-heading h2, .board-title-group h2 { font-size: 1.1rem; }
@@ -342,18 +341,6 @@ noscript { position: fixed; z-index: 20; inset: auto 1rem 1rem; padding: 1rem; b
   .tile-position { font-size: .85rem; }
   .board-legend { font-size: .75rem; gap: 6px 12px; }
   .page-footer { font-size: .75rem; flex-wrap: wrap; }
-}
-
-@media (max-width: 1100px) {
-  .picker-panel.picker-floating { position: fixed; padding: 7px; box-shadow: 0 8px 28px #0009; background: #14212bf5; }
-  .picker-anchor.picker-placeholder { position: relative; order: -1; width: 100%; }
-  .guess-row { scroll-margin-top: 100px; }
-  .picker-floating .picker-panel-heading, .picker-floating .drag-hint, .picker-floating .game-message { display: none; }
-  .picker-floating .game-message.success { display: block; }
-  .picker-floating .hero-picker { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
-  .picker-floating .hero-choice { padding: 2px; gap: 0; min-height: 0; }
-  .picker-floating .hero-choice img { width: 100%; height: auto; max-width: 48px; aspect-ratio: 1; }
-  .picker-floating .hero-choice > span { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
