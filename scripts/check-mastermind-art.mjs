@@ -79,19 +79,19 @@ try {
     if (["desktop", "small-phone"].includes(name)) {
       await page.locator('[data-challenge="medium"]').click();
       await page.evaluate(() => document.activeElement.blur());
-      while ((await state()).guesses.length < 10) {
+      while ((await state()).guesses.length < 12) {
         for (let i = 0; i < 6; i++) await page.keyboard.press("1");
         await page.keyboard.press("Enter");
       }
-      assert.equal((await state()).result, "failed");
-      assert.equal(await page.locator(".guess-row").count(), 10);
-      assert.equal(await page.locator(".row-active").count(), 0);
+      assert.equal((await state()).result, "playing");
+      assert.equal(await page.locator(".guess-row").count(), 13);
+      assert.equal(await page.locator(".row-active").count(), 1);
       await page.reload();
       await page.locator('[data-challenge="medium"]').click();
-      assert.equal((await state()).guesses.length, 10);
-      assert.equal(await page.locator(".hero-choice:disabled").count(), 7);
+      assert.equal((await state()).guesses.length, 12);
+      assert.equal(await page.locator(".hero-choice:disabled").count(), 0);
       await page.evaluate(() => document.getAnimations().forEach(animation => animation.finish()));
-      await page.screenshot({ path: `${output}/${name}-ten-attempts.png`, fullPage: true });
+      await page.screenshot({ path: `${output}/${name}-unlimited.png`, fullPage: true });
     }
     assert.deepEqual(errors, []);
     await context.close();

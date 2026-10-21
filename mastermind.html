@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="Break the daily Vaultbound hero code in ten guesses." />
+    <meta name="description" content="Break the daily Vaultbound hero code with unlimited guesses." />
     <meta name="theme-color" content="#101a23" />
     <title>Mastermind — Vaultbound</title>
     <link rel="icon" type="image/webp" href="assets/mastermind/thief.webp" />
@@ -91,7 +91,7 @@
               <div><h2 id="board-heading" data-i18n="guessBoard">Guess board</h2><p id="board-subtitle" data-i18n="boardSubtitle">Build the party one row at a time.</p></div>
             </div>
             <div class="board-actions">
-              <span class="guess-counter" id="guess-counter">0 / 10</span>
+              <span class="guess-counter" id="guess-counter">0 guesses</span>
               <button class="icon-button clear-button" id="clear-button" type="button" aria-label="Clear current row" title="Clear current row"><span aria-hidden="true">↺</span></button>
               <button class="submit-button" id="submit-button" type="button" disabled><span data-i18n="submitGuess">Check guess</span><span class="submit-arrow" aria-hidden="true">↗</span></button>
             </div>
@@ -110,6 +110,7 @@
             <div><h2 id="picker-heading" data-i18n="chooseHeroes">Choose heroes</h2><p data-i18n="pickerSubtitle">Select a class to fill the next open place.</p></div>
           </div>
           <div class="hero-picker" id="hero-picker" role="group" aria-label="Hero classes"></div>
+          <p class="drag-hint" id="drag-hint" data-i18n="dragHint">Hold a portrait, then drag to move or swap it. Drag from an earlier guess to copy. Unlimited guesses.</p>
           <div class="picker-footnote"><span class="keycap">1–7</span><span data-i18n="keyboardPick">quick pick</span><span class="footnote-separator">·</span><span class="keycap">↵</span><span data-i18n="keyboardSubmit">submit</span></div>
           <p class="game-message" id="game-message" role="status" aria-live="polite"></p>
           <div class="daily-note"><span class="daily-note-icon" aria-hidden="true">◷</span><span data-i18n="dailyNote">Three new formations arrive each day.</span></div>

@@ -1,5 +1,6 @@
 import { localDateKey } from "./generator.js";
 import { CHALLENGES, HERO_CLASSES, evaluateGuess, generateChallenge } from "./mastermind-core.js";
+import { installPortraitDrag } from "./mastermind-drag.js";
 import { PARTY_NAMES } from "./mastermind-names.js";
 
 const HERO_BY_ID = Object.fromEntries(HERO_CLASSES.map((hero) => [hero.id, hero]));
@@ -45,11 +46,12 @@ const COPY = {
     filledPlace: (place, hero) => `Place ${place}, ${hero}. Activate to clear it.`,
     heroChoice: (hero, key) => `Add ${hero}. Keyboard shortcut ${key}.`,
     feedbackCount: (exact, misplaced) => `${exact} in place, ${misplaced} elsewhere`,
-    attempts: (used) => `${used} / 10`,
+    attempts: (used) => `${used} ${used === 1 ? "guess" : "guesses"}`,
     dateLocale: "en-GB",
     unsolvedMessage: "Choose a hero to fill the highlighted row. Select a filled place to change it.",
     solvedMessage: (attempts, party) => `Solved in ${attempts} ${attempts === 1 ? "guess" : "guesses"}. The hidden party was ${party}.`,
-    failedMessage: (party) => `No guesses remain. The hidden party was ${party}.`,
+    dragHint: "Hold a portrait, then drag to move or swap it. Drag from an earlier guess to copy. Unlimited guesses.",
+    copyHero: (hero) => `Copy ${hero} to the next open place, or hold and drag to a place.`,
     heroNames: {
       knight: "Knight", thief: "Thief", bard: "Bard", cleric: "Cleric",
       barbarian: "Barbarian", ranger: "Ranger", mage: "Mage",
@@ -100,11 +102,12 @@ const COPY = {
     filledPlace: (place, hero) => `Miejsce ${place}, ${hero}. Naciśnij, aby usunąć.`,
     heroChoice: (hero, key) => `Dodaj: ${hero}. Skrót klawiszowy ${key}.`,
     feedbackCount: (exact, misplaced) => `${exact} na miejscu, ${misplaced} w innym miejscu`,
-    attempts: (used) => `${used} / 10`,
+    attempts: (used) => `Próby: ${used}`,
     dateLocale: "pl-PL",
     unsolvedMessage: "Wybierz klasę, aby wypełnić podświetlony wiersz. Naciśnij zajęte miejsce, aby je zmienić.",
     solvedMessage: (attempts, party) => `Rozszyfrowano w ${attempts} ${attempts === 1 ? "próbie" : "próbach"}. Ukryta drużyna: ${party}.`,
-    failedMessage: (party) => `Brak prób. Ukryta drużyna: ${party}.`,
+    dragHint: "Przytrzymaj portret i przeciągnij, aby przenieść lub zamienić bohaterów. Z wcześniejszej próby kopiujesz. Bez limitu prób.",
+    copyHero: (hero) => `Skopiuj: ${hero}, na kolejne wolne miejsce lub przytrzymaj i przeciągnij.`,
     heroNames: {
       knight: "Rycerz", thief: "Złodziej", bard: "Bard", cleric: "Kleryk",
       barbarian: "Barbarzyńca", ranger: "Łowca", mage: "Mag",
@@ -135,6 +138,7 @@ const heroPicker = document.querySelector("#hero-picker");
 const clearButton = document.querySelector("#clear-button");
 const submitButton = document.querySelector("#submit-button");
 const gameMessage = document.querySelector("#game-message");
+let portraitDrag;
 
 function copy() {
   return COPY[state.locale];
@@ -194,7 +198,7 @@ function restoreProgress(challenge) {
     const saved = JSON.parse(localStorage.getItem(storageKey(challenge)));
     if (!saved || !Array.isArray(saved.guesses)) return fallback;
     const guesses = [];
-    for (const guess of saved.guesses.slice(0, 10)) {
+    for (const guess of saved.guesses) {
       if (!Array.isArray(guess) || guess.length !== challenge.size || guess.some((type) => !HERO_BY_ID[type])) break;
       guesses.push([...guess]);
       if (evaluateGuess(levels[challenge.id].code, guess)?.exact === challenge.size) break;
@@ -202,7 +206,7 @@ function restoreProgress(challenge) {
     const draft = Array.isArray(saved.draft) && saved.draft.length === challenge.size
       ? saved.draft.map((type) => (type === null || HERO_BY_ID[type] ? type : null))
       : fallback.draft;
-    return { guesses, draft: guesses.length === 10 || isFinished(challenge.id, guesses) ? fallback.draft : draft };
+    return { guesses, draft: isFinished(challenge.id, guesses) ? fallback.draft : draft };
   } catch {
     return fallback;
   }
@@ -232,7 +236,7 @@ function currentResult(guess, challenge = currentChallenge()) {
 
 function isFinished(id = state.difficulty, guesses = progress[id].guesses) {
   const challenge = levels[id];
-  return guesses.length >= 10 || guesses.some((guess) => evaluateGuess(challenge.code, guess)?.exact === challenge.size);
+  return guesses.some((guess) => evaluateGuess(challenge.code, guess)?.exact === challenge.size);
 }
 
 function chooseChallenge(id) {
@@ -302,6 +306,7 @@ function applyCopy() {
   document.querySelector(".language-switch").setAttribute("aria-label", strings.languageLabel);
   document.querySelector(".difficulty-tabs").setAttribute("aria-label", strings.difficultyLabel);
   guessBoard.setAttribute("aria-label", strings.guessRowsLabel);
+  guessBoard.setAttribute("aria-describedby", "drag-hint");
   heroPicker.setAttribute("aria-label", strings.heroClassesLabel);
   document.querySelector(".board-legend").setAttribute("aria-label", strings.feedbackLegendLabel);
   document.querySelector("#rule-note").textContent = strings.ruleNote;
@@ -376,13 +381,20 @@ function makeLineup(challenge, guess, currentRow = false, rowIndex = 0, current 
   lineup.className = "row-lineup";
   lineup.style.setProperty("--party-size", challenge.size);
   if (!currentRow && guess) {
-    for (const type of guess) {
-      const tile = document.createElement("span");
+    for (const [index, type] of guess.entries()) {
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.disabled = isFinished();
+      tile.dataset.slot = String(index);
+      tile.dataset.historyRow = String(rowIndex);
+      tile.setAttribute("aria-label", copy().copyHero(localizedHero(type)));
+      tile.addEventListener("click", () => placeHero(type));
       tile.className = "guess-tile";
       applyHeroAppearance(tile, HERO_BY_ID[type]);
       const image = document.createElement("img");
       image.src = HERO_BY_ID[type].image;
-      image.alt = localizedHero(type);
+      image.draggable = false;
+      image.alt = "";
       tile.append(image);
       lineup.append(tile);
     }
@@ -394,6 +406,7 @@ function makeLineup(challenge, guess, currentRow = false, rowIndex = 0, current 
     tile.className = `guess-tile${type ? " tile-filled" : " tile-empty"}`;
     if (currentRow) {
       tile.type = "button";
+      tile.dataset.slot = String(index);
       tile.setAttribute("aria-current", String(index === state.selectedSlot));
       tile.setAttribute("aria-label", type
         ? copy().filledPlace(index + 1, localizedHero(type))
@@ -407,6 +420,7 @@ function makeLineup(challenge, guess, currentRow = false, rowIndex = 0, current 
       applyHeroAppearance(tile, HERO_BY_ID[type]);
       const image = document.createElement("img");
       image.src = HERO_BY_ID[type].image;
+      image.draggable = false;
       image.alt = "";
       tile.append(image);
       if (currentRow) {
@@ -444,7 +458,7 @@ function renderBoard(challenge, current) {
       const solved = result.exact === challenge.size;
       row.classList.add("row-submitted");
       if (solved) row.classList.add("row-solved");
-      row.append(makeLineup(challenge, guess));
+      row.append(makeLineup(challenge, guess, false, index));
       row.append(renderFeedback(result));
     } else if (index === current.guesses.length && !locked) {
       row.classList.add("row-active");
@@ -491,16 +505,12 @@ function renderMessage(challenge, current) {
   }
   const solvedAt = current.guesses.findIndex((guess) => currentResult(guess, challenge).exact === challenge.size);
   const party = localizedPartyName(challenge);
-  if (solvedAt >= 0) {
-    gameMessage.classList.add("success");
-    gameMessage.textContent = copy().solvedMessage(solvedAt + 1, party);
-  } else {
-    gameMessage.classList.add("failure");
-    gameMessage.textContent = copy().failedMessage(party);
-  }
+  gameMessage.classList.add("success");
+  gameMessage.textContent = copy().solvedMessage(solvedAt + 1, party);
 }
 
 function render() {
+  portraitDrag?.cancel();
   const strings = copy();
   const challenge = currentChallenge();
   const current = currentProgress();
@@ -516,9 +526,7 @@ function render() {
     button.setAttribute("aria-pressed", String(id === state.difficulty));
     const result = isFinished(id, progress[id].guesses);
     const mark = button.querySelector(".difficulty-result");
-    mark.textContent = result
-      ? (progress[id].guesses.some((guess) => evaluateGuess(levels[id].code, guess)?.exact === levels[id].size) ? "✓" : "×")
-      : "";
+    mark.textContent = result ? "✓" : "";
   });
   renderClues(challenge);
   renderBoard(challenge, current);
@@ -535,6 +543,7 @@ clearButton.addEventListener("click", clearDraft);
 submitButton.addEventListener("click", submitGuess);
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") { portraitDrag.cancel(); return; }
   if (event.altKey || event.ctrlKey || event.metaKey) return;
   if (event.target instanceof HTMLElement && (
     ["INPUT", "TEXTAREA", "SELECT", "BUTTON", "A"].includes(event.target.tagName)
@@ -569,10 +578,26 @@ window.render_game_to_text = () => {
     clues: challenge.clues.map((clue) => ({ kind: clue.kind, hero: localizedHero(clue.type) })),
     draft: current.draft,
     guesses: current.guesses.map((guess) => ({ heroes: guess, ...currentResult(guess, challenge) })),
-    guessesRemaining: Math.max(0, 10 - current.guesses.length),
-    result: solvedAt >= 0 ? "solved" : current.guesses.length >= 10 ? "failed" : "playing",
+    guessLimit: null,
+    guessesRemaining: null,
+    drag: portraitDrag.snapshot(),
+    result: solvedAt >= 0 ? "solved" : "playing",
     ...(isFinished() ? { solution: challenge.code } : {}),
   });
 };
 
+portraitDrag = installPortraitDrag({
+  board: guessBoard,
+  canDrag: () => !isFinished(),
+  onDrop: ({ hero, sourceSlot, targetSlot, copy: clone }) => {
+    const draft = currentProgress().draft;
+    if (!clone && sourceSlot === targetSlot) return;
+    if (!clone) draft[sourceSlot] = draft[targetSlot];
+    draft[targetSlot] = hero;
+    state.selectedSlot = draft.findIndex(type => type === null);
+    if (state.selectedSlot < 0) state.selectedSlot = targetSlot;
+    saveProgress();
+    render();
+  },
+});
 render();
