@@ -95,14 +95,17 @@
             </div>
           </div>
           <div class="board-columns" aria-hidden="true"><span>#</span><span data-i18n="formation">FORMATION</span><span data-i18n="feedback">FEEDBACK</span></div>
-          <ol class="guess-board" id="guess-board" aria-label="Guess history and current formation"></ol>
-          <div class="board-footer">
-            <button class="icon-button clear-button" id="clear-button" type="button" aria-label="Clear current row" title="Clear current row"><span aria-hidden="true">↺</span></button>
-            <button class="submit-button" id="submit-button" type="button" disabled><span data-i18n="submitGuess">Check guess</span><span class="submit-arrow" aria-hidden="true">↗</span></button>
-          </div>
-          <div class="board-legend" aria-label="Feedback legend">
-            <span><i class="feedback-dot exact"></i><span data-i18n="exactLegend">Right class, right place</span></span>
-            <span><i class="feedback-dot misplaced"></i><span data-i18n="misplacedLegend">Right class, different place</span></span>
+          <div id="guess-board" role="group" aria-label="Guess history and current formation">
+            <ol class="guess-board" id="current-guess" aria-label="Current formation"></ol>
+            <div class="board-footer">
+              <button class="icon-button clear-button" id="clear-button" type="button" aria-label="Clear current row" title="Clear current row"><span aria-hidden="true">↺</span></button>
+              <button class="submit-button" id="submit-button" type="button" disabled><span data-i18n="submitGuess">Check guess</span><span class="submit-arrow" aria-hidden="true">↗</span></button>
+            </div>
+            <div class="board-legend" aria-label="Feedback legend">
+              <span><i class="feedback-dot exact"></i><span data-i18n="exactLegend">Right class, right place</span></span>
+              <span><i class="feedback-dot misplaced"></i><span data-i18n="misplacedLegend">Right class, different place</span></span>
+            </div>
+            <ol class="guess-board guess-history" id="guess-history" aria-label="Previous guesses, newest first" reversed></ol>
           </div>
         </section>
 

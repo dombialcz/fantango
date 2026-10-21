@@ -14,6 +14,8 @@ const COPY = {
     languageLabel: "Language",
     difficultyLabel: "Daily challenge difficulty",
     guessRowsLabel: "Guess history and current formation",
+    currentFormation: "Current formation",
+    historyLabel: "Previous guesses, newest first",
     heroClassesLabel: "Hero classes",
     feedbackLegendLabel: "Feedback legend",
     easy: "Easy",
@@ -70,6 +72,8 @@ const COPY = {
     languageLabel: "Język",
     difficultyLabel: "Poziom dzisiejszego wyzwania",
     guessRowsLabel: "Historia prób i bieżąca drużyna",
+    currentFormation: "Bieżący skład",
+    historyLabel: "Wcześniejsze próby, od najnowszej",
     heroClassesLabel: "Klasy bohaterów",
     feedbackLegendLabel: "Legenda wyników",
     easy: "Łatwy",
@@ -134,22 +138,13 @@ const missionLevel = document.querySelector("#mission-level");
 const clueParts = document.querySelector("#clue-parts");
 const guessCounter = document.querySelector("#guess-counter");
 const guessBoard = document.querySelector("#guess-board");
+const currentGuess = document.querySelector("#current-guess");
+const guessHistory = document.querySelector("#guess-history");
 const heroPicker = document.querySelector("#hero-picker");
 const clearButton = document.querySelector("#clear-button");
 const submitButton = document.querySelector("#submit-button");
 const gameMessage = document.querySelector("#game-message");
 let portraitDrag;
-
-function revealCurrentRow() {
-  requestAnimationFrame(() => {
-    const row = guessBoard.querySelector(".row-active") ?? guessBoard.lastElementChild;
-    if (!row) return;
-    window.scrollTo({
-      top: Math.max(0, row.getBoundingClientRect().top + window.scrollY - 16),
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
-    });
-  });
-}
 
 function copy() {
   return COPY[state.locale];
@@ -291,7 +286,6 @@ function submitGuess() {
   state.selectedSlot = 0;
   saveProgress();
   render();
-  revealCurrentRow();
 }
 
 function clearDraft() {
@@ -319,6 +313,8 @@ function applyCopy() {
   document.querySelector(".difficulty-tabs").setAttribute("aria-label", strings.difficultyLabel);
   guessBoard.setAttribute("aria-label", strings.guessRowsLabel);
   guessBoard.setAttribute("aria-describedby", "drag-hint");
+  currentGuess.setAttribute("aria-label", strings.currentFormation);
+  guessHistory.setAttribute("aria-label", strings.historyLabel);
   heroPicker.setAttribute("aria-label", strings.heroClassesLabel);
   document.querySelector(".board-legend").setAttribute("aria-label", strings.feedbackLegendLabel);
   document.querySelector("#rule-note").textContent = strings.ruleNote;
@@ -458,6 +454,7 @@ function renderBoard(challenge, current) {
   const rows = Array.from({ length: visibleRows }, (_, index) => {
     const row = document.createElement("li");
     row.className = "guess-row";
+    row.value = index + 1;
     row.setAttribute("aria-label", copy().rowLabel(index + 1));
     const number = document.createElement("span");
     number.className = "row-number";
@@ -483,7 +480,9 @@ function renderBoard(challenge, current) {
     }
     return row;
   });
-  guessBoard.replaceChildren(...rows);
+  currentGuess.replaceChildren(...rows.filter(row => row.classList.contains("row-active")));
+  guessHistory.replaceChildren(...rows.filter(row => row.classList.contains("row-submitted")).reverse());
+  guessHistory.start = current.guesses.length;
 }
 
 function renderPicker() {

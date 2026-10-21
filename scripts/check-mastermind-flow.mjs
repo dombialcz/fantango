@@ -28,23 +28,26 @@ try {
         return button.top >= row.bottom;
       });
       assert.ok(arrangement, "Check guess follows the current formation");
+      await page.locator("#submit-button").scrollIntoViewIfNeeded();
+      const position = () => page.evaluate(() => ({
+        y: scrollY,
+        row: document.querySelector(".row-active").getBoundingClientRect().top,
+        button: document.querySelector("#submit-button").getBoundingClientRect().top,
+      }));
+      const before = await position();
       await page.locator("#submit-button").click();
       assert.equal((await state()).guesses.length, 9 + guess);
-      await page.waitForFunction(() => {
-        const row = document.querySelector(".row-active").getBoundingClientRect();
-        const button = document.querySelector("#submit-button").getBoundingClientRect();
-        const picker = document.querySelector(".picker-panel").getBoundingClientRect();
-        return row.top >= -2 && button.bottom <= innerHeight + 2;
-      });
-      await page.evaluate(() => new Promise(resolve => {
-        let y = scrollY, stable = 0;
-        function tick() {
-          stable = Math.abs(scrollY - y) < .5 ? stable + 1 : 0;
-          y = scrollY;
-          if (stable >= 8) resolve(); else requestAnimationFrame(tick);
-        }
-        requestAnimationFrame(tick);
-      }));
+      await page.waitForTimeout(150);
+      const after = await position();
+      assert.ok(Math.abs(after.y - before.y) <= 1, "Submitting does not scroll the page");
+      assert.ok(Math.abs(after.row - before.row) <= 1, "New active row stays in the same place");
+      assert.ok(Math.abs(after.button - before.button) <= 1, "Check guess stays in the same place");
+      const numbers = await page.locator("#guess-history .row-number").allTextContents();
+      assert.equal(Number(numbers[0]), 9 + guess);
+      assert.equal(Number(numbers.at(-1)), 1);
+      const order = await page.locator("#guess-board .guess-row").evaluateAll(rows => rows.map(row => row.classList.contains("row-active")));
+      assert.equal(order[0], true);
+      assert.ok(order.slice(1).every(active => !active));
       assert.equal(await page.locator(".hero-choice").count(), 7);
     }
     await page.evaluate(() => document.getAnimations().forEach(animation => animation.finish()));
@@ -57,6 +60,6 @@ try {
     assert.equal(await page.locator(".picker-panel").evaluate(el => getComputedStyle(el).position), "static");
     assert.deepEqual(errors, []);
     await page.close();
-    console.log(`${name}: bottom controls, repeated automatic scrolling, static picker, top/resize and reduced-motion flow pass`);
+    console.log(`${name}: stationary active row/controls, newest-first history, no automatic scrolling, static picker, top/resize and reduced-motion flow pass`);
   }
 } finally { await browser.close(); }

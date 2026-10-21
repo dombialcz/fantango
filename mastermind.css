@@ -252,6 +252,8 @@ button.guess-tile[aria-current="true"] { border-color: var(--gold-light); box-sh
 .clue-card[data-hero] img { border-color: var(--hero-color); background: var(--hero-tint); }
 noscript { position: fixed; z-index: 20; inset: auto 1rem 1rem; padding: 1rem; border: 1px solid var(--line-bright); border-radius: 9px; background: #101925; }
 
+.guess-history { margin-top: 12px; }
+.guess-history:empty { display: none; }
 .board-footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; }
 .board-footer .submit-button { min-width: 180px; min-height: 48px; }
 .drag-hint { margin: 10px 0; color: var(--muted); font-size: .85rem; line-height: 1.45; }

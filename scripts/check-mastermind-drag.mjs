@@ -110,8 +110,9 @@ try {
     assert.equal((await state()).result, "playing");
 
     if (touch) {
-      await history(0).evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" }));
-      const point = await history(0).boundingBox();
+      const newest = page.locator('[data-history-row="12"][data-slot="0"]');
+      await newest.evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" }));
+      const point = await newest.boundingBox();
       const scroll = await page.evaluate(() => scrollY);
       await start(point.x + point.width / 2, point.y + point.height / 2);
       await move(point.x + point.width / 2, point.y + point.height / 2 - 70);
@@ -121,16 +122,16 @@ try {
       assert.ok((await draft()).every(hero => hero === null));
     }
 
-    // A drag can autoscroll from old history down to the current row on a phone.
+    // A drag can autoscroll from old history up to the current row on a phone.
     await history(0).evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" }));
     const box = await history(0).boundingBox();
     await start(box.x + box.width / 2, box.y + box.height / 2);
     await page.waitForTimeout(320);
     assert.ok((await state()).drag, "Visible history portrait starts an edge-scroll drag");
-    await move(150, (touch ? 844 : 1000) - 12);
+    await move(150, 12);
     const scrollBefore = await page.evaluate(() => scrollY);
     await page.waitForTimeout(400);
-    assert.ok(await page.evaluate(() => scrollY) > scrollBefore, "Held portraits autoscroll at the viewport edge");
+    assert.ok(await page.evaluate(() => scrollY) < scrollBefore, "Held portraits autoscroll at the viewport edge");
     const element = await active(2).elementHandle();
     await element.evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" }));
     const destination = await active(2).boundingBox();
