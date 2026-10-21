@@ -138,7 +138,36 @@ const heroPicker = document.querySelector("#hero-picker");
 const clearButton = document.querySelector("#clear-button");
 const submitButton = document.querySelector("#submit-button");
 const gameMessage = document.querySelector("#game-message");
+const pickerPanel = document.querySelector(".picker-panel");
+const pickerAnchor = document.querySelector(".picker-anchor");
 let portraitDrag;
+let pickerFrame = 0;
+
+function updateFloatingPicker() {
+  pickerPanel.classList.toggle("picker-floating", window.matchMedia("(max-width: 1100px)").matches
+    && pickerAnchor.getBoundingClientRect().top <= 8);
+}
+
+function revealCurrentRow() {
+  requestAnimationFrame(() => {
+    updateFloatingPicker();
+    requestAnimationFrame(() => {
+      const row = guessBoard.querySelector(".row-active") ?? guessBoard.lastElementChild;
+      if (!row) return;
+      const inset = pickerPanel.classList.contains("picker-floating") ? pickerPanel.getBoundingClientRect().height + 24 : 16;
+      window.scrollTo({
+        top: Math.max(0, row.getBoundingClientRect().top + window.scrollY - inset),
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+      });
+    });
+  });
+}
+
+window.addEventListener("scroll", () => {
+  if (pickerFrame) return;
+  pickerFrame = requestAnimationFrame(() => { pickerFrame = 0; updateFloatingPicker(); });
+}, { passive: true });
+window.addEventListener("resize", updateFloatingPicker);
 
 function copy() {
   return COPY[state.locale];
@@ -280,6 +309,7 @@ function submitGuess() {
   state.selectedSlot = 0;
   saveProgress();
   render();
+  revealCurrentRow();
 }
 
 function clearDraft() {
@@ -532,6 +562,7 @@ function render() {
   renderBoard(challenge, current);
   renderPicker();
   renderMessage(challenge, current);
+  updateFloatingPicker();
   clearButton.disabled = locked || current.draft.every((type) => type === null);
   submitButton.disabled = locked || !completeDraft;
   submitButton.querySelector("[data-i18n]").textContent = locked ? strings.challengeComplete : strings.submitGuess;

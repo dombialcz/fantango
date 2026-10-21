@@ -110,7 +110,7 @@ try {
     assert.equal((await state()).result, "playing");
 
     if (touch) {
-      await history(0).scrollIntoViewIfNeeded();
+      await history(0).evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" }));
       const point = await history(0).boundingBox();
       const scroll = await page.evaluate(() => scrollY);
       await start(point.x + point.width / 2, point.y + point.height / 2);
@@ -122,10 +122,11 @@ try {
     }
 
     // A drag can autoscroll from old history down to the current row on a phone.
-    await history(0).scrollIntoViewIfNeeded();
+    await history(0).evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" }));
     const box = await history(0).boundingBox();
     await start(box.x + box.width / 2, box.y + box.height / 2);
     await page.waitForTimeout(320);
+    assert.ok((await state()).drag, "Visible history portrait starts an edge-scroll drag");
     await move(150, (touch ? 844 : 1000) - 12);
     const scrollBefore = await page.evaluate(() => scrollY);
     await page.waitForTimeout(400);
