@@ -13,7 +13,7 @@ try {
     await route.fulfill({response,body:`${await response.text()}
       window.defenseTest={get state(){return state;},dealDamage,actEnemy,buildParty,makeEnemy,render,damageReductionFor,
         stage(){
-          state.town.prefix={};state.town.settlement={};state.floor=1;state.flavorKey='undead';state.bossType=null;
+          state.town.prefix={};state.town.settlement={};state.town.penalty=null;state.floor=1;state.flavorKey='undead';state.bossType=null;
           state.buildings=createTownBuildings();Math.random=()=>.75;
           state.party=buildParty(['knight','thief','ranger','mage'].map((type,index)=>({id:index+1,type,name:HERO_TYPES[type].label,level:1,active:true})));
           prepareFloor();state.enemies=[makeEnemy('orc')];state.enemies[0].damage=100;

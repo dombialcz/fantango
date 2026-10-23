@@ -6,7 +6,7 @@ import { createEventCampaign, EVENT_BY_ID, resolveEvent, applyEventEffect } from
 import { createEventView } from "./event-view.js";
 import { recordChronicle, saveCampaign, loadCampaign, archiveChronicle, createChronicleView } from "./campaign-chronicle.js";
 import { expeditionOutcome, townMorale } from "./town-morale.js";
-import { createTownIdentity, townHeroEffects, rollTownClass, townRollCost } from "./town-identity.js";
+import { createTownIdentity, townHeroEffects, rollTownClass, townRollCost, townPenaltyText, upgradeTownIdentity } from "./town-identity.js";
 import { offerLevelChances, offerLevelChancesText, rollOfferLevel } from "./hero-offers.js";
 import { classCounts, recordClassSelection, classSelectionBonus, boostedOfferLevel, classCrowdingMultiplier } from "./class-balance.js";
 import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
@@ -216,7 +216,26 @@ state.potionCooldownMs ??= 0;
 state.divineAegisTargetId ??= null;
 // Legacy party-wide shields cannot remain active without a selected hero.
 if (state.divineAegisTargetId === null) state.divineAegisMs = 0;
-if (savedCampaign) { nextHeroId = savedCampaign.nextHeroId; nextEnemyId = savedCampaign.nextEnemyId; }
+if (savedCampaign) {
+  nextHeroId = savedCampaign.nextHeroId; nextEnemyId = savedCampaign.nextEnemyId;
+  if (state.town.balanceVersion !== 2) {
+    const oldGoldBonus = state.town.prefix.gold ?? 0;
+    state.town = upgradeTownIdentity(state.town);
+    state.gold += Math.max(0, (state.town.prefix.gold ?? 0) - oldGoldBonus);
+    // Keep already assigned Bard blessings and expedition crowding; never reroll
+    // allies or heal a wounded combatant when upgrading an older save.
+    for (const unit of state.party ?? []) {
+      const effects = heroEffects(unit.type);
+      const crowding = unit.crowdingPenaltyPercent ? 0.8 : 1;
+      unit.baseMaxHp = unit.power * HERO_TYPES[unit.type].hp * effects.healthMultiplier * crowding;
+      unit.maxHp = cemeteryMaxHp(unit.baseMaxHp, state.graves);
+      unit.hp = Math.min(unit.hp, unit.maxHp);
+      Object.assign(unit, { buildingSpeed: effects.speedMultiplier, damageMultiplier: effects.damageMultiplier * crowding,
+        damageReduction: effects.damageReduction, critChance: effects.critChance, evasionChance: effects.evasionChance,
+        executeBonus: effects.executeBonus, healRatio: effects.healRatio, mageTargets: effects.mageTargets });
+    }
+  }
+}
 function remember(category, text, floor = null) { recordChronicle(state, category, text, floor); }
 function persist() { saveCampaign(state, nextHeroId, nextEnemyId); }
 const eventView = createEventView({
@@ -538,7 +557,7 @@ function buildParty(heroes) {
     const definition = HERO_TYPES[hero.type];
     const effects = heroEffects(hero.type);
     const buffAmount = buffAmounts.get(hero.id) ?? 0;
-    const power = heroPower(hero.level) * (1 + buffAmount);
+    const power = heroPower(hero.level) * effects.powerMultiplier * (1 + buffAmount);
     const crowdingMultiplier = classCrowdingMultiplier(counts[hero.type]);
     const baseMaxHp = power * definition.hp * effects.healthMultiplier * crowdingMultiplier;
     const maxHp = cemeteryMaxHp(baseMaxHp, state.graves);
@@ -1472,7 +1491,7 @@ function render() {
   const presentHero = (hero, offered = false) => {
     const definition = HERO_TYPES[hero.type];
     const effects = heroEffects(hero.type);
-    const power = heroPower(hero.level);
+    const power = heroPower(hero.level) * effects.powerMultiplier;
     const prospectiveActive = offered && activeBench().length < teamCapacity(state.day);
     const crowdingCount = activeCounts[hero.type] + (prospectiveActive ? 1 : 0);
     const crowdingMultiplier = hero.active || prospectiveActive ? classCrowdingMultiplier(crowdingCount) : 1;
@@ -1480,7 +1499,7 @@ function render() {
     if (hero.type === "mage") summary = `Strikes up to ${effects.mageTargets} different enemies per attack, starting in the back row. Spell targets come from the Mage Guild.`;
     if (hero.type === "bard") summary = `Gives ${effects.bardTargets} random non-bard ${effects.bardTargets === 1 ? "ally" : "allies"} +${Math.round(effects.bardBuff * 100)}% power at expedition start.`;
     if (hero.type === "knight") summary += ` ${Math.round(totalDamageReduction(effects.damageReduction, 0, state.town.prefix.enemyDamage ?? 1) * 100)}% damage reduction, including town bonuses.`;
-    return { ...hero, power, health: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier * crowdingMultiplier, state.graves), damage: Math.round(power * definition.damage * effects.damageMultiplier * crowdingMultiplier), crowdingPenaltyPercent: crowdingMultiplier < 1 ? 20 : 0, prospectiveActive, summary,
+    return { ...hero, power, health: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier * crowdingMultiplier, state.graves), damage: Math.round(power * definition.damage * effects.damageMultiplier * crowdingMultiplier), crowdingPenaltyPercent: crowdingMultiplier < 1 ? 20 : 0, prospectiveActive, summary, townPenaltyStat: state.town.penalty?.classType === hero.type ? state.town.penalty.stat : null, townPenalty: state.town.penalty?.classType === hero.type ? townPenaltyText(state.town.penalty) : null,
       unpenalizedHealth: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier, state.graves),
       unpenalizedDamage: Math.round(power * definition.damage * effects.damageMultiplier), evasionChance: effects.evasionChance };
   };
@@ -1547,6 +1566,7 @@ function battleUnitDetails(id) {
     if (unit.bardBuffPercent) bonuses.push(`Bard blessing: +${unit.bardBuffPercent}% power (included in health and damage).`);
     if (unit.cemeteryBonusPercent) bonuses.push(`Cemetery: +${unit.cemeteryBonusPercent}% maximum health.`);
     if (unit.crowdingPenaltyPercent) bonuses.push(`Crowding: −${unit.crowdingPenaltyPercent}% maximum health and damage for this expedition.`);
+    if (state.town.penalty?.classType === unit.type) bonuses.push(`Town drawback: ${townPenaltyText(state.town.penalty)}.`);
     const prefix = state.town.prefix;
     if (["health", "speed", "crit", "evasion", "enemyDamage"].some(key => prefix[key] !== undefined)) bonuses.push(`Town · ${prefix.name}: ${prefix.bonus}`);
     if (state.town.settlement.classType === unit.type) bonuses.push(`Town · ${state.town.settlement.name}: ${state.town.settlement.bonus}`);

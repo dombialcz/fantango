@@ -287,3 +287,6 @@ body.town-open > .sidegame-link { display: none; }
 .town-legacies { max-width: 700px; color: #b1c0b7; font: 11px/1.7 Arial,sans-serif; margin-top: 10px; }
 .town-legacies summary { cursor: pointer; color: #d4c297; }
 .town-legacies li { margin: 7px 0; }
+
+.town-traits li.is-drawback { padding: 5px 9px; border: 1px solid #b9775e70; border-radius: 4px; background: #452a23cc; color: #edb39a; }
+.town-traits li.is-drawback::before { content: "− "; color: #edb39a; }

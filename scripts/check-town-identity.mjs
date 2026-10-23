@@ -19,6 +19,7 @@ await page.evaluate(async () => {
   const { PREFIXES, SETTLEMENTS } = await import('./src/town-identity.js');
   const t = window.townTest;
   t.state.town.prefix = PREFIXES[1];
+  t.state.town.penalty = null;
   t.state.town.settlement = SETTLEMENTS.find(s => s.name === 'Crossing');
   t.state.freeRerollsRemaining = 1;
   t.render();
@@ -66,7 +67,7 @@ await page.evaluate(async () => {
   t.state.party = []; // This synthetic target has no party guards; isolate the town trait.
   t.state.divineAegisMs = 0;
   t.state.town.prefix = PREFIXES[0];
-  assert(t.dealDamage(target, 400, { side: 'enemy', label: 'Enemy' }) === 99, 'Walled enemy damage');
+  assert(t.dealDamage(target, 400, { side: 'enemy', label: 'Enemy' }) === 90, 'Walled enemy damage');
   t.state.town.prefix = PREFIXES[2];
   const random = Math.random; Math.random = () => 0;
   assert(t.dealDamage(target, 400, { side: 'enemy', label: 'Enemy' }) === 0, 'Silent evasion');
@@ -87,11 +88,11 @@ await page.evaluate(async () => {
   assert(estate.gold === 11, 'Estate pays on day one');
   Math.random = () => .2;
   const grand = t.createCampaign();
-  assert(grand.gold === 11, 'Grand pays on day one');
+  assert(grand.gold === 16, 'Grand pays on day one');
   Math.random = random;
   t.resetCampaign();
   const { createTownIdentity } = await import('./src/town-identity.js');
-  const nameRolls = [.55, .95, .65, .85];
+  const nameRolls = [.55, .95, .65, .85, .5];
   t.state.town = createTownIdentity(() => nameRolls.shift());
   t.render();
 });

@@ -262,11 +262,12 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
       root.setAttribute("aria-label", next.town.name);
       root.querySelector(".town-flavor").textContent = next.town.flavor;
       const traits = root.querySelector(".town-traits");
-      if (traits.dataset.town !== next.town.name) {
-        traits.replaceChildren(...next.town.bonuses.map((bonus) => {
-          const item = document.createElement("li"); item.textContent = bonus.replace("recruitment weight", "recruitment chance"); return item;
+      const traitKey = JSON.stringify([next.town.name, next.town.bonuses]);
+      if (traits.dataset.town !== traitKey) {
+        traits.replaceChildren(...next.town.bonuses.map((bonus, index) => {
+          const item = document.createElement("li"); item.textContent = bonus; item.classList.toggle("is-drawback", index === 2 && Boolean(next.town.penalty)); return item;
         }));
-        traits.dataset.town = next.town.name;
+        traits.dataset.town = traitKey;
       }
       const nextSignature = JSON.stringify([next.journeyNumber,next.heroLevelCap,next.legacies,next.potionRecoveryPercent,next.day, next.gold, next.flavorKey, next.flavorName, next.message, next.buildings, next.rolledToday, next.town, next.morale, next.graves]);
       if (nextSignature === signature && wasVisible) return;
