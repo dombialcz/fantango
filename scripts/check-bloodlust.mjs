@@ -39,13 +39,13 @@ const snapshot = () => page.evaluate(() => {
 });
 const cast = () => page.locator('[data-command="bloodlust"]').click();
 try {
-  await page.goto(`${base}/dungeon.html`); await page.waitForFunction(() => window.bloodlustTest);
+  await page.goto(`${base}/dungeon.html`, { waitUntil: 'domcontentloaded' }); await page.waitForFunction(() => window.bloodlustTest);
   await stage();
   const before = await snapshot(); await cast();
   let after = await snapshot();
   // L2 front: Barbarian 170*1.5*1.2 + Knight 170*.8 + Thief 170*.4 + Cleric 170*.2.
-  // Double their combined attack and apply shared .25 combat scaling, then enemy defenses.
-  assert.deepEqual(after.enemyHp, [9728, 9782, 10000, 10000]);
+  // Multiply their combined attack by 1.5 and apply shared .25 combat scaling, then enemy defenses.
+  assert.deepEqual(after.enemyHp, [9796, 9837, 10000, 10000]);
   assert.deepEqual(after.heroHp, before.heroHp); assert.equal(after.graves, 0); assert.equal(after.meter, 40);
   assert.match(after.log[0], /Bloodlust.*2 foes.*front row/);
   assert.match(await page.locator('#command-description').textContent(), /combined attack damage.*No health cost/);
@@ -65,12 +65,12 @@ try {
   // Active Hold the Line and both event damage modifiers contribute to the combined strike.
   await stage();
   await page.evaluate(() => { const t = window.bloodlustTest; t.state.holdLineMs = 6000; t.state.holdDamageBonus = .2; t.state.events.dayPower = 1.05; t.state.events.activeAttack = 1.1; t.render(); });
-  await cast(); assert.deepEqual((await snapshot()).enemyHp, [9623, 9698, 10000, 10000]);
+  await cast(); assert.deepEqual((await snapshot()).enemyHp, [9717, 9774, 10000, 10000]);
 
   // Dead frontliners and powerful rear heroes contribute no damage.
   await stage();
   await page.evaluate(() => { const t = window.bloodlustTest; t.state.party[1].hp = 0; t.state.party[4].power = t.state.party[5].power = 100000; t.render(); });
-  await cast(); assert.deepEqual((await snapshot()).enemyHp, [9796, 9837, 10000, 10000]);
+  await cast(); assert.deepEqual((await snapshot()).enemyHp, [9847, 9878, 10000, 10000]);
 
   // Empty and dead enemy fronts both fall back to every living rear enemy.
   for (const removeFront of [false, true]) {
@@ -80,7 +80,7 @@ try {
     const hp = (await snapshot()).heroHp;
     await page.keyboard.press('5');
     after = await snapshot();
-    assert.deepEqual(after.enemyHp, removeFront ? [9728, 9728] : [0, 0, 9728, 9728]);
+    assert.deepEqual(after.enemyHp, removeFront ? [9796, 9796] : [0, 0, 9796, 9796]);
     assert.deepEqual(after.heroHp, hp); assert.equal(after.meter, 40); assert.match(after.log[0], /back row/);
   }
 
@@ -89,12 +89,12 @@ try {
   await page.evaluate(() => { const t = window.bloodlustTest; t.state.enemies.slice(0, 2).forEach(enemy => enemy.hp = 1); t.render(); });
   await cast(); assert.deepEqual((await snapshot()).enemyHp, [0, 0, 10000, 10000]);
   await page.evaluate(() => { const t = window.bloodlustTest; t.state.commandMeter = 100; t.render(); });
-  await cast(); assert.deepEqual((await snapshot()).enemyHp, [0, 0, 9728, 9728]);
+  await cast(); assert.deepEqual((await snapshot()).enemyHp, [0, 0, 9796, 9796]);
 
   // Enemy armor and dodge retain the normal combat rules.
   await stage();
   await page.evaluate(() => { const t = window.bloodlustTest; t.state.enemies[0].evasionChance = 1; t.state.enemies[1].damageReduction = 1; Math.random = () => .1; t.render(); });
-  await cast(); assert.deepEqual((await snapshot()).enemyHp, [10000, 9973, 10000, 10000]);
+  await cast(); assert.deepEqual((await snapshot()).enemyHp, [10000, 9980, 10000, 10000]);
   await page.evaluate(() => { Math.random = () => .99; });
 
   // No valid targets or allied front means no charge, even through the direct handler.
@@ -110,7 +110,7 @@ try {
     await page.setViewportSize({ width, height }); await stage(); await cast();
     await page.evaluate(() => Promise.all([...document.querySelectorAll('#battle-screen img')].map(image => image.decode())));
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-    assert.match(await page.locator('[data-command="bloodlust"] .battle-command__power').textContent(), /×2.00 combined frontline damage/);
+    assert.match(await page.locator('[data-command="bloodlust"] .battle-command__power').textContent(), /×1.50 combined frontline damage/);
     await page.screenshot({ path: `output/bloodlust/${name}.png` });
   }
 
@@ -118,7 +118,7 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 }); await stage();
   const saved = await page.evaluate(() => { window.bloodlustTest.persist(); return localStorage.getItem('vaultbound:campaign:v1'); });
   const html = await readFile('dungeon.html', 'utf8');
-  await writeFile('output/bloodlust/client.html', html.replace('<head>', `<head><base href="/"><script>localStorage.setItem('vaultbound:campaign:v1', ${JSON.stringify(saved)});</script>`));
+  await writeFile('output/bloodlust/client.html', html.replace('<head>', `<head><base href="/"><link rel="icon" href="data:,"><script>localStorage.setItem('vaultbound:campaign:v1', ${JSON.stringify(saved)});</script>`));
   assert.deepEqual(errors, []);
   console.log('Bloodlust: exact combined damage, buffs, living/front-only contributors, no HP loss, front/back targeting, armor/dodge, resource guards and responsive UI passed.');
 } finally { await browser.close(); }

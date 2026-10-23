@@ -10,7 +10,7 @@ const COMMAND_COPY = {
   pilfer: "Reserve one gold per living Thief (up to four), paid only if this floor is cleared. Once per floor.",
   rally: "The whole company attacks faster for six seconds. More living Bards increase the speed bonus.",
   aegis: "Choose one hero to make invulnerable for eight seconds.",
-  bloodlust: "Deal twice the combined attack damage of all living friendly frontliners to every enemy in the front row. If that row is empty, strike the back row. No health cost.",
+  bloodlust: "Deal 1.5× the combined attack damage of all living friendly frontliners to every enemy in the front row. If that row is empty, strike the back row. No health cost.",
   mark: "Choose an enemy. Heroes who can reach it focus their attacks and strike faster for ten seconds, or until it dies. More Rangers increase the speed bonus.",
   freeze: "Stop enemy attacks, summoning, movement, and timers. More living Mages make the freeze last longer. Costs 100 Command, with a ten-second cooldown after the freeze ends.",
 };

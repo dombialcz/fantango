@@ -36,9 +36,9 @@ test("pilfer scales with living Thieves", () => {
   assert.deepEqual(commandPower("pilfer", 3), { gold: 3 });
 });
 
-test("Bloodlust doubles combined frontline damage with any living Barbarian and has no health cost", () => {
+test("Bloodlust deals 1.5× combined frontline damage with any living Barbarian and has no health cost", () => {
   assert.deepEqual(commandPower("bloodlust", 0), { damageMultiplier: 0 });
-  for (const count of [1, 2, 4, 8]) assert.deepEqual(commandPower("bloodlust", count), { damageMultiplier: 2 });
+  for (const count of [1, 2, 4, 8]) assert.deepEqual(commandPower("bloodlust", count), { damageMultiplier: 1.5 });
 });
 
 test("Divine Aegis lasts eight seconds with any living Cleric", () => {

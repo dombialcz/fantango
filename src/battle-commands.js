@@ -35,7 +35,7 @@ export function commandPower(commandId, matchingHeroes) {
     case "pilfer":
       return { gold: count };
     case "bloodlust":
-      return { damageMultiplier: count ? 2 : 0 };
+      return { damageMultiplier: count ? 1.5 : 0 };
     default:
       throw new Error(`Unknown battle command: ${commandId}`);
   }
