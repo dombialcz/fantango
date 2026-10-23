@@ -11,7 +11,7 @@ test('dodge, crit and reduction clamp at exactly 90%, even with stacked town bon
     for(const key of ['damageReduction','critChance','evasionChance']) assert.ok(result[key]>=0&&result[key]<=.9);
   }
   const rogue=townHeroEffects('thief',buildingEffects('thief',{level:5,pathA:4}),{prefix:PREFIXES[2],settlement:SETTLEMENTS[2]});
-  assert.ok(Math.abs(rogue.evasionChance-.42)<1e-10);assert.equal(rogue.critChance,0);
+  assert.ok(Math.abs(rogue.evasionChance-.36)<1e-10);assert.equal(rogue.critChance,0);
   assert.equal(totalDamageReduction(.9,.4,.99),.9);
   assert.ok(Math.abs(totalDamageReduction(.2,.1,.99)-.307)<1e-10);
 });

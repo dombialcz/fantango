@@ -265,7 +265,7 @@ export function createTownView({ root, onUpgrade, onClose, onReset }) {
       const traitKey = JSON.stringify([next.town.name, next.town.bonuses]);
       if (traits.dataset.town !== traitKey) {
         traits.replaceChildren(...next.town.bonuses.map((bonus, index) => {
-          const item = document.createElement("li"); item.textContent = bonus; item.classList.toggle("is-drawback", index === 2 && Boolean(next.town.penalty)); return item;
+          const item = document.createElement("li"); item.textContent = bonus; item.classList.toggle("is-drawback", index === 3 && Boolean(next.town.recruitment)); return item;
         }));
         traits.dataset.town = traitKey;
       }

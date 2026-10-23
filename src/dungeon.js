@@ -6,12 +6,13 @@ import { createEventCampaign, EVENT_BY_ID, resolveEvent, applyEventEffect } from
 import { createEventView } from "./event-view.js";
 import { recordChronicle, saveCampaign, loadCampaign, archiveChronicle, createChronicleView } from "./campaign-chronicle.js";
 import { expeditionOutcome, townMorale } from "./town-morale.js";
-import { createTownIdentity, townHeroEffects, rollTownClass, townRollCost, townPenaltyText, upgradeTownIdentity } from "./town-identity.js";
+import { createTownIdentity, townHeroEffects, rollTownClass, townRollCost, townRecruitmentText, upgradeTownIdentity, rebaseTownPower } from "./town-identity.js";
 import { offerLevelChances, offerLevelChancesText, rollOfferLevel } from "./hero-offers.js";
 import { classCounts, recordClassSelection, classSelectionBonus, boostedOfferLevel, classCrowdingMultiplier } from "./class-balance.js";
 import { retreatLevelChance, rollRetreatLevelUps } from "./retreat-levels.js";
 import { BOSS_FLOOR, enemyHealthMultiplier, floorGoldReward, isBossFloor } from "./dungeon-progression.js";
-import { enemyTypeForRoll, FLAVOR_ROSTERS } from "./enemy-rosters.js";
+import { FLAVOR_ROSTERS } from "./enemy-rosters.js";
+import { createCampaignFlavor, restoreCampaignFlavor, campaignEncounter } from "./campaign-flavors.js";
 import { BOSS_DEFINITIONS, BOSS_RULES, rollCampaignBoss } from "./bosses.js";
 import { COMBAT_DAMAGE_SCALE, COMBAT_INTERVAL_SCALE, cappedCombatPercent, interceptingKnight, totalDamageReduction } from "./combat-rules.js";
 import { createBackdropDepth, targetBackdropFloor, snapBackdropFloor, advanceBackdropDepth, DESCENT_DURATION_MS } from "./battle-backdrop.js";
@@ -132,6 +133,7 @@ function createCampaign(journey = createJourney(), veterans = []) {
     town,
     freeRerollsRemaining: town.settlement.freeRerolls ?? 0,
     flavorKey,
+    enemyCampaignFlavor: createCampaignFlavor(flavorKey, () => seed / 2 ** 32),
     events: createEventCampaign(flavorKey, seed),
     dayOutlook: "opening",
     chronicle: [
@@ -209,6 +211,8 @@ const savedCampaign = loadCampaign();
 let state = savedCampaign?.state ?? createCampaign();
 state.journey ??= createJourney();
 state.campaignId ??= crypto.randomUUID();
+state.enemyCampaignFlavor ??= restoreCampaignFlavor(state.flavorKey, state.campaignId);
+for (const unit of state.enemies ?? []) unit.critChance ??= ENEMY_TYPES[unit.type]?.critChance ?? 0;
 state.conclusion ??= null;
 state.victoryRewardId ??= null;
 state.carryHeroIds ??= [];
@@ -224,13 +228,15 @@ state.divineAegisTargetId ??= null;
 if (state.divineAegisTargetId === null) state.divineAegisMs = 0;
 if (savedCampaign) {
   nextHeroId = savedCampaign.nextHeroId; nextEnemyId = savedCampaign.nextEnemyId;
-  if (state.town.balanceVersion !== 2) {
-    const oldGoldBonus = state.town.prefix.gold ?? 0;
+  if (state.town.balanceVersion !== 4) {
+    const oldTown = state.town;
+    const oldGoldBonus = oldTown.prefix.gold ?? 0;
     state.town = upgradeTownIdentity(state.town);
     state.gold += Math.max(0, (state.town.prefix.gold ?? 0) - oldGoldBonus);
     // Keep already assigned Bard blessings and expedition crowding; never reroll
     // allies or heal a wounded combatant when upgrading an older save.
     for (const unit of state.party ?? []) {
+      Object.assign(unit, rebaseTownPower(unit, oldTown, state.town));
       const effects = heroEffects(unit.type);
       const crowding = unit.crowdingPenaltyPercent ? 0.8 : 1;
       unit.baseMaxHp = unit.power * HERO_TYPES[unit.type].hp * effects.healthMultiplier * crowding;
@@ -577,6 +583,8 @@ function buildParty(heroes) {
       label: hero.name,
       row: definition.row,
       power,
+      basePower: heroPower(hero.level),
+      bardBuffAmount: buffAmount,
       bardBuffPercent: Math.round(buffAmount * 100),
       buildingSpeed: effects.speedMultiplier,
       damageMultiplier: effects.damageMultiplier * crowdingMultiplier,
@@ -619,6 +627,7 @@ function makeEnemy(type, floor = state.floor) {
     maxHp,
     hp: maxHp,
     campaignHealthMultiplier,
+    critChance: definition.critChance ?? 0,
     damage: Math.round(definition.damage * scale),
     timer: 950 + Math.random() * 650,
     returnAt: null,
@@ -633,17 +642,17 @@ function generateEnemies(floor) {
     const definition = BOSS_DEFINITIONS[state.bossType];
     return [state.bossType, ...(definition.escorts ?? [])].map(type => makeEnemy(type, floor));
   }
-  const roster = FLAVOR_ROSTERS[state.flavorKey];
-  const total = Math.min(2 + Math.ceil(floor * 0.58), 10);
-  const enemies = [];
-  for (let index = 0; index < total; index += 1) {
-    const roll = Math.random();
-    const type = enemyTypeForRoll(state.flavorKey, floor, roll);
-    enemies.push(makeEnemy(type, floor));
-  }
-  if (floor % 3 === 0 || Math.random() < Math.min(0.08 + floor * 0.025, 0.38)) {
-    enemies.push(makeEnemy(roster.special, floor));
-  }
+  if (state.enemyCampaignFlavor?.faction !== state.flavorKey) state.enemyCampaignFlavor = restoreCampaignFlavor(state.flavorKey, state.campaignId);
+  const encounter = campaignEncounter(state.flavorKey, floor, state.enemyCampaignFlavor);
+  const enemies = encounter.types.map(type => {
+    const unit = makeEnemy(type, floor);
+    unit.maxHp = Math.max(1, Math.round(unit.maxHp * encounter.healthScale));
+    unit.hp = unit.maxHp;
+    unit.damage = Math.max(1, Math.round(unit.damage * encounter.damageScale));
+    unit.encounterHealthScale = encounter.healthScale;
+    unit.encounterDamageScale = encounter.damageScale;
+    return unit;
+  });
   return enemies;
 }
 
@@ -910,7 +919,7 @@ function dealDamage(target, amount, source, { area = false, logStrike = false } 
   }
   const sourceLabel = typeof source === "string" ? source : source.label;
   const critical = typeof source === "object"
-    && source.side === "hero"
+    && ["hero", "enemy"].includes(source.side)
     && source.critChance > 0
     && Math.random() < cappedCombatPercent(source.critChance);
   const criticalAmount = critical ? amount * 2 : amount;
@@ -1023,6 +1032,7 @@ function actEnemy(unit) {
   const heroes = livingParty();
   if (!heroes.length) return;
   unit.attacks = (unit.attacks ?? 0) + 1;
+  const definition = ENEMY_TYPES[unit.type];
   const skill = BOSS_DEFINITIONS[unit.type]?.skill;
   const attackDamage = unit.damage * (enemyEmpowered(unit) ? BOSS_RULES.allyDamage : 1);
 
@@ -1054,6 +1064,13 @@ function actEnemy(unit) {
     }
   }
 
+  if (definition.volleyEvery && unit.attacks % definition.volleyEvery === 0) {
+    const perHero = attackDamage * definition.volleyMultiplier / heroes.length;
+    for (const target of heroes) dealDamage(target, perHero, unit, { area: true });
+    logBattle(`${unit.label} unleashes a bone volley across both rows.`);
+    return;
+  }
+
   if (unit.type === "necromancer" && livingEnemies().length < 14) {
     state.enemies.push(makeEnemy("skeleton"));
     logBattle("A necromancer drags another skeleton upright.");
@@ -1079,6 +1096,8 @@ function actEnemy(unit) {
     unit.returnAt = state.battleTime + 350;
     target = [...heroes].sort((a, b) => a.hp - b.hp)[0];
     logBattle(`${unit.label} blinks forward toward ${target.label}.`);
+  } else if (definition.targetsWeakest) {
+    target = [...heroes].sort((a,b) => a.hp - b.hp)[0];
   } else if (["boneMage", "warlock", "marksman", "goblinArcher", "orcShaman"].includes(unit.type)) {
     target = randomLiving(heroes);
   } else {
@@ -1534,7 +1553,7 @@ function render() {
     if (hero.type === "mage") summary = `Strikes up to ${effects.mageTargets} different enemies per attack, starting in the back row. Spell targets come from the Mage Guild.`;
     if (hero.type === "bard") summary = `Gives ${effects.bardTargets} random non-bard ${effects.bardTargets === 1 ? "ally" : "allies"} +${Math.round(effects.bardBuff * 100)}% power at expedition start.`;
     if (hero.type === "knight") summary += ` ${Math.round(totalDamageReduction(effects.damageReduction, 0, state.town.prefix.enemyDamage ?? 1) * 100)}% damage reduction, including town bonuses.`;
-    return { ...hero, power, health: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier * crowdingMultiplier, state.graves), damage: Math.round(power * definition.damage * effects.damageMultiplier * crowdingMultiplier), crowdingPenaltyPercent: crowdingMultiplier < 1 ? 20 : 0, prospectiveActive, summary, townPenaltyStat: state.town.penalty?.classType === hero.type ? state.town.penalty.stat : null, townPenalty: state.town.penalty?.classType === hero.type ? townPenaltyText(state.town.penalty) : null,
+    return { ...hero, power, health: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier * crowdingMultiplier, state.graves), damage: Math.round(power * definition.damage * effects.damageMultiplier * crowdingMultiplier), crowdingPenaltyPercent: crowdingMultiplier < 1 ? 20 : 0, prospectiveActive, summary, townRecruitment: townRecruitmentText(state.town, hero.type),
       unpenalizedHealth: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier, state.graves),
       unpenalizedDamage: Math.round(power * definition.damage * effects.damageMultiplier), evasionChance: effects.evasionChance };
   };
@@ -1570,7 +1589,7 @@ function battleUnitDetails(id) {
     ? unit.power * definition.damage * unit.damageMultiplier * heroCommandDamageMultiplier(unit)
     : unit.damage * (enemyEmpowered(unit) ? BOSS_RULES.allyDamage : 1);
   const damage = rawDamage > 0 ? Math.max(1, Math.round(rawDamage * COMBAT_DAMAGE_SCALE)) : 0;
-  const crit = hero ? cappedCombatPercent(unit.critChance) : 0;
+  const crit = cappedCombatPercent(unit.critChance);
   const dodge = unit.type === "shadowAssassin" ? BOSS_RULES.evasion : cappedCombatPercent(unit.evasionChance);
   const reduction = hero ? damageReductionFor(unit) : cappedCombatPercent(unit.damageReduction);
   const frozen = hero ? unit.frozenMs ?? 0 : state.enemyFreezeMs;
@@ -1601,7 +1620,6 @@ function battleUnitDetails(id) {
     if (unit.bardBuffPercent) bonuses.push(`Bard blessing: +${unit.bardBuffPercent}% power (included in health and damage).`);
     if (unit.cemeteryBonusPercent) bonuses.push(`Cemetery: +${unit.cemeteryBonusPercent}% maximum health.`);
     if (unit.crowdingPenaltyPercent) bonuses.push(`Crowding: −${unit.crowdingPenaltyPercent}% maximum health and damage for this expedition.`);
-    if (state.town.penalty?.classType === unit.type) bonuses.push(`Town drawback: ${townPenaltyText(state.town.penalty)}.`);
     const prefix = state.town.prefix;
     if (["health", "speed", "crit", "evasion", "enemyDamage"].some(key => prefix[key] !== undefined)) bonuses.push(`Town · ${prefix.name}: ${prefix.bonus}`);
     if (state.town.settlement.classType === unit.type) bonuses.push(`Town · ${state.town.settlement.name}: ${state.town.settlement.bonus}`);
@@ -1618,6 +1636,8 @@ function battleUnitDetails(id) {
     if (state.events.activeAttack !== 1) effects.push(`Event: ${percent(state.events.activeAttack - 1)} attack damage this battle.`);
     if (hasDivineAegis(unit)) effects.push(`Divine Aegis: invulnerable · ${seconds(state.divineAegisMs)}`);
   } else {
+    if (definition.volleyEvery) stats.push(["Next all-row volley", `In ${definition.volleyEvery - ((unit.attacks ?? 0) % definition.volleyEvery)} actions · ${number(rawDamage * definition.volleyMultiplier * COMBAT_DAMAGE_SCALE)} total damage before per-target rounding`]);
+    if (unit.encounterHealthScale) bonuses.push(`Encounter scaling: ×${number(unit.encounterHealthScale)} health, ×${number(unit.encounterDamageScale)} damage. Included above.`);
     bonuses.push(`Floor ${state.floor}: ×${number(floorScale(state.floor))} base health/damage scaling; ×${number(enemyHealthMultiplier(state.floor))} additional enemy health. Included above.`);
     if (unit.campaignHealthMultiplier > 1) bonuses.push(`Invasion ${state.journey.completed.length + 1}: ×${unit.campaignHealthMultiplier} enemy health. Each new invasion adds 50% over the previous one. Included above.`);
     if (enemyEmpowered(unit)) effects.push(`Guild Master: +${percent(BOSS_RULES.allyDamage - 1)} damage and +${percent(BOSS_RULES.allySpeed - 1)} attack speed.`);
@@ -1625,7 +1645,7 @@ function battleUnitDetails(id) {
   }
   if (frozen > 0) effects.push(`Frozen: attacks stopped · ${seconds(frozen)}`);
   const enemyBehavior = {
-    necromancer: "Summons a skeleton each action while fewer than 14 enemies remain, then attacks a random hero.",
+    necromancer: "Summons a skeleton each action while fewer than 14 enemies remain. Attacks a random hero when the enemy ranks are full.",
     assassin: "Blinks forward to strike the lowest-health hero, then retreats.",
     archdemon: "Targets the back row first.",
     boneMage: "Attacks a random living hero.", warlock: "Attacks a random living hero.",
@@ -1633,7 +1653,7 @@ function battleUnitDetails(id) {
   };
   return { id, name: unit.label, type: unit.type, side: unit.side,
     subtitle: `${definition.label}${hero ? ` · Level ${unit.hero.level}` : unit.boss ? " · Boss" : ""} · ${unit.row === "front" ? "Front line" : "Rear guard"}`,
-    behavior: hero ? definition.summary : BOSS_DEFINITIONS[unit.type]?.summary ?? enemyBehavior[unit.type] ?? "Attacks the front row, reaching the rear when the front falls.",
+    behavior: hero ? definition.summary : definition.summary ?? BOSS_DEFINITIONS[unit.type]?.summary ?? enemyBehavior[unit.type] ?? "Attacks the front row, reaching the rear when the front falls.",
     stats, bonuses, effects,
     note: "Damage is per target, before the target’s armor, dodge or shields; critical hits double the unrounded damage. Attack intervals use battle time and include current speed bonuses. Critical chance, dodge and damage reduction are capped at 90%.",
   };
@@ -1956,7 +1976,8 @@ window.render_game_to_text = () => {
       hp: Math.ceil(unit.hp),
       maxHp: unit.maxHp,
       boss: unit.boss,
-      ability: BOSS_DEFINITIONS[unit.type]?.summary ?? null,
+      ability: ENEMY_TYPES[unit.type].summary ?? BOSS_DEFINITIONS[unit.type]?.summary ?? null,
+      critChance: cappedCombatPercent(unit.critChance),
       empowered: enemyEmpowered(unit),
       damage: unit.damage * (enemyEmpowered(unit) ? BOSS_RULES.allyDamage : 1),
       attackIntervalMs: Math.round(enemyInterval(unit)),

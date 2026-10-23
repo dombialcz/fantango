@@ -94,7 +94,7 @@ try {
   assert.ok(freeze.frozen.every(([time,timer]) => time === 1000 && timer === 5000));
   assert.ok(freeze.thawed.every(([time,timer]) => time === 0 && timer === 4500));
   await stage('undead', 'evilSpirit');
-  await page.evaluate(() => { const {state,actEnemy,render} = window.bossTest; for(let i=0;i<3;i++) actEnemy(state.enemies[0]); render(); });
+  await page.evaluate(() => { const {state,actEnemy,render} = window.bossTest; for(let i=0;i<3;i++) actEnemy(state.enemies[0]); state.commandMeter=100; render(); });
   assert.equal(await page.locator('[data-side="hero"].is-frozen').count(), 4);
   await page.screenshot({path:'output/boss-check/party-frozen.png'});
   await page.locator('[data-command="aegis"]').click();

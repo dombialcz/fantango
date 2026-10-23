@@ -1,12 +1,13 @@
-// Town identity: a strong party-wide advantage, a settlement perk, and a class drawback.
+// Town identity: a modest party-wide advantage, a settlement perk, and local recruitment availability.
+import { heroPower } from "./hero-data.js";
 import { cappedCombatPercent } from "./combat-rules.js";
 export const PREFIXES = [
-  { name: "Walled", bonus: "Enemies deal 10% less damage", enemyDamage: 0.9 },
-  { name: "Grand", bonus: "Start with 6 extra gold", gold: 6 },
-  { name: "Silent", bonus: "All heroes gain +10 percentage points of dodge chance", evasion: 0.1 },
-  { name: "Oaken", bonus: "All heroes gain 15% maximum health", health: 1.15 },
-  { name: "Windy", bonus: "All heroes attack 10% faster", speed: 1.1 },
-  { name: "Ashen", bonus: "All heroes gain +10 percentage points of crit chance", crit: 0.1 },
+  { name: "Walled", bonus: "Enemies deal 5% less damage", enemyDamage: 0.95 },
+  { name: "Grand", bonus: "Start with 3 extra gold", gold: 3 },
+  { name: "Silent", bonus: "All heroes gain +4 percentage points of dodge chance", evasion: 0.04 },
+  { name: "Oaken", bonus: "All heroes gain 10% maximum health", health: 1.1 },
+  { name: "Windy", bonus: "All heroes attack 6% faster", speed: 1.06 },
+  { name: "Ashen", bonus: "All heroes gain +3 percentage points of crit chance", crit: 0.03 },
 ];
 export const SETTLEMENTS = [
   { name: "Reach", bonus: "Rangers deal 3% more damage", classType: "ranger", damage: 1.03 },
@@ -37,52 +38,77 @@ export function createTownIdentity(random = Math.random) {
   const settlement = pick(SETTLEMENTS);
   const geography = pick(GEOGRAPHIES);
   const place = pick(PLACE_NAMES);
-  const stat = pick(geography.classType === "bard" ? ["power", "health"] : ["power", "damage", "health"]);
-  const penalty = { classType: geography.classType, stat, multiplier: 0.8 };
-  return { balanceVersion: 2, prefix, settlement, penalty,
+  const scarceClass = geography.classType;
+  const commonClass = settlement.classType && settlement.classType !== scarceClass
+    ? settlement.classType : pick(GEOGRAPHIES.map(g => g.classType).filter(type => type !== scarceClass));
+  const recruitment = { commonClass, scarceClass };
+  return { balanceVersion: 4, prefix, settlement, recruitment,
     name: `${prefix.name} ${settlement.name} ${geography.format(place)}`,
     flavor: geography.flavor,
-    bonuses: [prefix.bonus, settlement.bonus, townPenaltyText(penalty)],
+    bonuses: [prefix.bonus, settlement.bonus, ...recruitmentTraits(recruitment)],
   };
 }
 const CLASS_LABELS = Object.fromEntries(GEOGRAPHIES.map(g => [g.classType, g.label]));
-export function townPenaltyText(penalty) {
-  if (!penalty) return "";
-  const stat = { power: "power (health, damage and healing)", damage: "attack damage", health: "maximum health" }[penalty.stat];
-  return `${penalty.classType === "thief" ? "Thieves" : CLASS_LABELS[penalty.classType] + "s"} lose 20% ${stat}${penalty.classType === "bard" && penalty.stat === "power" ? "; their blessings are also 20% weaker" : ""}`;
+export function recruitmentTraits(recruitment) {
+  return [`${CLASS_LABELS[recruitment.commonClass]} contracts are 40% more likely`, `${CLASS_LABELS[recruitment.scarceClass]} contracts are 40% less likely`];
 }
-
-// Legacy saves receive a deterministic health drawback, never a reroll on reload.
+export function townRecruitmentText(town, type) {
+  if (town.recruitment?.commonClass === type) return "Common here: 20% chance per contract";
+  if (town.recruitment?.scarceClass === type) return "Scarce here: 8.6% chance per contract";
+  return null;
+}
 export function upgradeTownIdentity(town) {
-  if (town.balanceVersion === 2) return town;
-  const { favoredClass, ...rest } = town;
+  if (town.balanceVersion === 4) return town;
+  const { favoredClass, penalty, ...rest } = town;
   const prefix = PREFIXES.find(p => p.name === town.prefix.name) ?? town.prefix;
   const settlement = SETTLEMENTS.find(s => s.name === town.settlement.name) ?? town.settlement;
-  const classType = CLASS_LABELS[favoredClass] ? favoredClass : "cleric";
-  const penalty = { classType, stat: "health", multiplier: 0.8 };
-  return { ...rest, balanceVersion: 2, prefix, settlement, penalty,
-    bonuses: [prefix.bonus, settlement.bonus, townPenaltyText(penalty)] };
+  const previousClass = penalty?.classType ?? favoredClass;
+  const scarceClass = CLASS_LABELS[previousClass] ? previousClass : "cleric";
+  const commonClass = settlement.classType && settlement.classType !== scarceClass ? settlement.classType
+    : GEOGRAPHIES.find(g => g.classType !== scarceClass).classType;
+  const recruitment = { commonClass, scarceClass };
+  return { ...rest, balanceVersion: 4, prefix, settlement, recruitment,
+    bonuses: [prefix.bonus, settlement.bonus, ...recruitmentTraits(recruitment)] };
+}
+
+// Update assigned Bard blessings without selecting new recipients. Older saves
+// rounded their blessing percent, so recover its exact amount from stored power.
+export function rebaseTownPower(unit, oldTown, newTown) {
+  const oldPenalty = oldTown.penalty;
+  const powerFactor = oldPenalty?.classType === unit.type && oldPenalty.stat === "power" ? oldPenalty.multiplier : 1;
+  const oldBardFactor = oldPenalty?.classType === "bard" && ["power", "blessing"].includes(oldPenalty.stat) ? oldPenalty.multiplier : 1;
+  const newBardFactor = newTown.penalty?.classType === "bard" ? newTown.penalty.multiplier : 1;
+  const unpenalizedPower = unit.power / powerFactor;
+  const level = unit.hero?.level ?? 1;
+  const candidates = [heroPower(level), heroPower(Math.max(1, level - 1))];
+  const difference = base => Math.abs(unpenalizedPower / base - 1 - (unit.bardBuffPercent ?? 0) / 100);
+  const basePower = unit.basePower ?? candidates.sort((a,b) => difference(a) - difference(b))[0];
+  const oldBuff = unit.bardBuffAmount ?? Math.max(0, unpenalizedPower / basePower - 1);
+  const bardBuffAmount = oldBuff * newBardFactor / oldBardFactor;
+  return { basePower, bardBuffAmount, bardBuffPercent: Math.round(bardBuffAmount * 100),
+    power: Number((basePower * (1 + bardBuffAmount)).toFixed(10)) };
 }
 
 export function townHeroEffects(type, building, town) {
   const prefix = town.prefix;
-  const penalty = town.penalty?.classType === type ? town.penalty : null;
-  const modifier = stat => penalty?.stat === stat ? penalty.multiplier : 1;
   const local = town.settlement.classType === type ? town.settlement : {};
   return { ...building,
-    powerMultiplier: (building.powerMultiplier ?? 1) * modifier("power"),
-    healthMultiplier: building.healthMultiplier * (prefix.health ?? 1) * (local.health ?? 1) * modifier("health"),
+    powerMultiplier: building.powerMultiplier ?? 1,
+    healthMultiplier: building.healthMultiplier * (prefix.health ?? 1) * (local.health ?? 1),
     speedMultiplier: building.speedMultiplier * (prefix.speed ?? 1),
-    damageMultiplier: building.damageMultiplier * (local.damage ?? 1) * modifier("damage"),
+    damageMultiplier: building.damageMultiplier * (local.damage ?? 1),
     damageReduction: cappedCombatPercent(1 - (1 - building.damageReduction) * (1 - (local.reduction ?? 0))),
     critChance: cappedCombatPercent(building.critChance + (prefix.crit ?? 0) + (local.crit ?? 0)),
     evasionChance: cappedCombatPercent((building.evasionChance ?? 0) + (prefix.evasion ?? 0) + (local.evasion ?? 0)),
     healRatio: building.healRatio * (local.healing ?? 1),
-    bardBuff: building.bardBuff * (local.bardBuff ?? 1) * (type === "bard" ? modifier("power") : 1),
+    bardBuff: building.bardBuff * (local.bardBuff ?? 1),
   };
 }
 export function rollTownClass(classes, town, random = Math.random) {
-  return classes[Math.floor(random() * classes.length)];
+  const weight = type => type === town.recruitment?.commonClass ? 1.4 : type === town.recruitment?.scarceClass ? .6 : 1;
+  let roll = random() * classes.reduce((sum,type) => sum + weight(type), 0);
+  for (const type of classes) { roll -= weight(type); if (roll < 0) return type; }
+  return classes.at(-1);
 }
 export function townRollCost(state) {
   return !state.rolledToday || state.freeRerollsRemaining > 0 ? 0 : state.rerollCost;

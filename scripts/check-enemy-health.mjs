@@ -79,8 +79,8 @@ try {
   assert.deepEqual(await page.evaluate(() => window.healthTest.state.enemies.map(e => [e.hp,e.maxHp])), before);
   await page.evaluate(() => { const t = window.healthTest; t.state.enemies.forEach(e => e.hp = 0); t.state.battlePaused = false; t.updateBattle(50); t.render(); });
   await page.locator('[data-battle-action="continue"]').click();
-  const next = await page.evaluate(() => { const t = window.healthTest; return t.state.enemies.map(e => ({ hp: e.hp, base: t.ENEMY_TYPES[e.type].hp })); });
-  for (const enemy of next) assert.equal(enemy.hp, Math.round(enemy.base * (1 + Math.log2(6) * .45) * 1.6 * 1.5));
+  const next = await page.evaluate(() => { const t = window.healthTest; return t.state.enemies.map(e => ({ hp: e.hp, base: t.ENEMY_TYPES[e.type].hp, encounterScale: e.encounterHealthScale ?? 1 })); });
+  for (const enemy of next) assert.equal(enemy.hp, Math.round(Math.round(enemy.base * (1 + Math.log2(6) * .45) * 1.6 * 1.5) * enemy.encounterScale));
   for (const [name, width, height] of [['desktop',1440,1000],['phone',320,740]]) {
     await page.setViewportSize({ width, height });
     await page.evaluate(() => window.healthTest.stage(10,'orcs','elderShaman',3));

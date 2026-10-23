@@ -67,7 +67,7 @@ await page.evaluate(async () => {
   t.state.party = []; // This synthetic target has no party guards; isolate the town trait.
   t.state.divineAegisMs = 0;
   t.state.town.prefix = PREFIXES[0];
-  assert(t.dealDamage(target, 400, { side: 'enemy', label: 'Enemy' }) === 90, 'Walled enemy damage');
+  assert(t.dealDamage(target, 400, { side: 'enemy', label: 'Enemy' }) === 95, 'Walled enemy damage');
   t.state.town.prefix = PREFIXES[2];
   const random = Math.random; Math.random = () => 0;
   assert(t.dealDamage(target, 400, { side: 'enemy', label: 'Enemy' }) === 0, 'Silent evasion');
@@ -88,7 +88,7 @@ await page.evaluate(async () => {
   assert(estate.gold === 11, 'Estate pays on day one');
   Math.random = () => .2;
   const grand = t.createCampaign();
-  assert(grand.gold === 16, 'Grand pays on day one');
+  assert(grand.gold === 13, 'Grand pays on day one');
   Math.random = random;
   t.resetCampaign();
   const { createTownIdentity } = await import('./src/town-identity.js');
@@ -99,7 +99,7 @@ await page.evaluate(async () => {
 for (const [name, viewport] of Object.entries({ desktop: { width: 1440, height: 1000 }, phone: { width: 390, height: 844 }, small: { width: 320, height: 740 }, landscape: { width: 844, height: 390 } })) {
   await page.setViewportSize(viewport);
   await page.screenshot({ path: `output/town-identity/${name}.png`, fullPage: true });
-  assert.equal(await page.locator('.town-traits li').count(), 3);
+  assert.equal(await page.locator('.town-traits li').count(), 4);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
 }
 for (const day of [1, 7, 10]) {

@@ -210,5 +210,8 @@ body.roster-open > .back-link, body.roster-open > .sidegame-link { display: none
 .roster-screen .contract-reel-nav:hover:not(:disabled) { background: #354238; border-color: #f0cd88; }
 .roster-screen .contract-reel-nav:disabled { opacity: 1; cursor: default; color: #68747b; border-color: #46535b; background: #17212aee; box-shadow: none; }
 
-.contract-town-penalty { display: block; margin: 7px 3px 0; color: #edb39a; font: 9px/1.4 Arial, sans-serif; }
-.hero-town-penalty { padding: 10px 12px; border: 1px solid #b9775e60; border-radius: 5px; background: #452a23a6; color: #edb39a; font: 12px/1.6 Georgia, serif; }
+
+.contract-availability { display: block; margin: 7px 3px 0; font: 9px/1.4 Arial, sans-serif; }
+.contract-availability.is-common { color: #a7d1ac; }
+.contract-availability.is-scarce { color: #e3bc83; }
+.hero-town-availability { padding: 10px 12px; border: 1px solid #a38d614d; border-radius: 5px; background: #2d332c; color: #cfccb3; font: 12px/1.6 Georgia, serif; }
