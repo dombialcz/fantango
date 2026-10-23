@@ -10,7 +10,7 @@ await context.addInitScript(()=>{window.requestAnimationFrame=()=>0;Math.random=
 await context.route('**/src/dungeon.js',async route=>{
   const source = await readFile('src/dungeon.js','utf8');
   await route.fulfill({contentType:'text/javascript',body:source+`
-    window.journeyTest={get state(){return state;},render,persist,createCampaign,buildParty,prepareFloor,updateBattle,finishFloor,finishDay,advanceDay,
+    window.journeyTest={get state(){return state;},ENEMY_TYPES,render,persist,createCampaign,buildParty,prepareFloor,updateBattle,finishFloor,finishDay,advanceDay,
       startExpedition,dealDamage,concludeCampaign,continueExpedition,defendNextTown,chooseLegacy,chooseVeteran,makeHero,heroEffects,heroInterval,makeEnemy,
       stage(flavor='orcs',boss='burningWarlord',journey=null){
         state=createCampaign(journey??createJourney());state.flavorKey=flavor;state.bossType=boss;state.day=6;state.floor=10;
@@ -34,6 +34,7 @@ try {
   let s=await snapshot();assert.equal(s.view,'campaign_victory');assert.equal(s.events.pending,null);
   assert.equal(s.conclusion.clears,1);assert.equal(s.conclusion.survivors.length,3);assert.equal(s.journey.levelCap,5);
   assert.match(await page.locator('.victory-header').innerText(),/Elder Shaman/);
+  assert.match(await page.locator('.victory-footer').innerText(),/50% more health than in the previous invasion/);
   assert.match(await page.locator('.victory-story').textContent(),/free the prisoner/);
   await page.locator('.victory-story summary').click();
   assert.match(await page.locator('.victory-story details').innerText(),/Mira.*Mage/);
@@ -99,6 +100,7 @@ try {
   for(let invasion=1;invasion<=4;invasion++){
     s=await snapshot();seen.push(s.flavor.key);
     assert.equal(s.journey.levelCap,Math.min(8,4+invasion));
+    assert.equal(s.journey.enemyHealthMultiplier,[1,1.5,2.25,3.375][invasion-1]);
     if(invasion>1){
       await page.evaluate(()=>{const t=window.journeyTest;t.state.view='tavern';t.state.gold=100;t.state.selectedHeroId=t.state.bench[0].id;t.render();});
       await page.locator('[data-roster-action="upgrade"]').click();
@@ -106,6 +108,12 @@ try {
       assert.equal(await page.locator('[data-roster-action="upgrade"]').isDisabled(),true);
       await page.evaluate(()=>{const t=window.journeyTest;t.startExpedition(true);t.state.battlePaused=true;t.render();});
       const veteran=(await snapshot()).party[0];assert.equal(veteran.hp,veteran.maxHp);
+      const enemies = await page.evaluate(() => {
+        const t = window.journeyTest;
+        return t.state.enemies.map(enemy => ({hp:enemy.maxHp, baseHp:t.ENEMY_TYPES[enemy.type].hp}));
+      });
+      assert.ok(enemies.length > 0);
+      for (const enemy of enemies) assert.equal(enemy.hp,Math.round(enemy.baseHp * 1.1 * [1,1.5,2.25,3.375][invasion-1]));
       if(invasion===4){assert.equal(veteran.level,8);assert.ok(veteran.maxHp>=590);await page.screenshot({path:'output/campaign-journey/level-eight.png'});}
     }
     await page.evaluate(invasion=>{const t=window.journeyTest;t.state.floor=10;t.state.bossType=({orcs:'burningWarlord',undead:'lich',demons:'infernalDragon',assassins:'guildMaster'})[t.state.flavorKey];t.prepareFloor();if(invasion===1)t.dealDamage(t.state.party[3],100000,t.state.enemies[0]);t.win();},invasion);
@@ -123,9 +131,11 @@ try {
   const download=page.waitForEvent('download');await page.locator('[data-victory-action="download"]').click();const file=await download;assert.equal(file.suggestedFilename(),'vaultbound-journey.md');const text=await readFile(await file.path(),'utf8');for(const name of ['Orc Warband','Undead Uprising','Demonic Invasion','Assassins’ Guild'])assert.ok(text.includes(name));
   await reload();assert.equal((await snapshot()).journey.complete,true);
   await page.locator('[data-victory-action="reset"]').click();s=await snapshot();assert.equal(s.day,1);assert.equal(s.journey.levelCap,5);assert.equal(s.journey.legacies.length,0);assert.equal(s.bench.length,0);
+  assert.equal(s.journey.enemyHealthMultiplier,1);
   // A legacy victory save is upgraded to the conclusion rather than allowing floor eleven.
   await page.evaluate(()=>{const t=window.journeyTest;t.stage();t.state.victoryAchieved=true;t.state.victoryDay=4;t.state.view='floor_result';delete t.state.journey;delete t.state.conclusion;delete t.state.campaignId;t.persist();});
   await reload();s=await snapshot();assert.equal(s.view,'campaign_victory');assert.equal(s.conclusion.day,4);
+  assert.equal(s.journey.enemyHealthMultiplier,1);
   assert.deepEqual(errors,[]);
   console.log('Journey: immediate boss-clear conclusion, event priority, saved choices, carryovers/resets, all legacies, caps/training/recruitment/survival/speed, recovery boundaries, four distinct invasions/final ending/download/reset, migration and four layouts passed.');
 }finally{await browser.close();}

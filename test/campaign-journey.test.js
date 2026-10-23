@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createJourney, heroLevelCap, heroLevelSpeed, heroTrainingCost, remainingInvasions, legacyEffects, applyLegacyHeroEffects, potionRecoveryChance } from '../src/campaign-journey.js';
+import { createJourney, heroLevelCap, campaignEnemyHealthMultiplier, heroLevelSpeed, heroTrainingCost, remainingInvasions, legacyEffects, applyLegacyHeroEffects, potionRecoveryChance } from '../src/campaign-journey.js';
 
 test('four distinct invasions unlock caps five through eight without automatic levels', () => {
   const j = createJourney();
@@ -11,6 +11,17 @@ test('four distinct invasions unlock caps five through eight without automatic l
     assert.ok(!remainingInvasions(j).includes(flavorKey));
   }
   assert.deepEqual(remainingInvasions(j), []); assert.equal(heroLevelCap(j), 8);
+});
+test('enemy health compounds by fifty percent per completed invasion and resets with a fresh journey', () => {
+  for (const order of [['orcs','undead','demons'], ['demons','assassins','orcs']]) {
+    const journey = createJourney();
+    for (const [index, multiplier] of [1, 1.5, 2.25, 3.375].entries()) {
+      assert.equal(campaignEnemyHealthMultiplier(journey), multiplier);
+      if (index < order.length) journey.completed.push({flavorKey: order[index]});
+    }
+  }
+  assert.equal(campaignEnemyHealthMultiplier(createJourney()), 1);
+  assert.equal(campaignEnemyHealthMultiplier(), 1);
 });
 test('higher training respects the active cap and level speed stops growing at five', () => {
   assert.equal(heroTrainingCost(5,5), null); assert.equal(heroTrainingCost(5,6),25);

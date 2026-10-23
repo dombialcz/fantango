@@ -25,6 +25,8 @@ export function remainingInvasions(journey = createJourney()) {
   return INVASIONS.filter(flavor => !journey.completed.some(campaign => campaign.flavorKey === flavor));
 }
 export function heroLevelCap(journey = createJourney()) { return Math.min(8, 5 + journey.completed.length); }
+// Each completed invasion raises the next campaign's enemy health by 50%.
+export function campaignEnemyHealthMultiplier(journey = createJourney()) { return 1.5 ** journey.completed.length; }
 export function heroLevelSpeed(level) { return 1 + (Math.min(5, Math.max(1, level)) - 1) * .15; }
 export function heroTrainingCost(level, cap = 5) { return level >= cap ? null : level * level; }
 export function legacyRewards(journey = createJourney()) { return journey.legacies.map(id => byId[id]).filter(Boolean); }

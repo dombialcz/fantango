@@ -1,6 +1,6 @@
 import { HERO_TYPES, HERO_NAMES, heroPower } from "./hero-data.js";
 import { ENEMY_TYPES } from "./enemy-data.js";
-import { createJourney, heroLevelCap, heroLevelSpeed, heroTrainingCost, remainingInvasions, legacyEffects, legacyRewards, applyLegacyHeroEffects, potionRecoveryChance, campaignSummary, LEGACIES } from "./campaign-journey.js";
+import { createJourney, heroLevelCap, campaignEnemyHealthMultiplier, heroLevelSpeed, heroTrainingCost, remainingInvasions, legacyEffects, legacyRewards, applyLegacyHeroEffects, potionRecoveryChance, campaignSummary, LEGACIES } from "./campaign-journey.js";
 import { createVictoryView } from "./campaign-victory-view.js";
 import { createEventCampaign, EVENT_BY_ID, resolveEvent, applyEventEffect } from "./campaign-events.js";
 import { createEventView } from "./event-view.js";
@@ -579,7 +579,8 @@ function floorScale(floor) {
 function makeEnemy(type, floor = state.floor) {
   const definition = ENEMY_TYPES[type];
   const scale = floorScale(floor);
-  const maxHp = Math.round(definition.hp * scale * enemyHealthMultiplier(floor));
+  const campaignHealthMultiplier = campaignEnemyHealthMultiplier(state.journey);
+  const maxHp = Math.round(definition.hp * scale * enemyHealthMultiplier(floor) * campaignHealthMultiplier);
   return {
     id: `enemy-${nextEnemyId++}`,
     side: "enemy",
@@ -590,6 +591,7 @@ function makeEnemy(type, floor = state.floor) {
     row: definition.row,
     maxHp,
     hp: maxHp,
+    campaignHealthMultiplier,
     damage: Math.round(definition.damage * scale),
     timer: 950 + Math.random() * 650,
     returnAt: null,
@@ -1562,6 +1564,7 @@ function battleUnitDetails(id) {
     if (hasDivineAegis(unit)) effects.push(`Divine Aegis: invulnerable · ${seconds(state.divineAegisMs)}`);
   } else {
     bonuses.push(`Floor ${state.floor}: ×${number(floorScale(state.floor))} base health/damage scaling; ×${number(enemyHealthMultiplier(state.floor))} additional enemy health. Included above.`);
+    if (unit.campaignHealthMultiplier > 1) bonuses.push(`Invasion ${state.journey.completed.length + 1}: ×${unit.campaignHealthMultiplier} enemy health. Each new invasion adds 50% over the previous one. Included above.`);
     if (enemyEmpowered(unit)) effects.push(`Guild Master: +${percent(BOSS_RULES.allyDamage - 1)} damage and +${percent(BOSS_RULES.allySpeed - 1)} attack speed.`);
     if (state.markedEnemyId === unit.id && state.markMs > 0) effects.push(`Marked: reachable heroes focus this enemy and attack faster · ${seconds(state.markMs)}`);
   }
@@ -1733,7 +1736,7 @@ window.render_game_to_text = () => {
   return JSON.stringify({
     coordinateSystem: "Town, recruitment, and battle use responsive HTML controls. Daily flow: town → company → dungeon. All seven battle commands are visible from the start.",
     game: "Vaultbound",
-    journey: {invasion:state.journey.completed.length+1,levelCap:heroLevelCap(state.journey),
+    journey: {invasion:state.journey.completed.length+1,levelCap:heroLevelCap(state.journey),enemyHealthMultiplier:campaignEnemyHealthMultiplier(state.journey),
       completed:state.journey.completed.map(c=>({town:c.town.name,flavor:c.flavorKey,day:c.day,reward:c.rewardId})),
       remaining:remainingInvasions(state.journey).filter(f=>!state.victoryAchieved || f!==state.flavorKey),
       legacies:legacyRewards(state.journey).map(r=>({id:r.id,name:r.name,description:r.description})),
