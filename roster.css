@@ -88,8 +88,18 @@ body.roster-open > .back-link, body.roster-open > .sidegame-link { display: none
 .company-hero__copy strong { font-size: 14px; font-weight: normal; overflow-wrap: anywhere; }
 .company-hero__copy > span { color: #8d9e9a; font: 8px/1.4 Arial, sans-serif; }
 .company-hero__copy i { color: #c0a473; font-size: 6px; font-style: normal; margin-left: 3px; }
-.reserve-heading { display: flex; align-items: center; gap: 16px; margin: 20px 0 12px; color: #89979b; font: 8px/1.5 Arial, sans-serif; letter-spacing: .1em; }
-.reserve-heading > span:last-child { text-transform: none; letter-spacing: 0; }
+.party-heading, .reserve-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin: 20px 0 12px; color: #a4b1ae; font: 10px/1.5 Arial, sans-serif; }
+.party-heading h3, .reserve-heading h3 { margin: 0; color: #e0cda9; font: normal 16px/1.5 Georgia, serif; }
+.reserve-heading h3 span { color: #a4b1ae; font-size: 13px; }
+.company-hero.is-selected { box-shadow: inset 0 0 0 1px #d3b579; }
+.company-hero.is-swapping { border-color: #f3d18c; box-shadow: 0 0 0 2px #d3b57960; }
+.company-hero.is-swap-target { border: 1px dashed #b4d6b4; background: #263d35; }
+.company-hero.is-swap-target:hover { border-style: solid; background: #355144; }
+.company-hero:focus-visible { outline: 2px solid #e3cc9e; outline-offset: 3px; }
+.company-hero__copy .company-swap-label { color: #d2edc7; font-size: 10px; }
+.company-swap { margin-top: 14px; padding: 12px; border: 1px solid #d3b57980; border-radius: 5px; background: #c39f6114; }
+.company-swap-copy { margin: 0 0 8px; color: #e0cda9; font: 12px/1.6 Arial, sans-serif; }
+.company-swap button { min-height: 44px; padding: 8px 14px; border: 1px solid #a0ada775; border-radius: 4px; color: #d4dbcb; background: #23312d; }
 .company-reserves .company-empty, .company-reserves .company-hero { min-height: 70px; }
 .company-reserves .company-hero img { height: 70px; }
 .roster-inspector { border: 1px solid #d2b16e32; border-radius: 8px; background: linear-gradient(135deg, #253039b3, #131d26); padding: 22px; min-height: 275px; }
@@ -196,10 +206,10 @@ body.roster-open > .back-link, body.roster-open > .sidegame-link { display: none
 
 
 .contract-carousel { position: relative; min-width: 0; }
-.roster-departure-dialog { box-sizing: border-box; width: min(460px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 26px; border: 1px solid #94724f; border-radius: 10px; background: #182027; color: #eee7d7; box-shadow: 0 20px 80px #0009; }
-.roster-departure-dialog::backdrop { background: #03080cbd; backdrop-filter: blur(4px); }
-.roster-departure-dialog h2 { margin: 10px 0 16px; font: 24px/1.2 Georgia, serif; }
-.roster-departure-dialog p { color: #c6beaa; font: 14px/1.7 Georgia, serif; }
+.roster-departure-dialog, .roster-dismiss-dialog { box-sizing: border-box; width: min(460px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 26px; border: 1px solid #94724f; border-radius: 10px; background: #182027; color: #eee7d7; box-shadow: 0 20px 80px #0009; }
+.roster-departure-dialog::backdrop, .roster-dismiss-dialog::backdrop { background: #03080cbd; backdrop-filter: blur(4px); }
+.roster-departure-dialog h2, .roster-dismiss-dialog h2 { margin: 10px 0 16px; font: 24px/1.2 Georgia, serif; }
+.roster-departure-dialog p, .roster-dismiss-dialog p { color: #c6beaa; font: 14px/1.7 Georgia, serif; }
 .roster-departure-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
 .roster-departure-actions button { flex: 1 1 160px; min-height: 46px; padding: 10px; border: 1px solid #9d825b; border-radius: 5px; background: #3b2f24; color: #eee0c3; font: 13px Georgia, serif; }
 .roster-departure-actions [data-departure="confirm"] { background: #72572e; border-color: #c6a363; }
@@ -215,3 +225,5 @@ body.roster-open > .back-link, body.roster-open > .sidegame-link { display: none
 .contract-availability.is-common { color: #a7d1ac; }
 .contract-availability.is-scarce { color: #e3bc83; }
 .hero-town-availability { padding: 10px 12px; border: 1px solid #a38d614d; border-radius: 5px; background: #2d332c; color: #cfccb3; font: 12px/1.6 Georgia, serif; }
+
+.roster-departure-actions [data-dismiss="confirm"] { background: #693e32; border-color: #bf8a74; }

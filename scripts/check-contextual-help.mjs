@@ -54,7 +54,7 @@ try {
   assert.match(await page.locator('.roster-context-notice p').textContent(),/All 3.*−20%/);
   assert.equal(await page.locator('dialog[open]').count(),0);
   assert.equal(await page.locator('.roster-departure-warning').isVisible(),true);
-  await page.locator('[data-hero="103"]').click();await page.locator('[data-roster-action="toggle"]').click();
+  await page.locator('[data-hero="103"]').click();
   assert.match(await page.locator('.roster-context-notice p').textContent(),/All 4/);
   assert.match(await page.locator('.context-action-hint').textContent(),/Reserve 2 Knights/);
   await page.locator('[data-roster-action="toggle"]').click();
@@ -63,7 +63,7 @@ try {
   assert.equal(await page.locator('.company-balance-help > summary').evaluate(node=>document.activeElement===node),true);
   await page.keyboard.press('Enter');assert.equal((await snapshot()).view,'tavern');
   assert.equal(await page.locator('.company-balance-help').evaluate(node=>node.open),true);
-  await page.locator('[data-hero="900"]').click();await page.locator('[data-roster-action="toggle"]').click();
+  await page.locator('[data-hero="900"]').click();
   assert.equal(await page.locator('.roster-departure-warning').isVisible(),false);
   assert.equal(await page.locator('.company-hero.is-crowded').count(),0);
   await page.locator('[data-hero="102"]').click();

@@ -32,12 +32,15 @@ try {
   await page.locator('[data-hero="104"]').click();
   assert.equal(await page.locator('.hero-stats span').nth(1).locator('b').textContent(),'100'); // Reserve is not penalized.
 
-  // One reserve toggle removes the penalty immediately in preparation.
-  await page.locator('[data-hero="102"]').click();await page.locator('[data-roster-action="toggle"]').click();
+  await page.locator('[data-roster-action="cancel-swap"]').click();
+
+  // A single click reserves a hero and removes the penalty immediately in preparation.
+  await page.locator('[data-hero="102"]').click();
   assert.equal(await page.locator('.company-hero.is-crowded').count(),0);
   await page.locator('[data-hero="100"]').click();
   assert.equal(await page.locator('.hero-stats span').nth(1).locator('b').textContent(),'100');
-  await page.locator('[data-hero="102"]').click();await page.locator('[data-roster-action="toggle"]').click();
+  await page.locator('[data-roster-action="cancel-swap"]').click();
+  await page.locator('[data-hero="102"]').click();
 
   await page.locator('[data-roster-action="start"]').click();
   if (await page.locator('.roster-departure-dialog').evaluate(dialog => dialog.open)) await page.locator('[data-departure="confirm"]').click();
@@ -104,7 +107,7 @@ try {
   for(const [label,width,height] of [['desktop',1440,1000],['phone',390,844],['small-phone',320,740],['landscape',844,390]]) {
     await page.setViewportSize({width,height});
     await page.evaluate(()=>{const t=window.balanceTest;t.stage();t.state.day=3;t.state.selectionHistory=[{day:1,counts:{knight:4}},{day:2,counts:{knight:3,thief:1}}];t.state.offers=[{id:999,type:'mage',name:'Vael',level:5,selectionLevelBonus:1,active:false}];t.state.rolledToday=true;t.state.selectedHeroId=100;t.render();});
-    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,label);
     assert.equal(await page.locator('.company-hero.is-crowded').count(),3);
     await page.locator('.reel-variety').scrollIntoViewIfNeeded();
     await page.screenshot({path:`output/class-balance/roster-${label}.png`,fullPage:true});

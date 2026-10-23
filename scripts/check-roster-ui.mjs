@@ -79,11 +79,12 @@ try {
   for (let index = 0; index < 5; index += 1) await page.locator('[data-hire]').first().click();
   assert.equal((await state()).bench.length, 6);
   assert.equal((await state()).bench.filter((hero) => hero.active).length, 4);
-  await page.locator('[data-hero]').first().click();
-  await page.locator('[data-roster-action="toggle"]').click();
-  assert.equal((await state()).bench.filter((hero) => hero.active).length, 3);
+  const reserveId = (await state()).bench.find(hero => !hero.active).id;
+  await page.locator(`[data-hero="${reserveId}"]`).click();
+  assert.equal((await state()).rosterSwapHeroId, reserveId);
   await page.locator(`[data-hero="${lockedId}"]`).click();
-  await page.locator('[data-roster-action="toggle"]').click();
+  assert.equal((await state()).bench.find(hero => hero.id === reserveId).active, true);
+  assert.equal((await state()).bench.find(hero => hero.id === lockedId).active, false);
   assert.equal((await state()).bench.filter((hero) => hero.active).length, 4);
   await page.screenshot({ path: "output/roster-ui/company.png", fullPage: true });
   await page.locator('[data-roster-action="start"]').click();
@@ -107,6 +108,8 @@ try {
   const dismissedId = (await state()).bench[0].id;
   await page.locator(`[data-hero="${dismissedId}"]`).click();
   await page.locator('[data-roster-action="dismiss"]').click();
+  assert.equal((await state()).bench.length, 6);
+  await page.locator('[data-dismiss="confirm"]').click();
   assert.equal((await state()).bench.length, 5);
   assert.equal(await page.locator('[data-hire]').first().isEnabled(), true);
   await page.locator('[data-hire]').first().click();

@@ -307,25 +307,45 @@ const townView = createTownView({
   },
 });
 
+let rosterSwapHeroId = null;
+
 const rosterView = createRosterView({
   root: document.querySelector("#roster-screen"),
   heroTypes: HERO_TYPES,
-  onAction: (action) => {
+  onAction: (action, heroId) => {
+    if (["roll", "town", "start", "dismiss", "upgrade"].includes(action)) rosterSwapHeroId = null;
     if (action === "roll") rerollOffers();
     if (action === "town") openTown();
     if (action === "start") startExpedition();
     if (action === "confirm-start") startExpedition(true);
     if (action === "upgrade") upgradeSelected();
     if (action === "toggle") toggleSelectedActive();
-    if (action === "dismiss") dismissSelected();
+    if (action === "dismiss" && selectedHero()) rosterView.confirmDismissal(selectedHero());
+    if (action === "confirm-dismiss") dismissSelected(heroId);
+    if (action === "cancel-swap") { rosterSwapHeroId = null; state.message = "Swap cancelled. Your company stays as it is."; }
     render();
   },
-  onOffer: (id) => { selectOffer(state.offers.findIndex((hero) => hero.id === id)); render(); },
-  onHire: (id) => { recruitOffer(state.offers.findIndex((hero) => hero.id === id)); render(); },
+  onOffer: (id) => { rosterSwapHeroId = null; selectOffer(state.offers.findIndex((hero) => hero.id === id)); render(); },
+  onHire: (id) => { rosterSwapHeroId = null; recruitOffer(state.offers.findIndex((hero) => hero.id === id)); render(); },
   onHero: (id) => {
     if (state.view !== "tavern" || !state.bench.some((hero) => hero.id === id)) return;
-    state.selectedHeroId = id;
+    const hero = state.bench.find(candidate => candidate.id === id);
+    const swapping = state.bench.find(candidate => candidate.id === rosterSwapHeroId);
     state.selectedOfferId = null;
+    if (swapping && swapping.active !== hero.active) {
+      swapping.active = !swapping.active;
+      hero.active = !hero.active;
+      state.selectedHeroId = swapping.id;
+      rosterSwapHeroId = null;
+      state.message = `${swapping.active ? swapping.name : hero.name} joins the active party. ${swapping.active ? hero.name : swapping.name} stays at the tavern.`;
+      remember("company", state.message);
+    } else if (rosterSwapHeroId === id) {
+      rosterSwapHeroId = null;
+      state.message = "Swap cancelled. Your company stays as it is.";
+    } else {
+      state.selectedHeroId = id;
+      toggleSelectedActive();
+    }
     render();
   },
 });
@@ -477,14 +497,20 @@ function rerollOffers() {
 }
 
 function toggleSelectedActive() {
+  if (state.view !== "tavern") return;
   const hero = selectedHero();
   if (!hero) return;
-  if (!hero.active && activeBench().length >= teamCapacity(state.day)) {
-    state.message = `Today’s party can hold ${teamCapacity(state.day)} heroes.`;
+  const destinationFull = hero.active
+    ? state.bench.filter(candidate => !candidate.active).length >= 2
+    : activeBench().length >= teamCapacity(state.day);
+  if (destinationFull) {
+    rosterSwapHeroId = hero.id;
+    state.message = `${hero.active ? "The tavern reserve is" : "The active party is"} full. Choose ${hero.active ? "a reserve hero" : "an active party member"} to swap with ${hero.name}.`;
     return;
   }
+  rosterSwapHeroId = null;
   hero.active = !hero.active;
-  state.message = hero.active ? `${hero.name} joins the expedition.` : `${hero.name} waits on the bench.`;
+  state.message = hero.active ? `${hero.name} joins the active party.` : `${hero.name} stays at the tavern in reserve.`;
   remember("company", state.message);
 }
 
@@ -506,9 +532,11 @@ function upgradeSelected() {
   state.message = `${hero.name} rises to level ${hero.level}.`;
 }
 
-function dismissSelected() {
-  const hero = selectedHero();
+function dismissSelected(id) {
+  if (state.view !== "tavern") return;
+  const hero = state.bench.find(candidate => candidate.id === id);
   if (!hero) return;
+  rosterSwapHeroId = null;
   state.bench = state.bench.filter((candidate) => candidate.id !== hero.id);
   remember("dismissal", `${hero.name} left the company.`);
   state.selectedHeroId = null;
@@ -1519,6 +1547,7 @@ function configureLayout(force = false) {
 }
 
 function render() {
+  if (state.view !== "tavern" || !state.bench.some(hero => hero.id === rosterSwapHeroId)) rosterSwapHeroId = null;
   eventView.render(state);
   victoryView.render(state);
   const townVisible = state.view === "town";
@@ -1564,6 +1593,7 @@ function render() {
     rerollCost: state.rerollCost, nextRollCost: townRollCost(state), freeRerollsRemaining: state.freeRerollsRemaining, dailyOffers: offerCount(state.day),
     tavernLevel: state.buildings.tavern.level, odds: offerLevelOddsText().replace(/^Tavern L\d+: /, ""),
     offers: state.rollRemainingMs > 0 ? [] : state.offers.map(hero => presentHero(hero, true)),
+    swapHeroId: rosterSwapHeroId,
     bench: state.bench.map(hero => presentHero(hero)), selectedHeroId: state.selectedHeroId, selectedOfferId: state.selectedOfferId,
     activeCount: activeBench().length, teamCapacity: teamCapacity(state.day), benchCapacity: benchLimit(),
     potions: alchemistSupplies(state.buildings.alchemist.level).count, buildings: state.buildings, message: state.message,
@@ -1745,7 +1775,11 @@ window.addEventListener("keydown", (event) => {
   if (event.target.closest?.("button, a, input, select, textarea, summary") && ["Enter", " "].includes(event.key)) return;
   if (document.querySelector("dialog[open]")) return;
   if (event.repeat && ["r", "t", "enter"].includes(event.key.toLowerCase())) return;
-  if (event.key.toLowerCase() === "f") {
+  if (event.key === "Escape" && state.view === "tavern" && rosterSwapHeroId !== null) {
+    rosterSwapHeroId = null;
+    state.message = "Swap cancelled. Your company stays as it is.";
+    render();
+  } else if (event.key.toLowerCase() === "f") {
     if (document.fullscreenElement) document.exitFullscreen();
     else document.querySelector("main").requestFullscreen();
   } else if (event.key.toLowerCase() === "r" && state.view === "tavern") {
@@ -1880,6 +1914,7 @@ window.render_game_to_text = () => {
       }),
     ),
     selectedHeroId: state.selectedHeroId,
+    rosterSwapHeroId: state.view === "tavern" ? rosterSwapHeroId : null,
     selectedOfferId: state.selectedOfferId,
     floor: state.floor,
     deepestFloor: state.deepestFloor,
@@ -2000,7 +2035,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command at 0.12 points per damage, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Divine Aegis shields one selected hero for eight seconds. Mark Prey focuses a selected enemy and speeds up reachable attackers for ten seconds, ending early if the target dies. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second cooldown in combat time, paused with battle and scaled by battle speed. Press 8 to prepare or cancel a potion. Esc cancels targeting. Commands and potions work while paused. P pauses separately from speed. The combat-speed slider selects 0.5×, 1× or 2×; Space cycles those speeds. F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). When the company falls to two survivors, combat pauses once per expedition to offer Flee or Keep fighting. Keep fighting resumes combat; Escape dismisses the choice while staying paused. Mid-battle Flee asks for confirmation and costs half your gold, rounded up, including retreat from the survivor warning. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
+    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect contracts; Hire below each offer for free. Click a hired hero to move between the active party and tavern reserves. If the destination is full, choose a highlighted hero there to swap. Dismissing a hero requires confirmation. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command at 0.12 points per damage, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Divine Aegis shields one selected hero for eight seconds. Mark Prey focuses a selected enemy and speeds up reachable attackers for ten seconds, ending early if the target dies. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second cooldown in combat time, paused with battle and scaled by battle speed. Press 8 to prepare or cancel a potion. Esc cancels targeting. Commands and potions work while paused. P pauses separately from speed. The combat-speed slider selects 0.5×, 1× or 2×; Space cycles those speeds. F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). When the company falls to two survivors, combat pauses once per expedition to offer Flee or Keep fighting. Keep fighting resumes combat; Escape dismisses the choice while staying paused. Mid-battle Flee asks for confirmation and costs half your gold, rounded up, including retreat from the survivor warning. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
   });
 };
 

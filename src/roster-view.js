@@ -14,12 +14,17 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
       <div class="contract-machine__main"><div class="roster-section-heading"><h2>Today's contracts</h2><span class="roster-offer-count"></span></div><div class="contract-carousel"><div class="contract-window"><div class="contract-reel" id="contract-reel"></div><div class="contract-seal"><span aria-hidden="true">✦</span><h3>Fortune has yet to turn.</h3><p>Your first roll is free. Improve the Tavern in town before you roll for better hero odds.</p></div></div><button class="contract-reel-nav contract-reel-nav--previous" type="button" data-reel-step="-1" aria-label="Previous hero" aria-controls="contract-reel" disabled><span aria-hidden="true">‹</span></button><button class="contract-reel-nav contract-reel-nav--next" type="button" data-reel-step="1" aria-label="Next hero" aria-controls="contract-reel" disabled><span aria-hidden="true">›</span></button></div><p class="contract-help"></p></div>
       <div class="contract-controls"><span class="roster-eyebrow">THE TAVERN'S GAMBLE</span><div class="reel-emblem" aria-hidden="true">✦</div><button type="button" class="roster-roll-button" data-roster-action="roll"></button><p class="reel-cost-note"></p><div class="reel-odds"></div><button class="reel-town-link" type="button" data-roster-action="town">Improve the Tavern ↗</button></div>
     </section>
-    <div class="roster-lower"><section class="company-board" aria-label="Locked company"><div class="roster-section-heading"><div><span class="roster-eyebrow">SAFE FROM REROLLS</span><h2>Your company</h2></div><span class="roster-team-count"></span></div><p class="company-help">Hired heroes stay locked. Select one to train, reserve, or dismiss.</p><div class="company-party"></div><div class="reserve-heading"><span>RESERVES</span><span>Two extra places · do not enter battle</span></div><div class="company-reserves"></div></section><aside class="roster-inspector" aria-label="Hero details" aria-live="polite"></aside></div>
+    <div class="roster-lower"><section class="company-board" aria-label="Locked company"><div class="roster-section-heading"><div><span class="roster-eyebrow">SAFE FROM REROLLS</span><h2>Your company</h2></div><span class="roster-team-count"></span></div><p class="company-help" id="company-move-help">Hired heroes stay safe from rerolls. Click a hero to move them; if the destination is full, choose a hero there to swap.</p><div class="party-heading"><h3>Active party</h3><span>Enter the dungeon</span></div><div class="company-party" role="group" aria-label="Active party"></div><div class="reserve-heading"><h3>Reserve <span>— staying at the tavern</span></h3><span>Two places · do not enter battle</span></div><div class="company-reserves" role="group" aria-label="Reserve — staying at the tavern"></div><div class="company-swap" hidden><p class="company-swap-copy" role="status"></p><button type="button" data-roster-action="cancel-swap">Cancel swap</button></div></section><aside class="roster-inspector" aria-label="Hero details" aria-live="polite"></aside></div>
     <footer class="roster-launch"><div><span class="roster-eyebrow">WHEN YOUR COMPANY IS READY</span><p class="roster-launch-copy"></p></div><button type="button" class="roster-deploy" data-roster-action="start">Enter the dungeon <span aria-hidden="true">→</span></button></footer><p class="roster-message" role="status" aria-live="polite"></p>
     <dialog class="roster-departure-dialog" aria-labelledby="departure-title" aria-describedby="departure-copy">
       <span class="roster-eyebrow">BEFORE YOU DESCEND</span><h2 id="departure-title">Your company has empty slots</h2>
       <p id="departure-copy"></p>
       <div class="roster-departure-actions"><button type="button" data-departure="cancel" autofocus>Back to company</button><button type="button" data-departure="confirm">Enter anyway →</button></div>
+    </dialog>
+    <dialog class="roster-dismiss-dialog" aria-labelledby="dismiss-title" aria-describedby="dismiss-copy">
+      <span class="roster-eyebrow">LEAVING THE COMPANY</span><h2 id="dismiss-title">Dismiss this hero?</h2>
+      <p id="dismiss-copy"></p>
+      <div class="roster-departure-actions"><button type="button" data-dismiss="cancel" autofocus>Keep hero</button><button type="button" data-dismiss="confirm">Dismiss hero</button></div>
     </dialog>
   </div>`;
   const departureDialog = root.querySelector('.roster-departure-dialog');
@@ -34,6 +39,25 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
     if (choice === 'confirm' && departureDialog.open) {
       departureDialog.close();
       onAction('confirm-start');
+    }
+  });
+  const dismissDialog = root.querySelector('.roster-dismiss-dialog');
+  let dismissHeroId = null;
+  function cancelDismissal() {
+    dismissDialog.close();
+    dismissHeroId = null;
+    root.querySelector('[data-roster-action="dismiss"]')?.focus({ preventScroll: true });
+  }
+  dismissDialog.addEventListener('cancel', event => { event.preventDefault(); cancelDismissal(); });
+  dismissDialog.addEventListener('click', event => {
+    const choice = event.target.closest('[data-dismiss]')?.dataset.dismiss;
+    if (choice === 'cancel' || event.target === dismissDialog) cancelDismissal();
+    if (choice === 'confirm' && dismissDialog.open) {
+      const id = dismissHeroId;
+      dismissDialog.close();
+      dismissHeroId = null;
+      onAction('confirm-dismiss', id);
+      root.querySelector('[data-hero], .roster-roll-button')?.focus({ preventScroll: true });
     }
   });
   root.querySelector('.reel-odds').insertAdjacentHTML('afterend', '<div class="reel-variety" aria-label="Underused class bonus"></div>');
@@ -71,10 +95,12 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
     return `<article class="contract-card ${snapshot.selectedOfferId === hero.id ? "is-selected" : ""}" data-contract="${hero.id}" style="--hero-color:${type.color}"><button class="contract-inspect" type="button" data-offer="${hero.id}" aria-label="Inspect ${escape(hero.name)}, ${type.label}, level ${hero.level}${hero.selectionLevelBonus ? ', includes underused class bonus' : ''}" aria-pressed="${snapshot.selectedOfferId === hero.id}"><span class="contract-level">LV ${hero.level}</span><span class="contract-portrait"><img src="${type.image}" alt=""/></span><span class="contract-class">${type.label}</span><strong>${escape(hero.name)}</strong><small>${type.row === "front" ? "Front" : "Back"} row · ${hero.power} power</small>${hero.selectionLevelBonus ? '<span class="contract-variety">+1 UNDERUSED CLASS</span>' : ''}${hero.townRecruitment ? `<span class="contract-availability ${hero.townRecruitment.startsWith("Common") ? "is-common" : "is-scarce"}" title="${escape(hero.townRecruitment)}">${hero.townRecruitment.startsWith("Common") ? "COMMON HERE" : "SCARCE HERE"}</span>` : ""}</button><button class="contract-hire" type="button" data-hire="${hero.id}" ${snapshot.bench.length >= snapshot.benchCapacity ? "disabled" : ""}>Hire <span class="gold-free">FREE +</span></button></article>`;
   }
 
-  function lockedCard(hero, reserve = false) {
+  function lockedCard(hero, reserve = false, swapHero = null) {
     if (!hero) return `<div class="company-empty"><span aria-hidden="true">${reserve ? "+" : "◇"}</span><span>${reserve ? "Reserve space" : "Open party slot"}</span></div>`;
     const type = heroTypes[hero.type];
-    return `<button type="button" class="company-hero ${hero.selected ? "is-selected" : ""} ${hero.crowdingPenaltyPercent ? 'is-crowded' : ''}" data-hero="${hero.id}" aria-label="Inspect ${escape(hero.name)}, ${type.label}, level ${hero.level}, ${reserve ? "reserve" : "active party"}${hero.crowdingPenaltyPercent ? ', minus 20% health and damage' : ''}" aria-pressed="${hero.selected}" style="--hero-color:${type.color}"><img src="${type.image}" alt=""/><span class="company-hero__copy"><small>${type.label} <b>LV ${hero.level}</b></small><strong>${escape(hero.name)}</strong><span>${reserve ? "Reserve" : `${type.row === "front" ? "Front" : "Back"} row`} <i aria-hidden="true">◆</i></span>${hero.crowdingPenaltyPercent ? '<span class="company-crowding">−20% HP / DMG</span>' : ''}</span></button>`;
+    const swapTarget = swapHero && swapHero.active !== hero.active;
+    const action = swapTarget ? `Swap ${swapHero.name} with` : swapHero?.id === hero.id ? "Cancel swap for" : reserve ? "Move to active party or select to swap:" : "Move to tavern reserve or select to swap:";
+    return `<button type="button" class="company-hero ${hero.selected ? "is-selected" : ""} ${hero.crowdingPenaltyPercent ? 'is-crowded' : ''} ${swapHero?.id === hero.id ? "is-swapping" : ""} ${swapTarget ? "is-swap-target" : ""}" data-hero="${hero.id}" aria-label="${escape(action)} ${escape(hero.name)}, ${type.label}, level ${hero.level}, ${reserve ? "reserve at the tavern" : "active party"}${hero.crowdingPenaltyPercent ? ', minus 20% health and damage' : ''}" aria-pressed="${hero.selected}" aria-describedby="company-move-help" style="--hero-color:${type.color}"><img src="${type.image}" alt=""/><span class="company-hero__copy"><small>${type.label} <b>LV ${hero.level}</b></small><strong>${escape(hero.name)}</strong><span>${reserve ? "At the tavern" : `${type.row === "front" ? "Front" : "Back"} row`} <i aria-hidden="true">◆</i></span>${hero.crowdingPenaltyPercent ? '<span class="company-crowding">−20% HP / DMG</span>' : ''}${swapTarget ? '<span class="company-swap-label">Swap ↔</span>' : ''}</span></button>`;
   }
 
   function inspector(snapshot) {
@@ -82,8 +108,9 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
     const hero = offered ?? snapshot.bench.find((hero) => hero.id === snapshot.selectedHeroId);
     if (!hero) return `<div class="hero-inspector-empty"><span aria-hidden="true">◇</span><h2>Know your company.</h2><p>Select a contract or hired hero to inspect their strengths.</p><small>Looking is free. Hiring is a separate choice.</small></div>`;
     const type = heroTypes[hero.type];
+    const destinationFull = hero.active ? snapshot.bench.filter(candidate => !candidate.active).length >= 2 : snapshot.activeCount >= snapshot.teamCapacity;
     const cost = hero.level >= (snapshot.maxHeroLevel ?? 5) ? null : hero.level * hero.level;
-    return `<div class="hero-inspector-heading" style="--hero-color:${type.color}"><img src="${type.image}" alt=""/><div><span class="roster-eyebrow">${offered ? "AVAILABLE CONTRACT" : hero.active ? "ACTIVE PARTY" : "LOCKED RESERVE"}</span><h2>${escape(hero.name)}</h2><p>${type.label} · Level ${hero.level} · ${type.row === "front" ? "Front" : "Back"} row</p></div></div><div class="hero-stats"><span><b>${hero.power}</b>Power</span><span><b>${hero.health}</b>Health</span><span><b>${hero.damage}</b>Damage</span></div><p class="hero-behavior">${escape(hero.summary)}</p>${hero.townRecruitment ? `<p class="hero-town-availability">${escape(hero.townRecruitment)}. Recruitment rarity does not change this hero’s stats.</p>` : ""}<p class="hero-town-bonus">Town bonuses included. Bard power buffs are assigned when the expedition begins.</p>${offered ? `<p class="hero-contract-note">Like this hero? The <strong>Hire</strong> button is directly beneath their contract. No gold required.</p>` : `<div class="hero-management"><button type="button" class="${cost === null ? "" : "gold-purchase"}" data-roster-action="upgrade" ${cost === null ? "" : `data-gold-cost="${cost}"`} title="${cost === null ? "Maximum hero level" : `Pay ${cost} gold to train ${escape(hero.name)} to level ${hero.level + 1}`}" ${cost === null || snapshot.gold < cost ? "disabled" : ""}><span>${cost === null ? "Maximum level reached" : `Train to level ${hero.level + 1}`}${cost !== null && snapshot.gold < cost ? `<small class="gold-shortfall">Need ${cost - snapshot.gold} more gold</small>` : ""}</span>${cost === null ? `<b>LV ${snapshot.maxHeroLevel ?? 5}</b>` : goldPrice(cost)}</button><button type="button" data-roster-action="toggle" ${!hero.active && snapshot.activeCount >= snapshot.teamCapacity ? "disabled" : ""}>${hero.active ? "Move to reserves" : "Add to active party"}</button><button class="hero-dismiss" type="button" data-roster-action="dismiss">Dismiss hero</button></div>`}`;
+    return `<div class="hero-inspector-heading" style="--hero-color:${type.color}"><img src="${type.image}" alt=""/><div><span class="roster-eyebrow">${offered ? "AVAILABLE CONTRACT" : hero.active ? "ACTIVE PARTY" : "RESERVE · STAYING AT THE TAVERN"}</span><h2>${escape(hero.name)}</h2><p>${type.label} · Level ${hero.level} · ${type.row === "front" ? "Front" : "Back"} row</p></div></div><div class="hero-stats"><span><b>${hero.power}</b>Power</span><span><b>${hero.health}</b>Health</span><span><b>${hero.damage}</b>Damage</span></div><p class="hero-behavior">${escape(hero.summary)}</p>${hero.townRecruitment ? `<p class="hero-town-availability">${escape(hero.townRecruitment)}. Recruitment rarity does not change this hero’s stats.</p>` : ""}<p class="hero-town-bonus">Town bonuses included. Bard power buffs are assigned when the expedition begins.</p>${offered ? `<p class="hero-contract-note">Like this hero? The <strong>Hire</strong> button is directly beneath their contract. No gold required.</p>` : `<div class="hero-management"><button type="button" class="${cost === null ? "" : "gold-purchase"}" data-roster-action="upgrade" ${cost === null ? "" : `data-gold-cost="${cost}"`} title="${cost === null ? "Maximum hero level" : `Pay ${cost} gold to train ${escape(hero.name)} to level ${hero.level + 1}`}" ${cost === null || snapshot.gold < cost ? "disabled" : ""}><span>${cost === null ? "Maximum level reached" : `Train to level ${hero.level + 1}`}${cost !== null && snapshot.gold < cost ? `<small class="gold-shortfall">Need ${cost - snapshot.gold} more gold</small>` : ""}</span>${cost === null ? `<b>LV ${snapshot.maxHeroLevel ?? 5}</b>` : goldPrice(cost)}</button><button type="button" data-roster-action="toggle">${destinationFull ? hero.active ? "Swap with a reserve hero" : "Swap with an active hero" : hero.active ? "Move to tavern reserve" : "Add to active party"}</button><button class="hero-dismiss" type="button" data-roster-action="dismiss">Dismiss hero</button></div>`}`;
   }
 
   root.addEventListener("click", (event) => {
@@ -100,12 +127,23 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
     const offer = event.target.closest("[data-offer]");
     if (offer) { onOffer(Number(offer.dataset.offer)); return; }
     const hero = event.target.closest("[data-hero]");
-    if (hero) { onHero(Number(hero.dataset.hero)); return; }
+    if (hero) {
+      const id = hero.dataset.hero;
+      onHero(Number(id));
+      root.querySelector(`[data-hero="${id}"]`)?.focus({ preventScroll: true });
+      return;
+    }
     const action = event.target.closest("[data-roster-action]");
     if (action && !action.disabled) onAction(action.dataset.rosterAction);
   });
 
   return {
+    confirmDismissal(hero) {
+      dismissHeroId = hero.id;
+      root.querySelector('#dismiss-title').textContent = `Dismiss ${hero.name}?`;
+      root.querySelector('#dismiss-copy').textContent = `${hero.name}, level ${hero.level} ${heroTypes[hero.type].label}, will leave your company permanently. This cannot be undone.`;
+      if (!dismissDialog.open) dismissDialog.showModal();
+    },
     warnEmptySlots(active, capacity) {
       const empty = capacity - active;
       root.querySelector('#departure-copy').textContent = `Only ${active} of ${capacity} hero slots are filled. You have ${empty} empty ${empty === 1 ? 'slot' : 'slots'}. Hire more heroes or move reserves into your active party before descending, or enter with your current company.`;
@@ -115,7 +153,7 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
       const wasVisible = !root.hidden;
       root.hidden = !snapshot.visible;
       document.body.classList.toggle("roster-open", snapshot.visible);
-      if (!snapshot.visible) { if (departureDialog.open) departureDialog.close(); if (wasVisible) window.scrollTo(0, 0); return; }
+      if (!snapshot.visible) { if (departureDialog.open) departureDialog.close(); if (dismissDialog.open) { dismissDialog.close(); dismissHeroId = null; } if (wasVisible) window.scrollTo(0, 0); return; }
       const rolling = snapshot.rollRemainingMs > 0;
       const nextSignature = JSON.stringify({ ...snapshot, rollRemainingMs: rolling });
       if (signature === nextSignature && wasVisible) return;
@@ -157,12 +195,16 @@ export function createRosterView({ root, heroTypes, onAction, onHero, onOffer, o
       root.querySelector(".roster-team-count").textContent = `${snapshot.activeCount} / ${snapshot.teamCapacity} active`;
       const active = snapshot.bench.filter((hero) => hero.active);
       const reserves = snapshot.bench.filter((hero) => !hero.active);
-      const companyKey = JSON.stringify([snapshot.bench, snapshot.selectedHeroId, snapshot.teamCapacity]);
+      const swapHero = snapshot.bench.find(hero => hero.id === snapshot.swapHeroId);
+      const swapNotice = root.querySelector('.company-swap');
+      swapNotice.hidden = !swapHero;
+      root.querySelector('.company-swap-copy').textContent = swapHero ? `Choose ${swapHero.active ? "a reserve hero at the tavern" : "an active party member"} to swap with ${swapHero.name}.` : "";
+      const companyKey = JSON.stringify([snapshot.bench, snapshot.selectedHeroId, snapshot.teamCapacity, snapshot.swapHeroId]);
       if (root.querySelector(".company-board").dataset.key !== companyKey) {
         root.querySelector(".company-board").dataset.key = companyKey;
-        root.querySelector(".company-party").innerHTML = Array.from({ length: snapshot.teamCapacity }, (_, index) => lockedCard(active[index] && { ...active[index], selected: active[index].id === snapshot.selectedHeroId })).join("");
-        // Unused party places can hold additional reserves until they are deployed.
-        root.querySelector(".company-reserves").innerHTML = Array.from({ length: Math.max(2, reserves.length) }, (_, index) => lockedCard(reserves[index] && { ...reserves[index], selected: reserves[index].id === snapshot.selectedHeroId }, true)).join("");
+        root.querySelector(".company-party").innerHTML = Array.from({ length: snapshot.teamCapacity }, (_, index) => lockedCard(active[index] && { ...active[index], selected: active[index].id === snapshot.selectedHeroId }, false, swapHero)).join("");
+        // Keep any additional reserves from older saves visible until they are moved.
+        root.querySelector(".company-reserves").innerHTML = Array.from({ length: Math.max(2, reserves.length) }, (_, index) => lockedCard(reserves[index] && { ...reserves[index], selected: reserves[index].id === snapshot.selectedHeroId }, true, swapHero)).join("");
       }
       const inspectorNode = root.querySelector(".roster-inspector");
       const inspectorKey = JSON.stringify([snapshot.selectedOfferId, snapshot.selectedHeroId, snapshot.gold, snapshot.bench, snapshot.offers, snapshot.activeCount, snapshot.buildings, snapshot.cemeteryBonusPercent]);

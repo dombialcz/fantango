@@ -113,6 +113,7 @@ try{
     state.bench=[{id:500,type:'knight',name:'Dismissed',level:1,active:true}];state.selectedHeroId=500;render();
   });
   await page.locator('[data-roster-action="dismiss"]').click();
+  await page.locator('[data-dismiss="confirm"]').click();
   assert.equal((await snapshot()).bench.length,0);assert.equal((await snapshot()).cemetery.fallenCount,0);
 
   for(const [name,width,height] of [['desktop',1440,1000],['phone',390,844],['small-phone',320,740],['landscape',844,390]]){
