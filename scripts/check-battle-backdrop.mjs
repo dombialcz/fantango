@@ -62,7 +62,7 @@ try{
   await page.locator('[data-battle-action="pause"]').click();
   const paused=await geometry();await page.evaluate(()=>advanceTime(20000));assert.deepEqual(await geometry(),paused);
   await page.locator('[data-battle-action="pause"]').click();await page.evaluate(()=>advanceTime(9000));await assertPosition(.1);
-  await stage('undead');await page.locator('[data-battle-action="speed"]').click();await page.evaluate(()=>advanceTime(9000));await assertPosition(.05);
+  await stage('undead');await page.locator('[data-battle-speed]').fill('2');await page.evaluate(()=>advanceTime(9000));await assertPosition(.05);
   await page.evaluate(()=>window.sceneryTest.floor(2));await assertPosition(.05);
   await page.evaluate(()=>advanceTime(9000));await assertPosition(.125);
 

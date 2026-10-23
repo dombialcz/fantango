@@ -1,6 +1,7 @@
 export const COMMAND_MAX = 100;
 export const COMMAND_START = 50;
 export const COMMAND_GAIN_PER_DAMAGE = 0.12;
+export const BATTLE_SPEEDS = Object.freeze([0.5, 1, 2]);
 export const TIME_FREEZE_COOLDOWN_MS = 10000;
 
 export const BATTLE_COMMANDS = Object.freeze({

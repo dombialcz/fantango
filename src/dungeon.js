@@ -21,6 +21,7 @@ import { createBattleView } from "./battle-view.js";
 import { createRosterView } from "./roster-view.js";
 import {
   BATTLE_COMMANDS,
+  BATTLE_SPEEDS,
   COMMAND_GAIN_PER_DAMAGE,
   COMMAND_IDS,
   COMMAND_MAX,
@@ -213,6 +214,7 @@ state.selectionHistory ??= []; // Saves made before class balancing have no sele
 state.commandAutoPauseEnabled ??= true;
 state.freezeCooldownMs ??= 0;
 state.potionCooldownMs ??= 0;
+state.battleSpeed = BATTLE_SPEEDS.includes(state.battleSpeed) ? state.battleSpeed : 1;
 state.divineAegisTargetId ??= null;
 // Legacy party-wide shields cannot remain active without a selected hero.
 if (state.divineAegisTargetId === null) state.divineAegisMs = 0;
@@ -341,11 +343,11 @@ const battleView = createBattleView({
     else if (state.potionTargeting && target?.side === "hero") usePotionOn(target);
     render();
   },
+  onSpeed: (speed) => { setBattleSpeed(speed); render(); },
   onAction: (id) => {
     if (id === "potion") togglePotionTargeting();
     if (id === "pause") toggleBattlePause();
     if (id === "auto-pause") toggleCommandAutoPause();
-    if (id === "speed") state.battleSpeed = state.battleSpeed === 1 ? 2 : 1;
     if (id === "flee") requestFleeMidBattle();
     if (id === "flee-confirm") fleeMidBattle();
     if (id === "flee-cancel") state.fleeConfirmation = false;
@@ -1676,6 +1678,12 @@ function toggleBattlePause() {
   state.commandAutoPaused = false;
 }
 
+function setBattleSpeed(speed) {
+  if (state.view !== "battle" || !BATTLE_SPEEDS.includes(speed)) return;
+  state.battleSpeed = speed;
+  persist();
+}
+
 window.addEventListener("keydown", (event) => {
   if (event.ctrlKey || event.metaKey || event.altKey) return;
   // Enter and Space on a focused HTML control must activate that control only.
@@ -1713,7 +1721,7 @@ window.addEventListener("keydown", (event) => {
     render();
   } else if (event.key === " " && state.view === "battle") {
     event.preventDefault();
-    state.battleSpeed = state.battleSpeed === 1 ? 2 : 1;
+    setBattleSpeed(BATTLE_SPEEDS[(BATTLE_SPEEDS.indexOf(state.battleSpeed) + 1) % BATTLE_SPEEDS.length]);
     render();
   }
 });
@@ -1934,7 +1942,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command at 0.12 points per damage, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Divine Aegis shields one selected hero for eight seconds. Mark Prey focuses a selected enemy and speeds up reachable attackers for ten seconds, ending early if the target dies. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second cooldown in combat time, paused with battle and scaled by battle speed. Press 8 to prepare or cancel a potion. Esc cancels targeting. Commands and potions work while paused. P pauses; Space changes speed; F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee pauses combat and asks for confirmation before costing half your gold. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
+    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command at 0.12 points per damage, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Divine Aegis shields one selected hero for eight seconds. Mark Prey focuses a selected enemy and speeds up reachable attackers for ten seconds, ending early if the target dies. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second cooldown in combat time, paused with battle and scaled by battle speed. Press 8 to prepare or cancel a potion. Esc cancels targeting. Commands and potions work while paused. P pauses separately from speed. The combat-speed slider selects 0.5×, 1× or 2×; Space cycles those speeds. F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee pauses combat and asks for confirmation before costing half your gold. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
   });
 };
 

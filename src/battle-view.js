@@ -1,4 +1,4 @@
-import { BATTLE_COMMANDS, COMMAND_IDS, COMMAND_MAX } from "./battle-commands.js";
+import { BATTLE_COMMANDS, BATTLE_SPEEDS, COMMAND_IDS, COMMAND_MAX } from "./battle-commands.js";
 import { ENEMY_PORTRAITS } from "./enemy-art.js";
 import { goldPrice, updateGoldBalance } from "./gold-ui.js";
 import { BATTLE_BACKDROPS } from "./battle-backdrop.js";
@@ -24,7 +24,7 @@ function powerCopy(id, power) {
   return `×${power.damageMultiplier.toFixed(2)} combined frontline damage`;
 }
 
-export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTarget, onAction, onInspect, getUnitDetails }) {
+export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTarget, onAction, onSpeed, onInspect, getUnitDetails }) {
   let current = null;
   let selectedCommand = null;
   const cards = new Map();
@@ -44,7 +44,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       <div class="battle-command-deck">${COMMAND_IDS.map((id, index) => `<button class="battle-command" type="button" data-command="${id}" aria-describedby="command-description"><span class="battle-command__art"><img src="assets/commands/${id}.webp" alt=""/><span class="battle-command__key">${index + 1}</span><span class="battle-command__cost">${BATTLE_COMMANDS[id].cost}<small>CMD</small></span><span class="battle-command__count"></span><span class="battle-command__active"></span></span><strong>${BATTLE_COMMANDS[id].label}</strong><span class="battle-command__power"></span><span class="battle-command__reason"></span></button>`).join("")}<button class="battle-command battle-potion" data-battle-action="potion" type="button" aria-describedby="command-description"><span class="battle-command__art"><img src="assets/items/healing-potion.webp" alt=""/><span class="battle-command__key">8</span><span class="battle-command__cost"><span class="battle-potion__count"></span><small>LEFT</small></span><span class="battle-command__active battle-potion__timer"></span></span><strong class="battle-potion__label"></strong><span class="battle-command__power battle-potion__detail"></span><span class="battle-command__reason battle-potion__reason"></span></button></div>
       <p class="battle-command-description" id="command-description">Damage dealt and received fills Command. Orders grow stronger with matching living heroes.</p>
     </section>
-    <footer class="battle-controls"><span class="battle-control-preferences"><button class="battle-auto-pause" data-battle-action="auto-pause" type="button" aria-pressed="true" title="Pause combat when Command reaches 100. Starts on every expedition.">Auto pause at 100: ON</button><span class="battle-target-help"></span></span><div><button data-battle-action="flee" class="battle-flee" type="button"></button><button data-battle-action="pause" type="button"></button><button data-battle-action="speed" type="button"></button></div></footer>
+    <footer class="battle-controls"><span class="battle-control-preferences"><button class="battle-auto-pause" data-battle-action="auto-pause" type="button" aria-pressed="true" title="Pause combat when Command reaches 100. Starts on every expedition.">Auto pause at 100: ON</button><span class="battle-target-help"></span></span><div class="battle-playback-controls"><button data-battle-action="flee" class="battle-flee" type="button"></button><button data-battle-action="pause" type="button"></button><label class="battle-speed-control" for="battle-speed"><span>Combat speed<output for="battle-speed" data-battle-speed-value>1×</output></span><input id="battle-speed" data-battle-speed type="range" min="0" max="2" step="1" value="1" aria-label="Combat speed" aria-valuetext="1× normal speed"/><span class="battle-speed-control__ticks" aria-hidden="true"><i>0.5×</i><i>1×</i><i>2×</i></span></label></div></footer>
   </div>
   <dialog id="battle-flee-confirmation" class="battle-flee-dialog" aria-labelledby="flee-dialog-title" aria-describedby="flee-dialog-description">
     <span class="battle-eyebrow">LEAVE THE EXPEDITION</span>
@@ -78,7 +78,9 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
     const bounds = fleeDialog.getBoundingClientRect();
     if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onAction("flee-cancel");
   });
-  const actionButtons = new Map(["potion", "flee", "pause", "speed"].map((id) => [id, root.querySelector(`[data-battle-action="${id}"]`)]));
+  const actionButtons = new Map(["potion", "flee", "pause"].map((id) => [id, root.querySelector(`[data-battle-action="${id}"]`)]));
+  const speedSlider = root.querySelector('[data-battle-speed]');
+  speedSlider.addEventListener("input", () => onSpeed(BATTLE_SPEEDS[Number(speedSlider.value)]));
   const unitInspector = createUnitInspector({ root, heroTypes, getDetails: getUnitDetails,
     restoreFocus: id => (cards.get(id) ?? actionButtons.get("pause"))?.focus({ preventScroll: true }) });
 
@@ -327,7 +329,12 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       autoPause.disabled = result;
       actionButtons.get("potion").title = `Heal one wounded hero. Two seconds of combat time between uses; pauses with combat and follows battle speed. No Command cost. Each cleared floor has a ${state.potionRecoveryPercent}% chance to restore one potion.`;
       actionButtons.get("pause").textContent = state.paused ? "Resume" : "Pause";
-      actionButtons.get("speed").textContent = `Speed ×${state.speed}`;
+      actionButtons.get("pause").setAttribute("aria-pressed", String(state.paused));
+      const speedIndex = BATTLE_SPEEDS.indexOf(state.speed);
+      if (Number(speedSlider.value) !== speedIndex) speedSlider.value = speedIndex;
+      speedSlider.disabled = result;
+      speedSlider.setAttribute("aria-valuetext", `${state.speed}× ${state.speed === 0.5 ? "half speed" : state.speed === 1 ? "normal speed" : "double speed"}`);
+      root.querySelector('[data-battle-speed-value]').textContent = `${state.speed}×`;
       for (const [id, button] of actionButtons) if (id !== "potion") button.disabled = result;
       root.querySelector(".battle-target-help").textContent = state.targeting ? "Choose a highlighted target · Esc cancels" : "Orders work while paused. The party auto-flees when only two remain.";
       if (selectedCommand) explainCommand(selectedCommand);
