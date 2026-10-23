@@ -53,7 +53,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
     <div class="battle-flee-summary"><span>Gold lost on escape</span><strong class="battle-flee-confirm-cost"></strong></div>
     <p class="battle-flee-levels"></p>
     <p class="battle-flee-paused">Combat is paused. Cancel keeps it paused.</p>
-    <div class="battle-flee-actions"><button type="button" data-battle-action="flee-cancel" autofocus>Cancel</button><button type="button" class="gold-purchase" data-battle-action="flee-confirm"></button></div>
+    <div class="battle-flee-actions"><button type="button" data-battle-action="flee-cancel" autofocus>Cancel</button><button type="button" data-battle-action="flee-continue" hidden>Keep fighting</button><button type="button" class="gold-purchase" data-battle-action="flee-confirm"></button></div>
   </dialog>`;
 
   const rows = new Map(rowKeys.map((key) => [key, root.querySelector(`[data-rank="${key}"] .battle-rank__units`)]));
@@ -336,15 +336,25 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       speedSlider.setAttribute("aria-valuetext", `${state.speed}× ${state.speed === 0.5 ? "half speed" : state.speed === 1 ? "normal speed" : "double speed"}`);
       root.querySelector('[data-battle-speed-value]').textContent = `${state.speed}×`;
       for (const [id, button] of actionButtons) if (id !== "potion") button.disabled = result;
-      root.querySelector(".battle-target-help").textContent = state.targeting ? "Choose a highlighted target · Esc cancels" : "Orders work while paused. The party auto-flees when only two remain.";
+      root.querySelector(".battle-target-help").textContent = state.targeting ? "Choose a highlighted target · Esc cancels" : "Orders work while paused. At two survivors, choose whether to flee or keep fighting.";
       if (selectedCommand) explainCommand(selectedCommand);
       if (!wasVisible) { selectedCommand = null; arena.scrollTop = 0; }
       drawStrikes(state.combatEffects);
       unitInspector.render(state.view === "battle");
       if (state.view === "battle" && state.fleeConfirmation) {
-        const dialogSignature = `${state.fleeCost}:${state.levelChance}`;
+        const lowParty = state.fleeReason === "low-party";
+        const dialogSignature = `${state.fleeCost}:${state.levelChance}:${lowParty}:${state.survivors}`;
         if (fleeDialog.dataset.signature !== dialogSignature) {
           fleeDialog.dataset.signature = dialogSignature;
+          fleeDialog.querySelector('#flee-dialog-title').textContent = lowParty ? state.survivors === 1 ? "Only one hero remains." : "Only two heroes remain." : "Abandon this battle?";
+          fleeDialog.querySelector('#flee-dialog-description').textContent = lowParty
+            ? "Will you flee or keep fighting? Escaping now costs half your gold, rounded up."
+            : "Your surviving heroes will return to town. Escaping during a fight costs half your gold, rounded up.";
+          fleeDialog.querySelector('.battle-flee-paused').textContent = lowParty
+            ? "Combat is paused. Keep fighting resumes it. Esc closes this choice and keeps combat paused."
+            : "Combat is paused. Cancel keeps it paused.";
+          fleeDialog.querySelector('[data-battle-action="flee-cancel"]').hidden = lowParty;
+          fleeDialog.querySelector('[data-battle-action="flee-continue"]').hidden = !lowParty;
           fleeDialog.querySelector(".battle-flee-confirm-cost").innerHTML = goldPrice(state.fleeCost, "LOSE");
           fleeDialog.querySelector(".battle-flee-levels").textContent = `Each eligible survivor has a ${state.levelChance}% chance to gain a level.`;
           const confirm = fleeDialog.querySelector('[data-battle-action="flee-confirm"]');
@@ -353,7 +363,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
         }
         if (!fleeDialog.open) {
           fleeDialog.showModal();
-          fleeDialog.querySelector('[data-battle-action="flee-cancel"]').focus();
+          fleeDialog.querySelector(`[data-battle-action="${lowParty ? "flee-continue" : "flee-cancel"}"]`).focus();
         }
       } else if (fleeDialog.open) {
         fleeDialog.close();

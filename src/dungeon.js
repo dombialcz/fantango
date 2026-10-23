@@ -165,6 +165,8 @@ function createCampaign(journey = createJourney(), veterans = []) {
     battleSpeed: 1,
     battlePaused: false,
     fleeConfirmation: false,
+    fleeReason: null,
+    lowPartyWarningShown: false,
     commandAutoPaused: false,
     commandAutoPauseEnabled: true,
     commandMeter: COMMAND_START,
@@ -214,6 +216,8 @@ state.selectionHistory ??= []; // Saves made before class balancing have no sele
 state.commandAutoPauseEnabled ??= true;
 state.freezeCooldownMs ??= 0;
 state.potionCooldownMs ??= 0;
+state.fleeReason ??= null;
+state.lowPartyWarningShown ??= false;
 state.battleSpeed = BATTLE_SPEEDS.includes(state.battleSpeed) ? state.battleSpeed : 1;
 state.divineAegisTargetId ??= null;
 // Legacy party-wide shields cannot remain active without a selected hero.
@@ -350,7 +354,8 @@ const battleView = createBattleView({
     if (id === "auto-pause") toggleCommandAutoPause();
     if (id === "flee") requestFleeMidBattle();
     if (id === "flee-confirm") fleeMidBattle();
-    if (id === "flee-cancel") state.fleeConfirmation = false;
+    if (id === "flee-cancel") dismissFleeConfirmation();
+    if (id === "flee-continue") dismissFleeConfirmation(true);
     if (id === "flee-safe") fleeExpedition();
     if (id === "continue") continueExpedition();
     if (id === "next-day") advanceDay();
@@ -524,6 +529,7 @@ function startExpedition(confirmed = false) {
   state.party = buildParty(chosen);
   state.selectionHistory = recordClassSelection(state.selectionHistory, state.day, chosen, HERO_KEYS);
   state.expeditionStartCount = state.party.length;
+  state.lowPartyWarningShown = false;
   state.expeditionStartIds = chosen.map((hero) => hero.id);
   remember("departure", `${chosen.length} heroes descended: ${chosen.map(h => `${h.name} (${HERO_TYPES[h.type].label}, L${h.level})`).join(", ")}.`);
   const supplies = alchemistSupplies(state.buildings.alchemist.level);
@@ -1083,6 +1089,7 @@ function actEnemy(unit) {
 
 function updateBattle(milliseconds) {
   if (state.view !== "battle" || state.battlePaused) return;
+  if (requestLowPartyRetreat()) return;
   const delta = milliseconds * state.battleSpeed;
   const enemiesFrozen = state.enemyFreezeMs > 0;
   state.battleTime += delta;
@@ -1122,6 +1129,7 @@ function updateBattle(milliseconds) {
       while (!state.battlePaused && unit.timer <= 0 && unit.hp > 0 && livingParty().length) {
         actEnemy(unit);
         unit.timer += enemyInterval(unit);
+        requestLowPartyRetreat();
       }
     }
   }
@@ -1148,9 +1156,8 @@ function updateBattle(milliseconds) {
   if (enemiesLeft === 0) finishFloor();
   else if (heroesLeft === 0) finishDay("The company was lost below. Tomorrow begins with fresh contracts.", null, "none");
   else {
-    const retreatAt = state.expeditionStartCount > 2 ? 2 : Math.max(0, state.expeditionStartCount - 1);
-    if (heroesLeft <= retreatAt) finishDay("The party is defeated, remaining heroes flee.", "Party Defeated");
-    else if (state.battleTime >= 90000) finishDay("The fight becomes a hopeless stalemate. The company retreats.");
+    requestLowPartyRetreat();
+    if (!state.fleeConfirmation && state.battleTime >= 90000) finishDay("The fight becomes a hopeless stalemate. The company retreats.");
   }
 }
 
@@ -1294,6 +1301,7 @@ function usePotionOn(unit) {
 
 function clearCombatFeedback() {
   state.fleeConfirmation = false;
+  state.fleeReason = null;
   state.battlePaused = false;
   state.commandAutoPaused = false;
   state.potionTargeting = false;
@@ -1318,10 +1326,35 @@ function midBattleFleeCost() {
   return Math.ceil(state.gold / 2);
 }
 
-function requestFleeMidBattle() {
+function requestLowPartyRetreat() {
+  if (state.view !== "battle" || state.lowPartyWarningShown || !livingEnemies().length) return false;
+  const heroesLeft = livingParty().length;
+  const retreatAt = state.expeditionStartCount > 2 ? 2 : Math.max(0, state.expeditionStartCount - 1);
+  if (heroesLeft === 0 || heroesLeft > retreatAt) return false;
+  state.lowPartyWarningShown = true;
+  requestFleeMidBattle("low-party");
+  return true;
+}
+
+function requestFleeMidBattle(reason = "manual") {
   if (state.view !== "battle") return;
   state.battlePaused = true;
+  state.commandAutoPaused = false;
+  state.commandTargeting = null;
+  state.potionTargeting = false;
   state.fleeConfirmation = true;
+  state.fleeReason = reason;
+  persist();
+}
+
+function dismissFleeConfirmation(keepFighting = false) {
+  if (state.view !== "battle" || !state.fleeConfirmation) return;
+  const resume = keepFighting && state.fleeReason === "low-party";
+  state.fleeConfirmation = false;
+  state.fleeReason = null;
+  state.battlePaused = !resume;
+  state.commandAutoPaused = false;
+  persist();
 }
 
 function fleeMidBattle() {
@@ -1634,6 +1667,8 @@ function battlePresentation() {
     divineAegisTargetId: state.divineAegisTargetId,
     paused: state.battlePaused,
     fleeConfirmation: Boolean(state.fleeConfirmation),
+    fleeReason: state.fleeReason,
+    survivors: livingParty().length,
     commandAutoPaused: state.commandAutoPaused,
     commandAutoPauseEnabled: state.commandAutoPauseEnabled,
     speed: state.battleSpeed,
@@ -1831,6 +1866,8 @@ window.render_game_to_text = () => {
     battleSpeed: state.battleSpeed,
     battlePaused: state.battlePaused,
     fleeConfirmation: Boolean(state.fleeConfirmation),
+    fleeReason: state.fleeReason,
+    lowPartyWarningShown: state.lowPartyWarningShown,
     commandAutoPaused: state.commandAutoPaused,
     commandAutoPauseEnabled: state.commandAutoPauseEnabled,
     commands: {
@@ -1942,7 +1979,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command at 0.12 points per damage, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Divine Aegis shields one selected hero for eight seconds. Mark Prey focuses a selected enemy and speeds up reachable attackers for ten seconds, ending early if the target dies. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second cooldown in combat time, paused with battle and scaled by battle speed. Press 8 to prepare or cancel a potion. Esc cancels targeting. Commands and potions work while paused. P pauses separately from speed. The combat-speed slider selects 0.5×, 1× or 2×; Space cycles those speeds. F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). Mid-battle Flee pauses combat and asks for confirmation before costing half your gold. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
+    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect portraits; Hire below each offer for free. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command at 0.12 points per damage, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Divine Aegis shields one selected hero for eight seconds. Mark Prey focuses a selected enemy and speeds up reachable attackers for ten seconds, ending early if the target dies. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second cooldown in combat time, paused with battle and scaled by battle speed. Press 8 to prepare or cancel a potion. Esc cancels targeting. Commands and potions work while paused. P pauses separately from speed. The combat-speed slider selects 0.5×, 1× or 2×; Space cycles those speeds. F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). When the company falls to two survivors, combat pauses once per expedition to offer Flee or Keep fighting. Keep fighting resumes combat; Escape dismisses the choice while staying paused. Mid-battle Flee asks for confirmation and costs half your gold, rounded up, including retreat from the survivor warning. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
   });
 };
 

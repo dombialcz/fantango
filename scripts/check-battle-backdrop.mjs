@@ -16,7 +16,7 @@ try{
           state.events.clears=0;state.events.next=0;state.events.pending=null;state.events.plan.forEach(event=>event.at=9999);
           state.conclusion=null;state.victoryAchieved=false;state.victoryDay=null;state.campaignId=crypto.randomUUID();state.flavorKey=flavor;state.bossType=null;state.backdrop=createBackdropDepth();state.floor=floor;
           state.party=buildParty(['knight','thief','ranger','mage'].map((type,index)=>({id:100+index,type,name:HERO_TYPES[type].label,level:5,active:true})));
-          prepareFloor();state.expeditionStartCount=4;
+          prepareFloor();state.expeditionStartCount=4;state.lowPartyWarningShown=false;
           for(const unit of [...state.party,...state.enemies])unit.timer=Infinity;
           render();
         },
@@ -92,6 +92,10 @@ try{
       else state.party.forEach((hero,index)=>{if(outcome==='loss'||index>=2)hero.hp=0;});
       advanceTime(1);
     },outcome);
+    if(outcome==='defeat') {
+      assert.equal((await snapshot()).view,'battle');assert.equal((await snapshot()).fleeReason,'low-party');
+      await page.locator('[data-battle-action="flee-confirm"]').click();
+    }
     assert.equal((await snapshot()).view,'day_result');await assertPosition(.4);
   }
 
