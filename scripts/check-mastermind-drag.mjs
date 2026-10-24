@@ -12,7 +12,7 @@ try {
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
-    await page.goto("http://127.0.0.1:4173/mastermind.html");
+    await page.goto("http://127.0.0.1:4173/mastermind.html?daily=1");
     const state = () => page.evaluate(() => JSON.parse(window.render_game_to_text()));
     const draft = async () => (await state()).draft;
     const active = slot => page.locator(`.row-active [data-slot="${slot}"]`);

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="Break the daily Vaultbound hero code with unlimited guesses." />
+    <meta name="description" content="Learn Mastermind with a guided tutorial, follow short fantasy stories, or solve three daily hero puzzles." />
     <meta name="theme-color" content="#101a23" />
     <title>Mastermind — Vaultbound</title>
     <link rel="icon" type="image/webp" href="assets/mastermind/thief.webp" />
@@ -19,10 +19,11 @@
     <header class="topbar">
       <a class="brand-lockup" href="dungeon.html" aria-label="Vaultbound">
         <span class="brand-mark" aria-hidden="true">V</span>
-        <span class="brand-name"><strong>VAULTBOUND</strong><small data-i18n="brandKicker">DAILY CHALLENGE</small></span>
+        <span class="brand-name"><strong>VAULTBOUND</strong><small data-i18n="brandKicker">MASTERMIND</small></span>
       </a>
       <div class="topbar-actions">
-        <time class="date-pill" id="today-date"></time>
+        <button type="button" class="home-nav-button" id="mastermind-home-button" data-i18n="home" hidden>Home</button>
+        <time class="date-pill" id="today-date" hidden></time>
         <div class="language-switch" role="group" aria-label="Language">
           <button type="button" data-locale="en" aria-pressed="true">EN</button>
           <button type="button" data-locale="pl" aria-pressed="false">PL</button>
@@ -36,15 +37,56 @@
         <span>Chrome blocks the game script when this file is opened directly. In the project folder, run <code>npm run serve</code>, then visit <code>http://localhost:4173/mastermind.html</code>.</span>
       </aside>
 
-      <section class="intro-row">
+      <section class="intro-row" hidden>
         <div>
           <p class="eyebrow" data-i18n="gameKicker">THE DAILY HERO CODE</p>
-          <h1 data-i18n="gameTitle">Mastermind</h1>
+          <h1 id="daily-title" tabindex="-1" data-i18n="gameTitle">Mastermind</h1>
           <p class="intro-copy" data-i18n="gameSubtitle">Read the party name. Rebuild the formation.</p>
         </div>
         <a class="back-link" href="dungeon.html"><span aria-hidden="true">←</span><span data-i18n="backVaultbound">Back to Vaultbound</span></a>
       </section>
 
+      <section class="mastermind-home" id="mastermind-home" aria-labelledby="mastermind-home-title">
+        <div class="home-heading">
+          <p class="eyebrow" data-i18n="homeKicker">THE PARTY IS A PUZZLE</p>
+          <h1 id="mastermind-home-title" tabindex="-1">Mastermind</h1>
+          <p data-i18n="homeSubtitle">Read the clues. Find your party.</p>
+        </div>
+        <div class="home-choices">
+          <article class="home-choice">
+            <div class="home-choice-art" aria-hidden="true"><img src="assets/mastermind/thief.webp" alt=""><img class="home-prop" src="assets/mastermind/coin.svg" alt=""></div>
+            <p class="eyebrow" data-i18n="tutorialKicker">START HERE</p>
+            <h2 data-i18n="tutorialTitle">A thief in the treasury</h2>
+            <p data-i18n="tutorialDescription">Learn one step at a time, with guided clues and unlimited tries.</p>
+            <button type="button" id="home-play-tutorial" class="story-button" data-i18n="playTutorial">Play Tutorial</button>
+          </article>
+          <article class="home-choice">
+            <div class="home-choice-art" aria-hidden="true"><img src="assets/mastermind/bard.webp" alt=""><img class="home-companion" src="assets/mastermind/zombie.webp" alt=""></div>
+            <p class="eyebrow" data-i18n="storiesKicker">A LITTLE ADVENTURE</p>
+            <h2 data-i18n="storiesTitle">From tavern to royal court</h2>
+            <p data-i18n="storiesDescription">Follow two short stories. Solve each scene with five health and free hints.</p>
+            <button type="button" id="home-play-stories" class="story-button" data-i18n="playStories">Play Stories</button>
+          </article>
+          <article class="home-choice">
+            <div class="home-choice-art" aria-hidden="true"><img src="assets/mastermind/knight.webp" alt=""><img class="home-companion" src="assets/mastermind/mage.webp" alt=""></div>
+            <p class="eyebrow" data-i18n="dailyKicker">A FRESH CODE EVERY DAY</p>
+            <h2 data-i18n="dailyTitle">Three hidden formations</h2>
+            <p data-i18n="dailyDescription">Decode a party name. Choose Easy, Medium or Hard, with unlimited guesses.</p>
+            <button type="button" id="home-play-daily" class="story-button" data-i18n="playDaily">Daily Puzzles</button>
+          </article>
+        </div>
+        <a class="home-back-link" href="dungeon.html" data-i18n="backVaultbound">Back to Vaultbound</a>
+      </section>
+      <section id="mastermind-stories" class="stories-menu" aria-labelledby="stories-title" hidden>
+        <p class="eyebrow" data-i18n="storiesKicker">A LITTLE ADVENTURE</p>
+        <h1 id="stories-title" tabindex="-1" data-i18n="playStories">Play Stories</h1>
+        <section class="story-entry" id="mastermind-adventure-entry" aria-label="Short adventures"></section>
+      </section>
+      <section id="mastermind-tutorial-entry" hidden aria-hidden="true"></section>
+      <section class="story-tutorial" id="mastermind-tutorial" aria-label="Story tutorial" hidden></section>
+      <section class="story-tutorial story-adventure" id="mastermind-adventure" aria-label="Short adventures" hidden></section>
+
+      <div id="mastermind-daily" hidden>
       <nav class="difficulty-tabs" aria-label="Daily challenge difficulty">
         <button class="difficulty-tab" type="button" data-challenge="easy" aria-pressed="true">
           <span class="difficulty-name" data-i18n="easy">Easy</span>
@@ -103,7 +145,8 @@
             </div>
             <div class="board-legend" aria-label="Feedback legend">
               <span><i class="feedback-dot exact"></i><span data-i18n="exactLegend">Right class, right place</span></span>
-              <span><i class="feedback-dot misplaced"></i><span data-i18n="misplacedLegend">Right class, different place</span></span>
+              <span><i class="feedback-dot misplaced" aria-hidden="true"></i><span data-i18n="misplacedLegend">Right class, different place</span></span>
+              <span><i class="feedback-dot absent" aria-hidden="true"></i><span data-i18n="absentLegend">Not included: wrong class or extra copy</span></span>
             </div>
             <ol class="guess-board guess-history" id="guess-history" aria-label="Previous guesses, newest first" reversed></ol>
           </div>
@@ -122,7 +165,9 @@
         </aside>
       </div>
 
-      <footer class="page-footer">
+      </div>
+
+      <footer class="page-footer" hidden>
         <a href="index.html" data-i18n="playFantango">Play Fantango</a>
         <span data-i18n="dailyFooter">A new code every day · Three challenges</span>
       </footer>

@@ -1,11 +1,18 @@
 import { localDateKey } from "./generator.js";
 import { CHALLENGES, HERO_CLASSES, evaluateGuess, generateChallenge } from "./mastermind-core.js";
 import { installPortraitDrag } from "./mastermind-drag.js";
+import { installMastermindTutorial } from "./mastermind-tutorial.js";
+import { installMastermindAdventures } from "./mastermind-adventure.js";
 import { PARTY_NAMES } from "./mastermind-names.js";
 
 const HERO_BY_ID = Object.fromEntries(HERO_CLASSES.map((hero) => [hero.id, hero]));
 const COPY = {
   en: {
+    home: "Home", homeKicker: "THE PARTY IS A PUZZLE", homeSubtitle: "Read the clues. Find your party.",
+    playTutorial: "Play Tutorial", playStories: "Play Stories", playDaily: "Daily Puzzles",
+    tutorialKicker: "START HERE", tutorialTitle: "A thief in the treasury", tutorialDescription: "Learn one step at a time, with guided clues and unlimited tries.",
+    storiesKicker: "A LITTLE ADVENTURE", storiesTitle: "From tavern to royal court", storiesDescription: "Follow two short stories. Solve each scene with five health and free hints.",
+    dailyKicker: "A FRESH CODE EVERY DAY", dailyTitle: "Three hidden formations", dailyDescription: "Decode a party name. Choose Easy, Medium or Hard, with unlimited guesses.",
     brandKicker: "DAILY CHALLENGE",
     gameKicker: "THE DAILY HERO CODE",
     gameTitle: "Mastermind",
@@ -34,6 +41,7 @@ const COPY = {
     clearRow: "Clear current row",
     exactLegend: "Right class, right place",
     misplacedLegend: "Right class, different place",
+    absentLegend: "Not included: wrong class or extra copy",
     chooseHeroes: "Choose heroes",
     pickerSubtitle: "Select a class to fill the next open place.",
     keyboardPick: "quick pick",
@@ -47,7 +55,7 @@ const COPY = {
     emptyPlace: (place) => `Place ${place}, empty`,
     filledPlace: (place, hero) => `Place ${place}, ${hero}. Activate to clear it.`,
     heroChoice: (hero, key) => `Add ${hero}. Keyboard shortcut ${key}.`,
-    feedbackCount: (exact, misplaced) => `${exact} in place, ${misplaced} elsewhere`,
+    feedbackCount: (exact, misplaced, absent) => `${exact} in place, ${misplaced} elsewhere, ${absent} not included (wrong class or extra copy)`,
     attempts: (used) => `${used} ${used === 1 ? "guess" : "guesses"}`,
     dateLocale: "en-GB",
     unsolvedMessage: "Choose a hero to fill the highlighted row. Select a filled place to change it.",
@@ -64,6 +72,11 @@ const COPY = {
     },
   },
   pl: {
+    home: "Ekran główny", homeKicker: "DRUŻYNA PEŁNA ZAGADEK", homeSubtitle: "Odczytaj wskazówki. Odtwórz drużynę.",
+    playTutorial: "Samouczek", playStories: "Historie", playDaily: "Codzienne zagadki",
+    tutorialKicker: "ZACZNIJ TUTAJ", tutorialTitle: "Złodziej w skarbcu", tutorialDescription: "Poznaj zasady krok po kroku, ze wskazówkami i bez limitu prób.",
+    storiesKicker: "MAŁA PRZYGODA", storiesTitle: "Z karczmy na królewski dwór", storiesDescription: "Dwie krótkie opowieści. Rozwiązuj sceny z pięcioma punktami zdrowia i darmowymi podpowiedziami.",
+    dailyKicker: "NOWY KOD KAŻDEGO DNIA", dailyTitle: "Trzy ukryte drużyny", dailyDescription: "Odczytaj nazwę drużyny. Wybierz poziom Łatwy, Średni lub Trudny, bez limitu prób.",
     brandKicker: "CODZIENNE WYZWANIE",
     gameKicker: "CODZIENNY KOD BOHATERÓW",
     gameTitle: "Mastermind",
@@ -92,6 +105,7 @@ const COPY = {
     clearRow: "Wyczyść bieżący wiersz",
     exactLegend: "Dobra klasa, dobre miejsce",
     misplacedLegend: "Dobra klasa, inne miejsce",
+    absentLegend: "Brak w składzie: inna klasa lub nadmiarowa kopia",
     chooseHeroes: "Wybierz bohaterów",
     pickerSubtitle: "Wybierz klasę, aby uzupełnić kolejne wolne miejsce.",
     keyboardPick: "wybór klas",
@@ -105,7 +119,7 @@ const COPY = {
     emptyPlace: (place) => `Miejsce ${place}, puste`,
     filledPlace: (place, hero) => `Miejsce ${place}, ${hero}. Naciśnij, aby usunąć.`,
     heroChoice: (hero, key) => `Dodaj: ${hero}. Skrót klawiszowy ${key}.`,
-    feedbackCount: (exact, misplaced) => `${exact} na miejscu, ${misplaced} w innym miejscu`,
+    feedbackCount: (exact, misplaced, absent) => `${exact} na miejscu, ${misplaced} w innym miejscu, ${absent} poza składem (inna klasa lub nadmiarowa kopia)`,
     attempts: (used) => `Próby: ${used}`,
     dateLocale: "pl-PL",
     unsolvedMessage: "Wybierz klasę, aby wypełnić podświetlony wiersz. Naciśnij zajęte miejsce, aby je zmienić.",
@@ -128,7 +142,7 @@ const levels = Object.fromEntries(
   CHALLENGES.map((challenge) => [challenge.id, generateChallenge(dateKey, challenge.id)]),
 );
 const progress = Object.fromEntries(CHALLENGES.map((challenge) => [challenge.id, restoreProgress(challenge)]));
-const state = { difficulty: "easy", locale: readLocale(), selectedSlot: 0 };
+const state = { screen: "home", difficulty: "easy", locale: readLocale(), selectedSlot: 0 };
 
 const todayDate = document.querySelector("#today-date");
 const languageButtons = [...document.querySelectorAll("[data-locale]")];
@@ -145,6 +159,53 @@ const clearButton = document.querySelector("#clear-button");
 const submitButton = document.querySelector("#submit-button");
 const gameMessage = document.querySelector("#game-message");
 let portraitDrag;
+const tutorial = installMastermindTutorial({
+  root: document.querySelector("#mastermind-tutorial"),
+  entry: document.querySelector("#mastermind-tutorial-entry"),
+  getLocale: () => state.locale,
+  onAdventureStart: () => adventures.start(0),
+  onModeChange: (active, completed) => {
+    portraitDrag?.cancel();
+    state.screen = active ? "tutorial" : completed ? "daily" : "home";
+    if (completed) chooseChallenge("easy");
+    else render();
+    if (!active) {
+      if (state.screen === "home") clearModeParams();
+      focusScreen();
+    }
+  },
+});
+
+const adventures = installMastermindAdventures({
+  root: document.querySelector("#mastermind-adventure"),
+  entry: document.querySelector("#mastermind-adventure-entry"),
+  getLocale: () => state.locale,
+  onModeChange: active => {
+    portraitDrag?.cancel();
+    state.screen = active ? "adventure" : "stories";
+    render();
+    if (!active) focusScreen();
+  },
+});
+
+function focusScreen() {
+  const target = { home: "mastermind-home-title", stories: "stories-title", daily: "daily-title" }[state.screen];
+  if (target) document.getElementById(target).focus();
+}
+function clearModeParams() {
+  const url = new URL(location.href);
+  for (const key of ["tutorial", "adventure", "daily"]) url.searchParams.delete(key);
+  history.replaceState(null, "", url);
+}
+function showScreen(screen) {
+  // Leaving a short run deliberately discards it; daily progress stays in its own store.
+  if (tutorial.active) tutorial.leave();
+  if (adventures.active) adventures.leave();
+  portraitDrag?.cancel();
+  state.screen = screen;
+  if (screen === "home") clearModeParams();
+  render(); focusScreen();
+}
 
 function copy() {
   return COPY[state.locale];
@@ -237,7 +298,8 @@ function currentProgress() {
 }
 
 function currentResult(guess, challenge = currentChallenge()) {
-  return evaluateGuess(challenge.code, guess);
+  const result = evaluateGuess(challenge.code, guess);
+  return result ? { ...result, absent: challenge.size - result.exact - result.misplaced } : null;
 }
 
 function isFinished(id = state.difficulty, guesses = progress[id].guesses) {
@@ -364,23 +426,26 @@ function renderClues(challenge) {
 function renderFeedback(result) {
   const feedback = document.createElement("span");
   feedback.className = "row-feedback";
-  feedback.setAttribute("aria-label", copy().feedbackCount(result.exact, result.misplaced));
-  feedback.title = copy().feedbackCount(result.exact, result.misplaced);
-  const exact = document.createElement("span");
-  exact.className = "feedback-score exact-score";
-  const exactDot = document.createElement("i");
-  exactDot.className = "feedback-dot exact";
-  const exactNumber = document.createElement("b");
-  exactNumber.textContent = String(result.exact);
-  exact.append(exactDot, exactNumber);
-  const misplaced = document.createElement("span");
-  misplaced.className = "feedback-score misplaced-score";
-  const misplacedDot = document.createElement("i");
-  misplacedDot.className = "feedback-dot misplaced";
-  const misplacedNumber = document.createElement("b");
-  misplacedNumber.textContent = String(result.misplaced);
-  misplaced.append(misplacedDot, misplacedNumber);
-  feedback.append(exact, misplaced);
+  feedback.setAttribute("role", "img");
+  const label = copy().feedbackCount(result.exact, result.misplaced, result.absent);
+  feedback.setAttribute("aria-label", label);
+  feedback.title = label;
+  for (const [kind, count, legend] of [
+    ["exact", result.exact, copy().exactLegend],
+    ["misplaced", result.misplaced, copy().misplacedLegend],
+    ["absent", result.absent, copy().absentLegend],
+  ]) {
+    const score = document.createElement("span");
+    score.className = `feedback-score ${kind}-score`;
+    score.title = `${count} · ${legend}`;
+    const dot = document.createElement("i");
+    dot.className = `feedback-dot ${kind}`;
+    dot.setAttribute("aria-hidden", "true");
+    const number = document.createElement("b");
+    number.textContent = String(count);
+    score.append(dot, number);
+    feedback.append(score);
+  }
   return feedback;
 }
 
@@ -529,6 +594,18 @@ function render() {
   const completeDraft = current.draft.every((type) => type !== null);
 
   applyCopy();
+  tutorial.render();
+  adventures.render();
+  document.querySelector("#mastermind-tutorial-entry").hidden = true;
+  document.querySelector("#mastermind-adventure-entry").hidden = state.screen !== "stories";
+  document.querySelector("#mastermind-home").hidden = state.screen !== "home";
+  document.querySelector("#mastermind-stories").hidden = state.screen !== "stories";
+  document.querySelector("#mastermind-daily").hidden = state.screen !== "daily";
+  document.querySelector(".intro-row").hidden = state.screen !== "daily";
+  document.querySelector(".page-footer").hidden = state.screen !== "daily";
+  document.querySelector("#mastermind-home-button").hidden = state.screen === "home";
+  todayDate.hidden = state.screen !== "daily";
+  if (["home", "stories"].includes(state.screen)) document.querySelector('[data-i18n="brandKicker"]').textContent = "MASTERMIND";
   partyName.textContent = localizedPartyName(challenge);
   missionLevel.textContent = strings[state.difficulty];
   guessCounter.textContent = strings.attempts(current.guesses.length);
@@ -553,7 +630,15 @@ languageButtons.forEach((button) => button.addEventListener("click", () => setLo
 clearButton.addEventListener("click", clearDraft);
 submitButton.addEventListener("click", submitGuess);
 
+document.querySelector("#home-play-tutorial").addEventListener("click", () => tutorial.start());
+document.querySelector("#home-play-stories").addEventListener("click", () => showScreen("stories"));
+document.querySelector("#home-play-daily").addEventListener("click", () => showScreen("daily"));
+document.querySelector("#mastermind-home-button").addEventListener("click", () => showScreen("home"));
+
 document.addEventListener("keydown", (event) => {
+  if (tutorial.active) { tutorial.keydown(event); return; }
+  if (adventures.active) { adventures.keydown(event); return; }
+  if (state.screen !== "daily") return;
   if (event.key === "Escape") { portraitDrag.cancel(); return; }
   if (event.altKey || event.ctrlKey || event.metaKey) return;
   if (event.target instanceof HTMLElement && (
@@ -574,8 +659,11 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-window.advanceTime = () => render();
+window.advanceTime = () => { if (!tutorial.active && !adventures.active) render(); };
 window.render_game_to_text = () => {
+  if (tutorial.active) return JSON.stringify(tutorial.snapshot());
+  if (adventures.active) return JSON.stringify(adventures.snapshot());
+  if (["home", "stories"].includes(state.screen)) return JSON.stringify({ game: "Vaultbound Mastermind", mode: state.screen, locale: state.locale, date: dateKey, choices: state.screen === "home" ? [copy().playTutorial, copy().playStories, copy().playDaily] : [...document.querySelectorAll("#mastermind-adventure-entry button")].map(button => button.textContent.trim()) });
   const challenge = currentChallenge();
   const current = currentProgress();
   const solvedAt = current.guesses.findIndex((guess) => currentResult(guess, challenge).exact === challenge.size);
@@ -599,7 +687,7 @@ window.render_game_to_text = () => {
 
 portraitDrag = installPortraitDrag({
   board: guessBoard,
-  canDrag: () => !isFinished(),
+  canDrag: () => state.screen === "daily" && !isFinished(),
   onDrop: ({ hero, sourceSlot, targetSlot, copy: clone }) => {
     const draft = currentProgress().draft;
     if (!clone && sourceSlot === targetSlot) return;
@@ -611,4 +699,11 @@ portraitDrag = installPortraitDrag({
     render();
   },
 });
+if (new URLSearchParams(location.search).get("daily") === "1") state.screen = "daily";
 render();
+if (new URLSearchParams(location.search).get("tutorial") === "1") tutorial.start();
+
+const adventureParam = new URLSearchParams(location.search).get("adventure");
+if (!tutorial.active && ["1", "2"].includes(adventureParam)) adventures.start(Number(adventureParam) - 1);
+// Both temporary modes reset on a restored browser-history page; sync entry visibility last.
+addEventListener("pageshow", event => { if (event.persisted) render(); });

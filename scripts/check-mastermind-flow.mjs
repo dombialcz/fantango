@@ -9,7 +9,7 @@ try {
     const page = await browser.newPage({ viewport: { width, height }, reducedMotion });
     const errors = [];
     page.on("pageerror", e => errors.push(e.message));
-    await page.goto("http://127.0.0.1:4173/mastermind.html");
+    await page.goto("http://127.0.0.1:4173/mastermind.html?daily=1");
     await page.evaluate(() => {
       const { date } = JSON.parse(window.render_game_to_text());
       localStorage.setItem(`vaultbound:mastermind:v1:${date}:easy`, JSON.stringify({

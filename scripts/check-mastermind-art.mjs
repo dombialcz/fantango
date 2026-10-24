@@ -15,7 +15,7 @@ try {
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
     page.on("response", response => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
-    await page.goto(`${baseURL}/mastermind.html`);
+    await page.goto(`${baseURL}/mastermind.html?daily=1`);
     const state = () => page.evaluate(() => JSON.parse(window.render_game_to_text()));
     await page.waitForFunction(() => window.render_game_to_text);
     for (const difficulty of ["easy", "medium", "hard"]) {
