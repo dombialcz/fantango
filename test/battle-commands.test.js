@@ -7,6 +7,7 @@ import {
   COMMAND_MAX,
   COMMAND_START,
   TIME_FREEZE_COOLDOWN_MS,
+  BLOODLUST_COOLDOWN_MS,
   commandPower,
 } from "../src/battle-commands.js";
 
@@ -14,6 +15,7 @@ test("battle commands share a bounded meter and map to every hero class", () => 
   assert.equal(COMMAND_START, 50);
   assert.equal(BATTLE_COMMANDS.freeze.cost, 100);
   assert.equal(TIME_FREEZE_COOLDOWN_MS, 10000);
+  assert.equal(BLOODLUST_COOLDOWN_MS, 10000);
   assert.equal(COMMAND_MAX, 100);
   assert.equal(COMMAND_GAIN_PER_DAMAGE, 0.12);
   assert.deepEqual(
@@ -36,9 +38,9 @@ test("pilfer scales with living Thieves", () => {
   assert.deepEqual(commandPower("pilfer", 3), { gold: 3 });
 });
 
-test("Bloodlust deals 1.5× combined frontline damage with any living Barbarian and has no health cost", () => {
+test("Bloodlust deals 1.25× combined frontline damage with any living Barbarian and has no health cost", () => {
   assert.deepEqual(commandPower("bloodlust", 0), { damageMultiplier: 0 });
-  for (const count of [1, 2, 4, 8]) assert.deepEqual(commandPower("bloodlust", count), { damageMultiplier: 1.5 });
+  for (const count of [1, 2, 4, 8]) assert.deepEqual(commandPower("bloodlust", count), { damageMultiplier: 1.25 });
 });
 
 test("Divine Aegis lasts eight seconds with any living Cleric", () => {

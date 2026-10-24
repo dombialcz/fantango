@@ -28,6 +28,7 @@ import {
   COMMAND_MAX,
   COMMAND_START,
   TIME_FREEZE_COOLDOWN_MS,
+  BLOODLUST_COOLDOWN_MS,
   commandPower,
 } from "./battle-commands.js";
 import {
@@ -175,6 +176,7 @@ function createCampaign(journey = createJourney(), veterans = []) {
     commandTargeting: null,
     enemyFreezeMs: 0,
     freezeCooldownMs: 0,
+    bloodlustCooldownMs: 0,
     divineAegisMs: 0,
     divineAegisTargetId: null,
     rallyMs: 0,
@@ -219,6 +221,7 @@ state.carryHeroIds ??= [];
 state.selectionHistory ??= []; // Saves made before class balancing have no selection history.
 state.commandAutoPauseEnabled ??= true;
 state.freezeCooldownMs ??= 0;
+state.bloodlustCooldownMs ??= 0;
 state.potionCooldownMs ??= 0;
 state.fleeReason ??= null;
 state.lowPartyWarningShown ??= false;
@@ -725,6 +728,7 @@ function resetFloorCommands() {
   state.commandTargeting = null;
   state.enemyFreezeMs = 0;
   state.freezeCooldownMs = 0;
+  state.bloodlustCooldownMs = 0;
   state.divineAegisMs = 0;
   state.divineAegisTargetId = null;
   state.floorPotionRecovered = false;
@@ -762,6 +766,7 @@ function commandUnavailableReason(commandId) {
   if (state.view !== "battle") return "battle only";
   if (commandHeroCount(commandId) === 0) return `needs ${HERO_TYPES[command.classType].label}`;
   if (commandId === "freeze" && state.freezeCooldownMs > 0) return `cooldown ${(state.freezeCooldownMs / 1000).toFixed(1)}s`;
+  if (commandId === "bloodlust" && state.bloodlustCooldownMs > 0) return `cooldown ${(Math.ceil(state.bloodlustCooldownMs / 100) / 10).toFixed(1)}s`;
   if (state.commandMeter < command.cost) return `needs ${command.cost}`;
   if (commandId === "pilfer" && state.pilferUsed) return "used this floor";
   if (commandId === "freeze" && state.enemyFreezeMs > 0) return "already active";
@@ -817,6 +822,7 @@ function useBattleCommand(commandId) {
     state.pilferPending = power.gold;
     logBattle(`The Thieves pilfer ${power.gold} gold, secured if this floor is cleared.`);
   } else if (commandId === "bloodlust") {
+    state.bloodlustCooldownMs = BLOODLUST_COOLDOWN_MS;
     const alliedFront = unitsInRow(livingParty(), "front");
     const enemyFront = unitsInRow(livingEnemies(), "front");
     const targets = enemyFront.length ? enemyFront : unitsInRow(livingEnemies(), "back");
@@ -1183,6 +1189,7 @@ function updateBattle(milliseconds) {
 
   state.enemyFreezeMs = Math.max(0, state.enemyFreezeMs - delta);
   state.freezeCooldownMs = Math.max(0, state.freezeCooldownMs - delta);
+  state.bloodlustCooldownMs = Math.max(0, Math.round((state.bloodlustCooldownMs - delta) * 1000) / 1000);
   state.potionCooldownMs = Math.max(0, Math.round((state.potionCooldownMs - delta) * 1000) / 1000);
   state.divineAegisMs = Math.max(0, state.divineAegisMs - delta);
   if (state.divineAegisMs === 0 || !livingParty().some(hero => hero.id === state.divineAegisTargetId)) {
@@ -1949,6 +1956,7 @@ window.render_game_to_text = () => {
       effects: {
         enemyFreezeMs: Math.round(state.enemyFreezeMs),
         freezeCooldownMs: Math.round(state.freezeCooldownMs),
+        bloodlustCooldownMs: Math.round(state.bloodlustCooldownMs),
         divineAegisMs: Math.round(state.divineAegisMs),
         divineAegisTargetId: state.divineAegisTargetId,
         rallyMs: Math.round(state.rallyMs),
@@ -2035,7 +2043,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect contracts; Hire below each offer for free. Click a hired hero to move between the active party and tavern reserves. If the destination is full, choose a highlighted hero there to swap. Dismissing a hero requires confirmation. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command at 0.12 points per damage, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Divine Aegis shields one selected hero for eight seconds. Mark Prey focuses a selected enemy and speeds up reachable attackers for ten seconds, ending early if the target dies. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second cooldown in combat time, paused with battle and scaled by battle speed. Press 8 to prepare or cancel a potion. Esc cancels targeting. Commands and potions work while paused. P pauses separately from speed. The combat-speed slider selects 0.5×, 1× or 2×; Space cycles those speeds. F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). When the company falls to two survivors, combat pauses once per expedition to offer Flee or Keep fighting. Keep fighting resumes combat; Escape dismisses the choice while staying paused. Mid-battle Flee asks for confirmation and costs half your gold, rounded up, including retreat from the survivor warning. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
+    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect contracts; Hire below each offer for free. Click a hired hero to move between the active party and tavern reserves. If the destination is full, choose a highlighted hero there to swap. Dismissing a hero requires confirmation. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command at 0.12 points per damage, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Bloodlust deals 1.25× combined frontline damage and has a ten-second cooldown in combat time. Divine Aegis shields one selected hero for eight seconds. Mark Prey focuses a selected enemy and speeds up reachable attackers for ten seconds, ending early if the target dies. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second cooldown in combat time, paused with battle and scaled by battle speed. Press 8 to prepare or cancel a potion. Esc cancels targeting. Commands and potions work while paused. P pauses separately from speed. The combat-speed slider selects 0.5×, 1× or 2×; Space cycles those speeds. F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). When the company falls to two survivors, combat pauses once per expedition to offer Flee or Keep fighting. Keep fighting resumes combat; Escape dismisses the choice while staying paused. Mid-battle Flee asks for confirmation and costs half your gold, rounded up, including retreat from the survivor warning. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
   });
 };
 

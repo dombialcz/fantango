@@ -3,6 +3,7 @@ export const COMMAND_START = 50;
 export const COMMAND_GAIN_PER_DAMAGE = 0.12;
 export const BATTLE_SPEEDS = Object.freeze([0.5, 1, 2]);
 export const TIME_FREEZE_COOLDOWN_MS = 10000;
+export const BLOODLUST_COOLDOWN_MS = 10000;
 
 export const BATTLE_COMMANDS = Object.freeze({
   hold: Object.freeze({ classType: "knight", label: "Hold the Line", shortLabel: "HOLD", cost: 50 }),
@@ -36,7 +37,7 @@ export function commandPower(commandId, matchingHeroes) {
     case "pilfer":
       return { gold: count };
     case "bloodlust":
-      return { damageMultiplier: count ? 1.5 : 0 };
+      return { damageMultiplier: count ? 1.25 : 0 };
     default:
       throw new Error(`Unknown battle command: ${commandId}`);
   }
