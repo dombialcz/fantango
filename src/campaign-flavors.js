@@ -39,7 +39,11 @@ function pressure(type) {
   const unit = ENEMY_TYPES[type];
   // A bounded planning estimate, not an assertion of equal encounter win rates.
   if (type === 'necromancer') return ENEMY_TYPES.skeleton.damage / ENEMY_TYPES.skeleton.interval;
-  return unit.damage / unit.interval * (1 + (unit.critChance ?? 0)) * (type === 'boneMage' ? 3.8 / 3 : 1);
+  // Repeated weakest-hero strikes are more dangerous than spread-out damage.
+  // Account for that focus so encounter normalization does not compensate
+  // for the Assassin's slower attacks by raising the whole formation's damage.
+  const targetingPressure = type === 'assassin' ? 1.5 : 1;
+  return unit.damage / unit.interval * (1 + (unit.critChance ?? 0)) * targetingPressure * (type === 'boneMage' ? 3.8 / 3 : 1);
 }
 export function campaignEncounter(faction, floor, plan, random = Math.random) {
   const profile = PROFILES[campaignProfile(plan,floor)];

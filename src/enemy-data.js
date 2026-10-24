@@ -12,7 +12,7 @@ export const ENEMY_TYPES = {
   cutthroat: { label: "Cutthroat", row: "front", hp: 58, damage: 22, interval: 820, color: "#596b7f", glyph: "C", critChance: .1, summary: "Attacks the front row with a 10% chance to deal double damage." },
   enforcer: { label: "Enforcer", row: "front", hp: 165, damage: 38, interval: 1600, color: "#705d55", glyph: "E" },
   marksman: { label: "Marksman", row: "back", hp: 70, damage: 40, interval: 1350, color: "#687c94", glyph: "M", targetsWeakest: true, summary: "Shoots the living hero with the lowest current HP, in either row. Knights can intercept the shot." },
-  assassin: { label: "Assassin", row: "back", hp: 72, damage: 55, interval: 780, color: "#53627d", glyph: "A", critChance: .2, summary: "Blinks forward to strike the lowest-health hero, then retreats. Critical hits deal double damage with a 20% chance. Knights can intercept." },
+  assassin: { label: "Assassin", row: "back", hp: 72, damage: 55, interval: 1100, color: "#53627d", glyph: "A", critChance: .2, summary: "Blinks forward to strike the lowest-health hero, then retreats. Critical hits deal double damage with a 20% chance. Knights can intercept." },
   goblin: { label: "Goblin", row: "front", hp: 42, damage: 16, interval: 1050, color: "#7f9a53", glyph: "G" },
   orc: { label: "Orc", row: "front", hp: 175, damage: 32, interval: 1950, color: "#66804a", glyph: "O" },
   goblinArcher: { label: "Goblin Archer", row: "back", hp: 58, damage: 38, interval: 1500, color: "#85954e", glyph: "G", targetsWeakest: true, summary: "Aims for the living hero with the lowest current HP, including the rear guard. Knights can intercept." },

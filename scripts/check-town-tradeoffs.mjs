@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {mkdir} from 'node:fs/promises';
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {chromium} from 'playwright';
 const base=process.argv[2]??'http://127.0.0.1:4199';
 await mkdir('output/campaign-flavors',{recursive:true});
@@ -73,6 +73,24 @@ try {
   },type);
   assert.deepEqual(result,{intercepted:true,rearHP:10});
  }
+ // Actual combat cadence: blink, retreat, then wait until the slower next strike.
+ const cadence=await page.evaluate(async()=>{
+  const t=window.flavorTest;await t.stage('assassins');const party=t.party(['cleric','mage','ranger']);
+  party.forEach(h=>{h.hp=h.maxHp=100000;h.timer=1e7});
+  const enemy=t.makeEnemy('assassin');enemy.timer=100;enemy.damage=4;t.state.enemies=[enemy];
+  t.state.battleTime=0;t.state.battlePaused=false;t.state.commandAutoPauseEnabled=false;t.state.battleSpeed=1;Math.random=()=>.99;
+  advanceTime(99);const before=enemy.attacks;
+  advanceTime(1);const first={attacks:enemy.attacks,row:enemy.row};
+  advanceTime(400);const retreated=enemy.row;
+  advanceTime(1249);const waiting=enemy.attacks;
+  advanceTime(1);return {before,first,retreated,waiting,second:enemy.attacks};
+ });
+ assert.deepEqual(cadence,{before:0,first:{attacks:1,row:'front'},retreated:'back',waiting:1,second:2});
+ await mkdir('output/assassin-nerf',{recursive:true});
+ const savedAssassin=await page.evaluate(()=>{const t=window.flavorTest;t.state.battlePaused=true;t.render();t.persist();return localStorage.getItem('vaultbound:campaign:v1')});
+ const html=await readFile('dungeon.html','utf8');
+ await writeFile('output/assassin-nerf/client.html',html.replace('<head>',`<head><base href="/"><link rel="icon" href="data:,"><script>localStorage.setItem('vaultbound:campaign:v1',${JSON.stringify(savedAssassin)});</script>`));
+
  const crit=await page.evaluate(async()=>{const t=window.flavorTest;await t.stage('assassins');const p=t.party(['cleric']);const e=t.makeEnemy('assassin');e.damage=40;t.state.enemies=[e];const hp=p[0].hp;Math.random=()=>0;t.actEnemy(e);return {lost:hp-p[0].hp,chance:e.critChance,details:t.battleUnitDetails(e.id)}});
  assert.equal(crit.lost,20);assert.equal(crit.chance,.2);assert.equal(Object.fromEntries(crit.details.stats)['Critical chance'],'20%');
  const summons=await page.evaluate(async()=>{const t=window.flavorTest;await t.stage();t.party();const n=t.makeEnemy('necromancer');t.state.enemies=[n];t.actEnemy(n);const first=t.state.enemies.map(e=>e.type);while(t.state.enemies.length<14)t.state.enemies.push(t.makeEnemy('skeleton'));t.actEnemy(n);return {first,count:t.state.enemies.length}});
