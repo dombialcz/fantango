@@ -1774,6 +1774,7 @@ function battlePresentation() {
       cost: battleCommandCost(id),
       nextSong: id === "rally" ? state.bardNextSong : null,
       activeSong: id === "rally" && commandHeroCount("rally") > 0 ? state.bardActiveSong : null,
+      cooldownMs: id === "rally" ? state.bardSongCooldownMs : 0,
       reason: commandUnavailableReason(id),
     }])),
     bardSong: commandHeroCount("rally") > 0 ? { active: state.bardActiveSong, power: activeBardSongPower() } : null,

@@ -286,21 +286,28 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
         const command = state.commands[id];
         const button = commandButtons.get(id);
         const activeMs = state.effects[id] ?? 0;
-        const label = id === "rally" ? SONGS[command.nextSong].label : BATTLE_COMMANDS[id].label;
+        const cooldownMs = command.cooldownMs ?? 0;
+        const label = id === "rally" ? "Change song" : BATTLE_COMMANDS[id].label;
         button.querySelector("strong").textContent = label;
         button.querySelector(".battle-command__cost").innerHTML = `${command.cost}<small>CMD</small>`;
-        if (id === "rally") button.dataset.song = SONGS[command.nextSong].color;
+        if (id === "rally") {
+          if (command.activeSong) button.dataset.song = SONGS[command.activeSong].color;
+          else delete button.dataset.song;
+        }
         const unavailable = Boolean(command.reason) || result;
         button.setAttribute("aria-disabled", String(unavailable));
         button.classList.toggle("is-ready", !unavailable);
-        button.classList.toggle("is-active", activeMs > 0 || (id === "rally" && Boolean(command.activeSong)));
+        button.classList.toggle("is-active", activeMs > 0);
+        button.classList.toggle("is-cooling", cooldownMs > 0);
         button.classList.toggle("is-targeting", id === state.targeting);
         button.querySelector(".battle-command__count").textContent = `×${command.count}`;
-        button.querySelector(".battle-command__active").textContent = activeMs > 0 ? `${(activeMs / 1000).toFixed(1)}s` : "";
-        button.querySelector(".battle-command__power").textContent = powerCopy(id, command.power);
-        button.querySelector(".battle-command__reason").textContent = id === "rally" ? command.reason ?? "SWITCH SONG" : activeMs > 0 ? "ACTIVE" : command.reason ?? "READY";
-        button.title = `${COMMAND_COPY[id]} ${command.reason ?? "Ready to cast."}`;
-        button.setAttribute("aria-label", `${id === "rally" ? `Switch to ${label}` : label}, ${command.cost} command, ${command.count} matching heroes, ${command.reason ?? "ready"}`);
+        button.querySelector(".battle-command__active").textContent = cooldownMs > 0 ? `${(Math.ceil(cooldownMs / 100) / 10).toFixed(1)}s` : activeMs > 0 ? `${(activeMs / 1000).toFixed(1)}s` : "";
+        button.querySelector(".battle-command__power").textContent = id === "rally"
+          ? state.bardSong ? `${SONGS[state.bardSong.active].label} · ${songEffectText(state.bardSong.power)}` : "No song playing"
+          : powerCopy(id, command.power);
+        button.querySelector(".battle-command__reason").textContent = id === "rally" ? command.reason ?? "READY" : activeMs > 0 ? "ACTIVE" : command.reason ?? "READY";
+        button.title = `${id === "rally" ? `${command.activeSong ? `Playing ${SONGS[command.activeSong].label}. ` : ""}Change song to ${SONGS[command.nextSong].label}. ` : ""}${COMMAND_COPY[id]} ${command.reason ?? "Ready to cast."}${cooldownMs > 0 && state.paused ? " Resume combat to advance the cooldown." : ""}`;
+        button.setAttribute("aria-label", `${id === "rally" ? `Change song, ${command.activeSong ? `playing ${SONGS[command.activeSong].label}` : "no song playing"}, next ${SONGS[command.nextSong].label}` : label}, ${command.cost} command, ${command.count} matching heroes, ${command.reason ?? "ready"}`);
       }
       const potion = actionButtons.get("potion");
       const cooldown = state.potionCooldownMs ?? 0;
