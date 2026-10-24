@@ -1,3 +1,4 @@
+import { songCooldownMs } from "./bard-songs.js";
 import { offerLevelChancesText } from "./hero-offers.js";
 
 import { cappedCombatPercent } from "./combat-rules.js";
@@ -23,7 +24,7 @@ export const BUILDING_DEFINITIONS = {
     name: "Bard College",
     classLabel: "Bard",
     commandLabel: "BARD SONGS",
-    core: (level) => `+${(level - 1) * 5}% song strength`,
+    core: (level) => `${songCooldownMs(level) / 1000}s song cooldown · −1s per level`,
     pathA: { label: "VIGOR", short: "+15% health" },
     pathB: { label: "CHORUS", short: "−1 Command per song" },
   },
@@ -129,7 +130,6 @@ export function buildingEffects(type, building) {
     effects.evasionChance = .1 + pathA * 0.05;
     effects.speedMultiplier += pathB * 0.1;
   } else if (type === "bard") {
-    effects.bardSongStrength = 1 + (level - 1) * .05;
     effects.bardCommandDiscount = pathB;
     effects.bardBuff = 0.2 + (level - 1) * 0.05;
     effects.healthMultiplier += pathA * 0.15;

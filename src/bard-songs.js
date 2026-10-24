@@ -1,5 +1,9 @@
 export const SONG_ORDER = Object.freeze(['rally', 'defense', 'power']);
 export const SONG_COOLDOWN_MS = 6000;
+export function songCooldownMs(level = 1) {
+  const collegeLevel = Math.max(1, Math.min(5, Math.floor(Number(level) || 1)));
+  return SONG_COOLDOWN_MS - (collegeLevel - 1) * 1000;
+}
 export const SONGS = Object.freeze({
   rally: Object.freeze({ label: 'Rally Song', color: 'red', speedBonus: .1 }),
   defense: Object.freeze({ label: 'Song of Defense', color: 'blue', reduction: .15 }),
@@ -40,7 +44,7 @@ export function migrateBardSongs(state) {
   state.bardSongsVersion = 2;
   state.bardNextSong = 'defense';
   state.bardActiveSong = 'rally';
-  state.bardSongCooldownMs = (state.view === 'battle' && state.party?.some(h => h.type === 'bard' && h.hp > 0)) ? SONG_COOLDOWN_MS : 0;
+  state.bardSongCooldownMs = (state.view === 'battle' && state.party?.some(h => h.type === 'bard' && h.hp > 0)) ? songCooldownMs(state.buildings?.bard?.level) : 0;
   delete state.bardSongMs;
   delete state.bardSongPower;
   state.rallyMs = 0;

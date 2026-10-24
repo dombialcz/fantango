@@ -9,7 +9,7 @@ import { createUnitInspector } from "./battle-unit-inspector.js";
 const COMMAND_COPY = {
   hold: "The friendly front row gains armor and damage for six seconds. More living Knights strengthen both bonuses.",
   pilfer: "Reserve one gold per living Thief (up to four), paid only if this floor is cleared. Once per floor.",
-  rally: "Bards continuously play one song. This command switches Rally → Defense → Power, with a six-second cooldown including the opening song. Two or more living Bards make songs 50% stronger. Power boosts damage and healing without changing maximum health.",
+  rally: "Bards continuously play one song. This command switches Rally → Defense → Power, with a 6-second cooldown at College level 1, reduced by 1 second per level to 2 seconds, including the opening song. Two or more living Bards make songs 50% stronger. Power boosts damage and healing without changing maximum health.",
   aegis: "Choose one hero to make invulnerable for eight seconds.",
   bloodlust: "Deal 1.25× the combined attack damage of all living friendly frontliners to every enemy in the front row. If that row is empty, strike the back row. No health cost. Ten-second cooldown in combat time, paused with battle and scaled by battle speed.",
   mark: "Choose an enemy. Heroes who can reach it focus their attacks and strike faster for ten seconds, or until it dies. More Rangers increase the speed bonus.",
@@ -306,7 +306,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
           ? state.bardSong ? `${SONGS[state.bardSong.active].label} · ${songEffectText(state.bardSong.power)}` : "No song playing"
           : powerCopy(id, command.power);
         button.querySelector(".battle-command__reason").textContent = id === "rally" ? command.reason ?? "READY" : activeMs > 0 ? "ACTIVE" : command.reason ?? "READY";
-        button.title = `${id === "rally" ? `${command.activeSong ? `Playing ${SONGS[command.activeSong].label}. ` : ""}Change song to ${SONGS[command.nextSong].label}. ` : ""}${COMMAND_COPY[id]} ${command.reason ?? "Ready to cast."}${cooldownMs > 0 && state.paused ? " Resume combat to advance the cooldown." : ""}`;
+        button.title = `${id === "rally" ? `${command.activeSong ? `Playing ${SONGS[command.activeSong].label}. ` : ""}Change song to ${SONGS[command.nextSong].label}. ${command.cooldownDurationMs / 1000}s switch cooldown. ` : ""}${COMMAND_COPY[id]} ${command.reason ?? "Ready to cast."}${cooldownMs > 0 && state.paused ? " Resume combat to advance the cooldown." : ""}`;
         button.setAttribute("aria-label", `${id === "rally" ? `Change song, ${command.activeSong ? `playing ${SONGS[command.activeSong].label}` : "no song playing"}, next ${SONGS[command.nextSong].label}` : label}, ${command.cost} command, ${command.count} matching heroes, ${command.reason ?? "ready"}`);
       }
       const potion = actionButtons.get("potion");

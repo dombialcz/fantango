@@ -41,7 +41,7 @@ test("class specialization picks stack independently", () => {
   assert.equal(knight.speedMultiplier, 1.1);
 
   const bard = buildingEffects("bard", { level: 3, pathA: 0, pathB: 2 });
-  assert.equal(bard.bardSongStrength, 1.1);
+  assert.equal(bard.bardSongStrength, 1);
   assert.equal(bard.bardCommandDiscount, 2);
 });
 

@@ -65,8 +65,19 @@ try {
  for(const speed of [.5,1,2]) {await stage(1);await page.evaluate(speed=>window.songTest.state.battleSpeed=speed,speed);await tick(1000);assert.equal((await snap()).cool,6000-1000*speed);}
  await stage(0);const noBard=await snap();await page.evaluate(()=>window.songTest.useBattleCommand('rally'));assert.deepEqual(await snap(),noBard);
  await stage(1);await tick(6000);await page.evaluate(()=>{window.songTest.state.commandMeter=19;window.songTest.render()});await page.evaluate(()=>window.songTest.useBattleCommand('rally'));assert.equal((await snap()).next,'defense');assert.equal((await snap()).meter,19);
- // College upgrades retain their investment via stronger songs and cheaper casts.
- await stage(1);await page.evaluate(()=>{const t=window.songTest;t.state.buildings.bard={level:5,pathA:0,pathB:4};t.render()});await tick(6000);await cast();assert.equal((await snap()).meter,84);assert.equal((await snap()).power.reduction,.18);
+ // College levels shorten both opening and switch cooldown without buffing songs.
+ for(const level of [1,2,3,4,5]) {
+  await stage(1);await page.evaluate(level=>{const t=window.songTest;t.state.buildings.bard={level,pathA:0,pathB:level-1};t.resetFloorCommands();t.state.commandMeter=100;t.render()},level);
+  const cooldown=(7-level)*1000;
+  assert.equal((await snap()).cool,cooldown);assert.equal((await snap()).power.speedBonus,.1);
+  assert.equal(await countdown(),`${cooldown/1000}.0s`);
+  await tick(cooldown);await cast();assert.equal((await snap()).meter,80+level-1);
+  assert.equal((await snap()).cool,cooldown);assert.equal((await snap()).power.reduction,.15);
+ }
+ // Loading an old six-second timer at a level-five College clamps it to two seconds.
+ await page.evaluate(()=>{const t=window.songTest;t.state.bardSongCooldownMs=6000;t.persist()});
+ await page.reload({waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.songTest);
+ assert.equal((await snap()).cool,2000);assert.equal(await countdown(),'2.0s');
  // Real save migration removes old blessings without healing and is idempotent.
  await stage(1);await page.evaluate(()=>{const t=window.songTest,s=t.state;delete s.bardSongsVersion;const k=s.party.find(h=>h.type==='knight');Object.assign(k,{power:120,bardBuffAmount:.2,bardBuffPercent:20,maxHp:120,baseMaxHp:120,hp:7});t.persist()});
  await page.reload({waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.songTest);
@@ -83,7 +94,10 @@ try {
    await page.screenshot({path:`output/bard-songs/${name}-${color}.png`});
   }
  }
- await page.setViewportSize({width:1440,height:1000});await stage(2);await tick(6000);await cast();await tick(6000);await cast();
+ await page.setViewportSize({width:1440,height:1000});await stage(2);
+ await page.evaluate(()=>{const t=window.songTest;t.state.buildings.bard={level:5,pathA:0,pathB:4};t.resetFloorCommands();t.state.commandMeter=100;t.render()});
+ await tick(2000);await cast();await tick(2000);await cast();
+ await page.screenshot({path:'output/bard-songs/college-five.png'});
  const savedClient=await page.evaluate(()=>{window.songTest.persist();return localStorage.getItem('vaultbound:campaign:v1')});
  const html=await readFile('dungeon.html','utf8');await writeFile('output/bard-songs/client.html',html.replace('<head>',`<head><base href="/"><link rel="icon" href="data:,"><script>localStorage.setItem('vaultbound:campaign:v1',${JSON.stringify(savedClient)});</script>`));
  assert.deepEqual(errors,[]);console.log('Continuous Bard songs, switches, sustain effects, costs, timing, death/strength, guards, migration/save/reset, upgrades and tinted responsive UI: passed');

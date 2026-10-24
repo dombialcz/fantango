@@ -1,4 +1,4 @@
-import { SONGS, SONG_COOLDOWN_MS, songPower, nextSong, songEffectText, migrateBardSongs } from "./bard-songs.js";
+import { SONGS, songCooldownMs, songPower, nextSong, songEffectText, migrateBardSongs } from "./bard-songs.js";
 import { HERO_TYPES, HERO_NAMES, heroPower } from "./hero-data.js";
 import { ENEMY_TYPES } from "./enemy-data.js";
 import { createJourney, heroLevelCap, campaignEnemyHealthMultiplier, heroLevelSpeed, heroTrainingCost, remainingInvasions, legacyEffects, legacyRewards, applyLegacyHeroEffects, potionRecoveryChance, campaignSummary, LEGACIES } from "./campaign-journey.js";
@@ -259,6 +259,7 @@ if (savedCampaign) {
   }
 }
 migrateBardSongs(state);
+state.bardSongCooldownMs = Math.min(state.bardSongCooldownMs, songCooldownMs(state.buildings.bard.level));
 if (state.classPowerVersion !== 1) {
   for (const unit of state.party ?? []) {
     if (unit.type === "thief" && !needsTownStatMigration) {
@@ -743,7 +744,7 @@ function resetFloorCommands() {
   state.floorPotionRecovered = false;
   state.bardNextSong = "defense";
   state.bardActiveSong = "rally";
-  state.bardSongCooldownMs = commandHeroCount("rally") > 0 ? SONG_COOLDOWN_MS : 0;
+  state.bardSongCooldownMs = commandHeroCount("rally") > 0 ? songCooldownMs(state.buildings.bard.level) : 0;
   state.rallyMs = 0;
   state.rallySpeedBonus = 0;
   state.markedEnemyId = null;
@@ -832,7 +833,7 @@ function useBattleCommand(commandId) {
   } else if (commandId === "rally") {
     const previousSpeed = activeSongBonus("speedBonus");
     state.bardActiveSong = power.song;
-    state.bardSongCooldownMs = SONG_COOLDOWN_MS;
+    state.bardSongCooldownMs = songCooldownMs(state.buildings.bard.level);
     state.bardNextSong = nextSong(power.song);
     const nextSpeed = activeSongBonus("speedBonus");
     for (const hero of livingParty()) hero.timer *= (1 + previousSpeed) / (1 + nextSpeed);
@@ -1616,7 +1617,7 @@ function render() {
     const crowdingMultiplier = hero.active || prospectiveActive ? classCrowdingMultiplier(crowdingCount) : 1;
     let summary = definition.summary;
     if (hero.type === "mage") summary = `Strikes up to ${effects.mageTargets} different enemies per attack, starting in the back row. Spell targets come from the Mage Guild.`;
-    if (hero.type === "bard") summary = "Starts each floor playing Rally. Switch between Rally → Defense → Power for the whole party; six-second cooldown including the opening song. Two or more living Bards make songs 50% stronger.";
+    if (hero.type === "bard") summary = `Starts each floor playing Rally. Switch between Rally → Defense → Power for the whole party; ${songCooldownMs(state.buildings.bard.level) / 1000}-second cooldown including the opening song. Two or more living Bards make songs 50% stronger.`;
     if (hero.type === "knight") summary += ` ${Math.round(totalDamageReduction(effects.damageReduction, 0, state.town.prefix.enemyDamage ?? 1) * 100)}% damage reduction, including town bonuses.`;
     return { ...hero, power, health: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier * crowdingMultiplier, state.graves), damage: Math.round(power * definition.damage * effects.damageMultiplier * crowdingMultiplier), crowdingPenaltyPercent: crowdingMultiplier < 1 ? 20 : 0, prospectiveActive, summary, townRecruitment: townRecruitmentText(state.town, hero.type),
       unpenalizedHealth: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier, state.graves),
@@ -1692,7 +1693,7 @@ function battleUnitDetails(id) {
     for (const legacy of legacyRewards(state.journey)) if (["healthMultiplier", "damageMultiplier", "critChance", "damageReduction", "evasionChance"].some(key => legacy[key] !== undefined)) bonuses.push(`Legacy · ${legacy.name}: ${legacy.description}`);
     if (unit.type === "bard") {
       const bard = heroEffects("bard");
-      bonuses.push(`Song strength: ×${number(bard.bardSongStrength)}. Song cost: ${battleCommandCost("rally")} Command. Does not attack.`);
+      bonuses.push(`Song cooldown: ${songCooldownMs(state.buildings.bard.level) / 1000}s. Song strength: ×${number(bard.bardSongStrength)}. Song cost: ${battleCommandCost("rally")} Command. Does not attack.`);
     }
     if (state.holdLineMs > 0 && unit.row === "front") effects.push(`Hold the Line: +${percent(state.holdArmorBonus)} armor and +${percent(state.holdDamageBonus)} damage · ${seconds(state.holdLineMs)}`);
     if (commandHeroCount("rally") > 0) effects.push(`${SONGS[state.bardActiveSong].label}: ${songEffectText(activeBardSongPower())} · while a Bard lives`);
@@ -1775,6 +1776,7 @@ function battlePresentation() {
       nextSong: id === "rally" ? state.bardNextSong : null,
       activeSong: id === "rally" && commandHeroCount("rally") > 0 ? state.bardActiveSong : null,
       cooldownMs: id === "rally" ? state.bardSongCooldownMs : 0,
+      cooldownDurationMs: id === "rally" ? songCooldownMs(state.buildings.bard.level) : 0,
       reason: commandUnavailableReason(id),
     }])),
     bardSong: commandHeroCount("rally") > 0 ? { active: state.bardActiveSong, power: activeBardSongPower() } : null,
@@ -2081,7 +2083,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect contracts; Hire below each offer for free. Click a hired hero to move between the active party and tavern reserves. If the destination is full, choose a highlighted hero there to swap. Dismissing a hero requires confirmation. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command at 0.12 points per damage, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Bloodlust deals 1.25× combined frontline damage and has a ten-second cooldown in combat time. Bards continuously play Rally (+10% speed), Defense (15% less damage) or Power (+20% damage/healing). Two living Bards make songs 50% stronger. Press 3 to switch for 20 Command, reduced by Chorus upgrades. Six-second cooldown includes the opening song; each floor starts with Rally. Divine Aegis shields one selected hero for eight seconds. Mark Prey focuses a selected enemy and speeds up reachable attackers for ten seconds, ending early if the target dies. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second cooldown in combat time, paused with battle and scaled by battle speed. Press 8 to prepare or cancel a potion. Esc cancels targeting. Commands and potions work while paused. P pauses separately from speed. The combat-speed slider selects 0.5×, 1× or 2×; Space cycles those speeds. F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). When the company falls to two survivors, combat pauses once per expedition to offer Flee or Keep fighting. Keep fighting resumes combat; Escape dismisses the choice while staying paused. Mid-battle Flee asks for confirmation and costs half your gold, rounded up, including retreat from the survivor warning. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
+    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect contracts; Hire below each offer for free. Click a hired hero to move between the active party and tavern reserves. If the destination is full, choose a highlighted hero there to swap. Dismissing a hero requires confirmation. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command at 0.12 points per damage, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Bloodlust deals 1.25× combined frontline damage and has a ten-second cooldown in combat time. Bards continuously play Rally (+10% speed), Defense (15% less damage) or Power (+20% damage/healing). Two living Bards make songs 50% stronger. Press 3 to switch for 20 Command, reduced by Chorus upgrades. Switch cooldown is 6s at College level 1, reduced by 1s per level to 2s; includes the opening song. Each floor starts with Rally. Divine Aegis shields one selected hero for eight seconds. Mark Prey focuses a selected enemy and speeds up reachable attackers for ten seconds, ending early if the target dies. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second cooldown in combat time, paused with battle and scaled by battle speed. Press 8 to prepare or cancel a potion. Esc cancels targeting. Commands and potions work while paused. P pauses separately from speed. The combat-speed slider selects 0.5×, 1× or 2×; Space cycles those speeds. F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). When the company falls to two survivors, combat pauses once per expedition to offer Flee or Keep fighting. Keep fighting resumes combat; Escape dismisses the choice while staying paused. Mid-battle Flee asks for confirmation and costs half your gold, rounded up, including retreat from the survivor warning. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
   });
 };
 
