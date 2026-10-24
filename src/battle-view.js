@@ -1,3 +1,4 @@
+import { SONGS, songEffectText } from "./bard-songs.js";
 import { BATTLE_COMMANDS, BATTLE_SPEEDS, COMMAND_IDS, COMMAND_MAX } from "./battle-commands.js";
 import { ENEMY_PORTRAITS } from "./enemy-art.js";
 import { goldPrice, updateGoldBalance } from "./gold-ui.js";
@@ -8,7 +9,7 @@ import { createUnitInspector } from "./battle-unit-inspector.js";
 const COMMAND_COPY = {
   hold: "The friendly front row gains armor and damage for six seconds. More living Knights strengthen both bonuses.",
   pilfer: "Reserve one gold per living Thief (up to four), paid only if this floor is cleared. Once per floor.",
-  rally: "The whole company attacks faster for six seconds. More living Bards increase the speed bonus.",
+  rally: "Bards continuously play one song. This command switches Rally → Defense → Power, with a six-second cooldown including the opening song. Two or more living Bards make songs 50% stronger. Power boosts damage and healing without changing maximum health.",
   aegis: "Choose one hero to make invulnerable for eight seconds.",
   bloodlust: "Deal 1.25× the combined attack damage of all living friendly frontliners to every enemy in the front row. If that row is empty, strike the back row. No health cost. Ten-second cooldown in combat time, paused with battle and scaled by battle speed.",
   mark: "Choose an enemy. Heroes who can reach it focus their attacks and strike faster for ten seconds, or until it dies. More Rangers increase the speed bonus.",
@@ -18,7 +19,8 @@ const COMMAND_COPY = {
 function powerCopy(id, power) {
   if (id === "freeze") return `${(power.durationMs / 1000).toFixed(1)}s enemy freeze`;
   if (id === "aegis") return `${(power.durationMs / 1000).toFixed(1)}s shield · one hero`;
-  if (id === "rally" || id === "mark") return `+${Math.round(power.speedBonus * 100)}% attack speed`;
+  if (id === "rally") return `${songEffectText(power)} · continuous`;
+  if (id === "mark") return `+${Math.round(power.speedBonus * 100)}% attack speed`;
   if (id === "hold") return `+${Math.round(power.armorBonus * 100)}% armor & damage`;
   if (id === "pilfer") return `+${power.gold} gold on victory`;
   return `×${power.damageMultiplier.toFixed(2)} combined frontline damage`;
@@ -92,7 +94,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       return;
     }
     const command = current.commands[id];
-    description.textContent = `${BATTLE_COMMANDS[id].label} · ${powerCopy(id, command.power)}. ${COMMAND_COPY[id]}${command.reason ? ` (${command.reason})` : ""}`;
+    description.textContent = `${id === "rally" && command.activeSong ? `Playing ${SONGS[command.activeSong].label}. ` : ""}${id === "rally" ? `Switch to ${SONGS[command.nextSong].label}` : BATTLE_COMMANDS[id].label} · ${command.cost} Command · ${powerCopy(id, command.power)}. ${COMMAND_COPY[id]}${command.reason ? ` (${command.reason})` : ""}`;
   }
 
   root.addEventListener("click", (event) => {
@@ -276,6 +278,7 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
       root.querySelector(".battle-resource strong").textContent = `${meter} / ${COMMAND_MAX}`;
       root.querySelector(".battle-resource__track i").style.width = `${state.meter}%`;
       const effectCopy = Object.entries(state.effects).filter(([, duration]) => duration > 0).map(([id, duration]) => `${BATTLE_COMMANDS[id].label} ${(duration / 1000).toFixed(1)}s`);
+      if (state.bardSong) effectCopy.unshift(`${SONGS[state.bardSong.active].label}: ${songEffectText(state.bardSong.power)} · playing`);
       effectCopy.push(...(state.eventBonuses ?? []));
       if (state.pilferPending > 0) effectCopy.push(`Pilfer +${state.pilferPending}g pending`);
       root.querySelector(".battle-active-effects").textContent = effectCopy.join(" · ");
@@ -283,17 +286,21 @@ export function createBattleView({ root, heroTypes, enemyTypes, onCommand, onTar
         const command = state.commands[id];
         const button = commandButtons.get(id);
         const activeMs = state.effects[id] ?? 0;
+        const label = id === "rally" ? SONGS[command.nextSong].label : BATTLE_COMMANDS[id].label;
+        button.querySelector("strong").textContent = label;
+        button.querySelector(".battle-command__cost").innerHTML = `${command.cost}<small>CMD</small>`;
+        if (id === "rally") button.dataset.song = SONGS[command.nextSong].color;
         const unavailable = Boolean(command.reason) || result;
         button.setAttribute("aria-disabled", String(unavailable));
         button.classList.toggle("is-ready", !unavailable);
-        button.classList.toggle("is-active", activeMs > 0);
+        button.classList.toggle("is-active", activeMs > 0 || (id === "rally" && Boolean(command.activeSong)));
         button.classList.toggle("is-targeting", id === state.targeting);
         button.querySelector(".battle-command__count").textContent = `×${command.count}`;
         button.querySelector(".battle-command__active").textContent = activeMs > 0 ? `${(activeMs / 1000).toFixed(1)}s` : "";
         button.querySelector(".battle-command__power").textContent = powerCopy(id, command.power);
-        button.querySelector(".battle-command__reason").textContent = activeMs > 0 ? "ACTIVE" : command.reason ?? "READY";
+        button.querySelector(".battle-command__reason").textContent = id === "rally" ? command.reason ?? "SWITCH SONG" : activeMs > 0 ? "ACTIVE" : command.reason ?? "READY";
         button.title = `${COMMAND_COPY[id]} ${command.reason ?? "Ready to cast."}`;
-        button.setAttribute("aria-label", `${BATTLE_COMMANDS[id].label}, ${BATTLE_COMMANDS[id].cost} command, ${command.count} matching heroes, ${command.reason ?? "ready"}`);
+        button.setAttribute("aria-label", `${id === "rally" ? `Switch to ${label}` : label}, ${command.cost} command, ${command.count} matching heroes, ${command.reason ?? "ready"}`);
       }
       const potion = actionButtons.get("potion");
       const cooldown = state.potionCooldownMs ?? 0;

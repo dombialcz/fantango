@@ -16,7 +16,7 @@ export const SETTLEMENTS = [
   { name: "Sanctum", bonus: "Clerics restore 3% more health", classType: "cleric", healing: 1.03 },
   { name: "Spire", bonus: "Mages deal 3% more damage", classType: "mage", damage: 1.03 },
   { name: "Hold", bonus: "Barbarians gain 3% maximum health", classType: "barbarian", health: 1.03 },
-  { name: "Market", bonus: "Bard buffs are 3% stronger", classType: "bard", bardBuff: 1.03 },
+  { name: "Market", bonus: "Bard songs are 3% stronger", classType: "bard", bardBuff: 1.03 },
   { name: "Estate", bonus: "Gain 1 extra gold at the start of each day", dailyGold: 1 },
   { name: "Crossing", bonus: "One additional free reroll each day", freeRerolls: 1 },
 ];
@@ -102,6 +102,7 @@ export function townHeroEffects(type, building, town) {
     evasionChance: cappedCombatPercent((building.evasionChance ?? 0) + (prefix.evasion ?? 0) + (local.evasion ?? 0)),
     healRatio: building.healRatio * (local.healing ?? 1),
     bardBuff: building.bardBuff * (local.bardBuff ?? 1),
+    bardSongStrength: (building.bardSongStrength ?? 1) * (local.bardBuff ?? 1),
   };
 }
 export function rollTownClass(classes, town, random = Math.random) {

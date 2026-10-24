@@ -85,11 +85,29 @@ try {
       pilfer: ["thief", "thief", "thief", "thief"],
     }[id];
     const game = await battle(classes);
+    if (id === "rally") await game.page.evaluate(() => {
+      const t = window.battleUiTest;
+      for (const unit of [...t.state.party, ...t.state.enemies]) unit.timer = 1e9;
+      t.state.commandAutoPauseEnabled = false; t.state.battlePaused = false;
+      advanceTime(6000); t.state.battlePaused = true; t.render();
+    });
+    // Mark's reach check needs both rows, independent of the random campaign mix.
+    if (id === "mark") await game.page.evaluate(() => {
+      const t = window.battleUiTest;
+      if (!t.state.enemies.some(e => e.row === "back")) t.state.enemies.at(-1).row = "back";
+      t.render();
+    });
     const cost = (await game.state()).commands.available[id].cost;
     const before = await pauseAtMeter(game, cost, true);
     let after = await cast(game, id);
     if (id === "hold") assert.equal(after.commands.effects.holdArmorBonus, .2);
-    if (id === "rally") assert.ok(after.party.find((hero) => hero.class === "knight").attackIntervalMs < before.party.find((hero) => hero.class === "knight").attackIntervalMs);
+    if (id === "rally") {
+      assert.equal(before.commands.effects.bardActiveSong, "rally");
+      assert.equal(after.commands.effects.bardActiveSong, "defense");
+      assert.equal(after.commands.effects.bardNextSong, "power");
+      assert.ok(after.party.find(hero => hero.class === "knight").attackIntervalMs > before.party.find(hero => hero.class === "knight").attackIntervalMs);
+      assert.ok(after.party.find(hero => hero.class === "knight").effectiveDamageReduction > before.party.find(hero => hero.class === "knight").effectiveDamageReduction);
+    }
     if (id === "mark") {
       assert.equal(after.commands.targeting, "mark");
       await game.page.keyboard.press("Escape");

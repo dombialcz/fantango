@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cappedCombatPercent, interceptingKnight, totalDamageReduction } from '../src/combat-rules.js';
+import { cappedCombatPercent, interceptingKnight, totalDamageReduction, mostWoundedAlly } from '../src/combat-rules.js';
 import { townHeroEffects, PREFIXES, SETTLEMENTS } from '../src/town-identity.js';
 import { buildingEffects } from '../src/town.js';
 
@@ -24,4 +24,17 @@ test('single-target interception has one 50% roll, never chains or includes dead
   assert.equal(interceptingKnight([{...a,hp:0},{...b,frozenMs:1}],ally,()=>0),null);
   assert.equal(interceptingKnight([],ally,()=>{throw Error('unnecessary roll')}),null);
   values=[0,0];assert.equal(interceptingKnight([a,b],a,()=>values.shift()),b);
+});
+
+
+test('Clerics prioritize missing absolute HP, include themselves and never heal dead/full heroes', () => {
+ const cleric={id:'cleric',hp:10,maxHp:80};
+ const tank={id:'tank',hp:100,maxHp:200};
+ const fragile={id:'fragile',hp:1,maxHp:50};
+ const dead={id:'dead',hp:0,maxHp:1000};
+ assert.equal(mostWoundedAlly([cleric,tank,fragile,dead]),tank);
+ assert.equal(mostWoundedAlly([cleric,fragile,dead]),cleric);
+ assert.equal(mostWoundedAlly([dead,{hp:100,maxHp:100}]),null);
+ assert.equal(mostWoundedAlly([]),null);
+ assert.equal(mostWoundedAlly([cleric,{id:'tie',hp:30,maxHp:100}]),cleric);
 });

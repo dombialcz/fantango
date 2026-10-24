@@ -48,11 +48,11 @@ try {
   await dialog.locator('button').click();
   const values=await page.evaluate(()=>{
     const t=window.inspectionTest,s=t.state,hero=s.party.find(u=>u.type==='thief');
-    s.holdLineMs=6000;s.holdArmorBonus=.1;s.holdDamageBonus=.2;s.rallyMs=6000;s.rallySpeedBonus=.2;s.events.dayPower=1.05;s.events.activeAttack=.8;
+    s.holdLineMs=6000;s.holdArmorBonus=.1;s.holdDamageBonus=.2;s.bardActiveSong="rally";s.events.dayPower=1.05;s.events.activeAttack=.8;
     hero.crowdingPenaltyPercent=20;hero.bardBuffPercent=20;hero.cemeteryBonusPercent=5;
     const details=t.battleUnitDetails(hero.id),stats=Object.fromEntries(details.stats);
     const target={side:'enemy',hp:100000,maxHp:100000,damageReduction:0,label:'Dummy'};
-    const actual=t.dealDamage(target,hero.power*.4*hero.damageMultiplier*1.2*1.05*.8,hero);
+    const actual=t.dealDamage(target,hero.power*.6*hero.damageMultiplier*1.2*1.05*.8,hero);
     return {stats,actual,interval:t.heroInterval(hero),armor:t.damageReductionFor(hero),details,
       empowered:t.battleUnitDetails(s.enemies.find(u=>u.type==='marksman').id),bard:t.battleUnitDetails(s.party.find(u=>u.type==='bard').id)};
   });

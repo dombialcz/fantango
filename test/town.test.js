@@ -41,8 +41,8 @@ test("class specialization picks stack independently", () => {
   assert.equal(knight.speedMultiplier, 1.1);
 
   const bard = buildingEffects("bard", { level: 3, pathA: 0, pathB: 2 });
-  assert.ok(Math.abs(bard.bardBuff - 0.3) < Number.EPSILON);
-  assert.equal(bard.bardTargets, 3);
+  assert.equal(bard.bardSongStrength, 1.1);
+  assert.equal(bard.bardCommandDiscount, 2);
 });
 
 test("rogues replace class crit bonuses with dodge, while Rangers keep crit", () => {

@@ -1,3 +1,4 @@
+import { SONGS, SONG_COOLDOWN_MS, songPower, nextSong, songEffectText, migrateBardSongs } from "./bard-songs.js";
 import { HERO_TYPES, HERO_NAMES, heroPower } from "./hero-data.js";
 import { ENEMY_TYPES } from "./enemy-data.js";
 import { createJourney, heroLevelCap, campaignEnemyHealthMultiplier, heroLevelSpeed, heroTrainingCost, remainingInvasions, legacyEffects, legacyRewards, applyLegacyHeroEffects, potionRecoveryChance, campaignSummary, LEGACIES } from "./campaign-journey.js";
@@ -14,7 +15,7 @@ import { BOSS_FLOOR, enemyHealthMultiplier, floorGoldReward, isBossFloor } from 
 import { FLAVOR_ROSTERS } from "./enemy-rosters.js";
 import { createCampaignFlavor, restoreCampaignFlavor, campaignEncounter } from "./campaign-flavors.js";
 import { BOSS_DEFINITIONS, BOSS_RULES, rollCampaignBoss } from "./bosses.js";
-import { COMBAT_DAMAGE_SCALE, COMBAT_INTERVAL_SCALE, cappedCombatPercent, interceptingKnight, totalDamageReduction } from "./combat-rules.js";
+import { COMBAT_DAMAGE_SCALE, COMBAT_INTERVAL_SCALE, cappedCombatPercent, interceptingKnight, totalDamageReduction, mostWoundedAlly } from "./combat-rules.js";
 import { createBackdropDepth, targetBackdropFloor, snapBackdropFloor, advanceBackdropDepth, DESCENT_DURATION_MS } from "./battle-backdrop.js";
 import { CEMETERY, cemeteryMaxHp, recordFallenHero } from "./cemetery.js";
 import { createTownView } from "./town-view.js";
@@ -179,6 +180,11 @@ function createCampaign(journey = createJourney(), veterans = []) {
     bloodlustCooldownMs: 0,
     divineAegisMs: 0,
     divineAegisTargetId: null,
+    classPowerVersion: 1,
+    bardSongsVersion: 2,
+    bardNextSong: "defense",
+    bardActiveSong: "rally",
+    bardSongCooldownMs: 0,
     rallyMs: 0,
     rallySpeedBonus: 0,
     markedEnemyId: null,
@@ -229,6 +235,7 @@ state.battleSpeed = BATTLE_SPEEDS.includes(state.battleSpeed) ? state.battleSpee
 state.divineAegisTargetId ??= null;
 // Legacy party-wide shields cannot remain active without a selected hero.
 if (state.divineAegisTargetId === null) state.divineAegisMs = 0;
+const needsTownStatMigration = savedCampaign && state.town.balanceVersion !== 4;
 if (savedCampaign) {
   nextHeroId = savedCampaign.nextHeroId; nextEnemyId = savedCampaign.nextEnemyId;
   if (state.town.balanceVersion !== 4) {
@@ -250,6 +257,20 @@ if (savedCampaign) {
         executeBonus: effects.executeBonus, healRatio: effects.healRatio, mageTargets: effects.mageTargets });
     }
   }
+}
+migrateBardSongs(state);
+if (state.classPowerVersion !== 1) {
+  for (const unit of state.party ?? []) {
+    if (unit.type === "thief" && !needsTownStatMigration) {
+      // Preserve modifiers and wounds; older town migrations already use new HP.
+      if (unit.baseMaxHp !== undefined) {
+        unit.baseMaxHp *= 7 / 6;
+        unit.maxHp = cemeteryMaxHp(unit.baseMaxHp, state.graves);
+      } else unit.maxHp = Math.round(unit.maxHp * 7 / 6);
+    }
+    if (unit.type === "cleric") unit.healRatio = heroEffects("cleric").healRatio;
+  }
+  state.classPowerVersion = 1;
 }
 function remember(category, text, floor = null) { recordChronicle(state, category, text, floor); }
 function persist() { saveCampaign(state, nextHeroId, nextEnemyId); }
@@ -587,22 +608,10 @@ function heroEffects(type) {
 
 function buildParty(heroes) {
   const counts = classCounts(heroes, HERO_KEYS);
-  const buffAmounts = new Map(heroes.map((hero) => [hero.id, 0]));
-  for (const bard of heroes.filter((hero) => hero.type === "bard")) {
-    const effects = heroEffects("bard");
-    const available = heroes.filter((hero) => hero.type !== "bard");
-    for (let index = 0; index < effects.bardTargets && available.length; index += 1) {
-      const targetIndex = Math.floor(Math.random() * available.length);
-      const [target] = available.splice(targetIndex, 1);
-      buffAmounts.set(target.id, buffAmounts.get(target.id) + effects.bardBuff);
-    }
-  }
-
   return heroes.map((hero) => {
     const definition = HERO_TYPES[hero.type];
     const effects = heroEffects(hero.type);
-    const buffAmount = buffAmounts.get(hero.id) ?? 0;
-    const power = heroPower(hero.level) * effects.powerMultiplier * (1 + buffAmount);
+    const power = heroPower(hero.level) * effects.powerMultiplier;
     const crowdingMultiplier = classCrowdingMultiplier(counts[hero.type]);
     const baseMaxHp = power * definition.hp * effects.healthMultiplier * crowdingMultiplier;
     const maxHp = cemeteryMaxHp(baseMaxHp, state.graves);
@@ -615,8 +624,8 @@ function buildParty(heroes) {
       row: definition.row,
       power,
       basePower: heroPower(hero.level),
-      bardBuffAmount: buffAmount,
-      bardBuffPercent: Math.round(buffAmount * 100),
+      bardBuffAmount: 0,
+      bardBuffPercent: 0,
       buildingSpeed: effects.speedMultiplier,
       damageMultiplier: effects.damageMultiplier * crowdingMultiplier,
       crowdingPenaltyPercent: crowdingMultiplier < 1 ? 20 : 0,
@@ -732,6 +741,9 @@ function resetFloorCommands() {
   state.divineAegisMs = 0;
   state.divineAegisTargetId = null;
   state.floorPotionRecovered = false;
+  state.bardNextSong = "defense";
+  state.bardActiveSong = "rally";
+  state.bardSongCooldownMs = commandHeroCount("rally") > 0 ? SONG_COOLDOWN_MS : 0;
   state.rallyMs = 0;
   state.rallySpeedBonus = 0;
   state.markedEnemyId = null;
@@ -761,17 +773,27 @@ function heroCanReach(unit, target) {
   return target.row === "front" || unitsInRow(livingEnemies(), "front").length === 0;
 }
 
+function battleCommandCost(id) {
+  return id === "rally" ? Math.max(1, BATTLE_COMMANDS.rally.cost - heroEffects("bard").bardCommandDiscount) : BATTLE_COMMANDS[id].cost;
+}
+function currentCommandPower(id, count = commandHeroCount(id)) {
+  return id === "rally" ? songPower(state.bardNextSong, count, heroEffects("bard").bardSongStrength) : commandPower(id, count);
+}
+function activeBardSongPower() { return songPower(state.bardActiveSong, commandHeroCount("rally"), heroEffects("bard").bardSongStrength); }
+function activeSongBonus(key) { return activeBardSongPower()[key] ?? 0; }
+
 function commandUnavailableReason(commandId) {
   const command = BATTLE_COMMANDS[commandId];
   if (state.view !== "battle") return "battle only";
   if (commandHeroCount(commandId) === 0) return `needs ${HERO_TYPES[command.classType].label}`;
   if (commandId === "freeze" && state.freezeCooldownMs > 0) return `cooldown ${(state.freezeCooldownMs / 1000).toFixed(1)}s`;
   if (commandId === "bloodlust" && state.bloodlustCooldownMs > 0) return `cooldown ${(Math.ceil(state.bloodlustCooldownMs / 100) / 10).toFixed(1)}s`;
-  if (state.commandMeter < command.cost) return `needs ${command.cost}`;
+  if (commandId === "rally" && state.bardSongCooldownMs > 0) return `cooldown ${(Math.ceil(state.bardSongCooldownMs / 100) / 10).toFixed(1)}s`;
+  const cost = battleCommandCost(commandId);
+  if (state.commandMeter < cost) return `needs ${cost}`;
   if (commandId === "pilfer" && state.pilferUsed) return "used this floor";
   if (commandId === "freeze" && state.enemyFreezeMs > 0) return "already active";
   if (commandId === "aegis" && state.divineAegisMs > 0) return "already active";
-  if (commandId === "rally" && state.rallyMs > 0) return "already active";
   if (commandId === "mark" && state.markMs > 0) return "already active";
   if (commandId === "hold" && state.holdLineMs > 0) return "already active";
   if (commandId === "bloodlust" && livingEnemies().length === 0) return "no enemies";
@@ -780,7 +802,7 @@ function commandUnavailableReason(commandId) {
 }
 
 function spendCommand(commandId) {
-  state.commandMeter = Math.max(0, state.commandMeter - BATTLE_COMMANDS[commandId].cost);
+  state.commandMeter = Math.max(0, state.commandMeter - battleCommandCost(commandId));
   state.commandTargeting = null;
   state.potionTargeting = false;
 }
@@ -799,7 +821,7 @@ function useBattleCommand(commandId) {
   }
 
   const count = commandHeroCount(commandId);
-  const power = commandPower(commandId, count);
+  const power = currentCommandPower(commandId, count);
   spendCommand(commandId);
   flashCommandHeroes(commandId);
 
@@ -808,10 +830,13 @@ function useBattleCommand(commandId) {
     state.freezeCooldownMs = power.durationMs + TIME_FREEZE_COOLDOWN_MS;
     logBattle(`${count} Mage${count === 1 ? "" : "s"} freeze time for ${(power.durationMs / 1000).toFixed(1)} seconds.`);
   } else if (commandId === "rally") {
-    state.rallyMs = power.durationMs;
-    state.rallySpeedBonus = power.speedBonus;
-    for (const hero of livingParty()) hero.timer /= 1 + power.speedBonus;
-    logBattle(`Rally grants the party +${Math.round(power.speedBonus * 100)}% attack speed.`);
+    const previousSpeed = activeSongBonus("speedBonus");
+    state.bardActiveSong = power.song;
+    state.bardSongCooldownMs = SONG_COOLDOWN_MS;
+    state.bardNextSong = nextSong(power.song);
+    const nextSpeed = activeSongBonus("speedBonus");
+    for (const hero of livingParty()) hero.timer *= (1 + previousSpeed) / (1 + nextSpeed);
+    logBattle(`Bards switch to ${SONGS[power.song].label}: ${songEffectText(power)}. Next: ${SONGS[state.bardNextSong].label}.`);
   } else if (commandId === "hold") {
     state.holdLineMs = power.durationMs;
     state.holdArmorBonus = power.armorBonus;
@@ -903,7 +928,8 @@ function addCombatEffect(source, target, kind = "attack") {
 
 function damageReductionFor(unit) {
   const armor = unit.row === "front" && state.holdLineMs > 0 ? state.holdArmorBonus : 0;
-  return totalDamageReduction(unit.damageReduction ?? 0, armor, state.town.prefix.enemyDamage ?? 1);
+  const base = totalDamageReduction(unit.damageReduction ?? 0, armor, state.town.prefix.enemyDamage ?? 1);
+  return cappedCombatPercent(1 - (1 - base) * (1 - activeSongBonus("reduction")));
 }
 
 function rememberFallenHero(unit, source) {
@@ -962,13 +988,17 @@ function dealDamage(target, amount, source, { area = false, logStrike = false } 
     : criticalAmount * (1 - cappedCombatPercent(target.damageReduction));
   const damage = Math.max(1, Math.round(reducedAmount * COMBAT_DAMAGE_SCALE));
   const previousHp = target.hp;
+  const previousSongSpeed = target.side === "hero" && target.type === "bard" ? activeSongBonus("speedBonus") : 0;
   target.hp = Math.max(0, target.hp - damage);
   const actualDamage = previousHp - target.hp;
   target.flash = 420;
   if (typeof source === "object") addCombatEffect(source, target);
   if (critical) logBattle(`${sourceLabel} lands a critical hit.`);
   if (target.hp === 0) {
-    if (target.side === "hero") rememberFallenHero(target, source);
+    if (target.side === "hero") {
+      rememberFallenHero(target, source);
+      if (previousSongSpeed) for (const ally of livingParty()) ally.timer *= (1 + previousSongSpeed) / (1 + activeSongBonus("speedBonus"));
+    }
     logBattle(`${sourceLabel} defeats ${target.label}.`);
   }
   else if (logStrike) logBattle(`${sourceLabel} strikes ${target.label}.`);
@@ -986,7 +1016,7 @@ function heroInterval(unit) {
   const definition = HERO_TYPES[unit.type];
   if (!Number.isFinite(definition.interval)) return Infinity;
   const heroLevelSpeed = ["mage", "ranger"].includes(unit.type) ? 1 : speedMultiplier(unit.hero.level);
-  const rallyMultiplier = state.rallyMs > 0 ? 1 + state.rallySpeedBonus : 1;
+  const rallyMultiplier = 1 + activeSongBonus("speedBonus");
   const markMultiplier = activeMarkedEnemy() && heroCanReach(unit, activeMarkedEnemy())
     ? 1 + state.markSpeedBonus
     : 1;
@@ -995,7 +1025,7 @@ function heroInterval(unit) {
 }
 
 function heroCommandDamageMultiplier(unit) {
-  return (unit.row === "front" && state.holdLineMs > 0 ? 1 + state.holdDamageBonus : 1) * state.events.dayPower * state.events.activeAttack;
+  return (unit.row === "front" && state.holdLineMs > 0 ? 1 + state.holdDamageBonus : 1) * state.events.dayPower * state.events.activeAttack * (1 + activeSongBonus("damageBonus"));
 }
 
 function actHero(unit) {
@@ -1041,10 +1071,9 @@ function actHero(unit) {
   if (dealt > 0 && target.hp > 0) logBattle(`${unit.label} strikes ${target.label}.`);
 
   if (unit.type === "cleric") {
-    const damaged = livingParty().filter((ally) => ally.id !== unit.id && ally.hp < ally.maxHp);
-    if (damaged.length) {
-      const ally = randomItem(damaged);
-      const amount = Math.max(1, Math.round(unit.power * unit.healRatio * COMBAT_DAMAGE_SCALE * state.events.dayPower));
+    const ally = mostWoundedAlly(livingParty());
+    if (ally) {
+      const amount = Math.max(1, Math.round(unit.power * unit.healRatio * COMBAT_DAMAGE_SCALE * state.events.dayPower * (1 + activeSongBonus("damageBonus"))));
       ally.hp = Math.min(ally.maxHp, ally.hp + amount);
       addCombatEffect(unit, ally, "heal");
       logBattle(`${unit.label} restores ${amount} health to ${ally.label}.`);
@@ -1196,7 +1225,7 @@ function updateBattle(milliseconds) {
     state.divineAegisMs = 0;
     state.divineAegisTargetId = null;
   }
-  state.rallyMs = Math.max(0, state.rallyMs - delta);
+  state.bardSongCooldownMs = Math.max(0, Math.round((state.bardSongCooldownMs - delta) * 1000) / 1000);
   state.markMs = Math.max(0, state.markMs - delta);
   state.holdLineMs = Math.max(0, state.holdLineMs - delta);
   if (!activeMarkedEnemy()) {
@@ -1587,7 +1616,7 @@ function render() {
     const crowdingMultiplier = hero.active || prospectiveActive ? classCrowdingMultiplier(crowdingCount) : 1;
     let summary = definition.summary;
     if (hero.type === "mage") summary = `Strikes up to ${effects.mageTargets} different enemies per attack, starting in the back row. Spell targets come from the Mage Guild.`;
-    if (hero.type === "bard") summary = `Gives ${effects.bardTargets} random non-bard ${effects.bardTargets === 1 ? "ally" : "allies"} +${Math.round(effects.bardBuff * 100)}% power at expedition start.`;
+    if (hero.type === "bard") summary = "Starts each floor playing Rally. Switch between Rally → Defense → Power for the whole party; six-second cooldown including the opening song. Two or more living Bards make songs 50% stronger.";
     if (hero.type === "knight") summary += ` ${Math.round(totalDamageReduction(effects.damageReduction, 0, state.town.prefix.enemyDamage ?? 1) * 100)}% damage reduction, including town bonuses.`;
     return { ...hero, power, health: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier * crowdingMultiplier, state.graves), damage: Math.round(power * definition.damage * effects.damageMultiplier * crowdingMultiplier), crowdingPenaltyPercent: crowdingMultiplier < 1 ? 20 : 0, prospectiveActive, summary, townRecruitment: townRecruitmentText(state.town, hero.type),
       unpenalizedHealth: cemeteryMaxHp(power * definition.hp * effects.healthMultiplier, state.graves),
@@ -1650,7 +1679,7 @@ function battleUnitDetails(id) {
     stats.push(["Ally intercept chance", guards ? "50% · single-target enemy attacks" : "0% · no available Knight"]);
     if (unit.type === "knight") stats.push(["Intercept for allies", frozen || livingParty().length < 2 ? "0% · unavailable" : "50% · single-target attacks"]);
     if (unit.type === "mage") stats.push(["Spell targets", unit.mageTargets]);
-    if (unit.type === "cleric") stats.push(["Healing / action", `${Math.max(1, Math.round(unit.power * unit.healRatio * COMBAT_DAMAGE_SCALE * state.events.dayPower))} HP · one wounded ally`]);
+    if (unit.type === "cleric") stats.push(["Healing / action", `${Math.max(1, Math.round(unit.power * unit.healRatio * COMBAT_DAMAGE_SCALE * state.events.dayPower * (1 + activeSongBonus("damageBonus"))))} HP · most HP missing, including self`]);
     if (unit.type === "thief") stats.push(["Damage vs ≤50% HP", Math.max(1, Math.round(rawDamage * (1 + unit.executeBonus) * COMBAT_DAMAGE_SCALE))]);
     bonuses.push(`${district.name} · level ${building.level}: ${district.core(building.level)}`);
     for (const path of ["pathA", "pathB"]) if (building[path] > 0 && district[path]) bonuses.push(`${district[path].label} ×${building[path]}: ${district[path].short} per upgrade`);
@@ -1663,10 +1692,10 @@ function battleUnitDetails(id) {
     for (const legacy of legacyRewards(state.journey)) if (["healthMultiplier", "damageMultiplier", "critChance", "damageReduction", "evasionChance"].some(key => legacy[key] !== undefined)) bonuses.push(`Legacy · ${legacy.name}: ${legacy.description}`);
     if (unit.type === "bard") {
       const bard = heroEffects("bard");
-      bonuses.push(`Blesses ${bard.bardTargets} non-Bard ${bard.bardTargets === 1 ? "ally" : "allies"} with +${percent(bard.bardBuff)} power when the expedition begins. Does not attack.`);
+      bonuses.push(`Song strength: ×${number(bard.bardSongStrength)}. Song cost: ${battleCommandCost("rally")} Command. Does not attack.`);
     }
     if (state.holdLineMs > 0 && unit.row === "front") effects.push(`Hold the Line: +${percent(state.holdArmorBonus)} armor and +${percent(state.holdDamageBonus)} damage · ${seconds(state.holdLineMs)}`);
-    if (state.rallyMs > 0) effects.push(`Rally: +${percent(state.rallySpeedBonus)} attack speed · ${seconds(state.rallyMs)}`);
+    if (commandHeroCount("rally") > 0) effects.push(`${SONGS[state.bardActiveSong].label}: ${songEffectText(activeBardSongPower())} · while a Bard lives`);
     const marked = activeMarkedEnemy();
     if (marked && heroCanReach(unit, marked)) effects.push(`Mark Prey: +${percent(state.markSpeedBonus)} attack speed against ${marked.label} · ${seconds(state.markMs)}`);
     if (state.events.dayPower !== 1) effects.push(`Shared cache: +${percent(state.events.dayPower - 1)} damage and healing today.`);
@@ -1741,13 +1770,16 @@ function battlePresentation() {
     pilferPending: state.pilferPending,
     commands: Object.fromEntries(COMMAND_IDS.map((id) => [id, {
       count: commandHeroCount(id),
-      power: commandPower(id, commandHeroCount(id)),
+      power: currentCommandPower(id),
+      cost: battleCommandCost(id),
+      nextSong: id === "rally" ? state.bardNextSong : null,
+      activeSong: id === "rally" && commandHeroCount("rally") > 0 ? state.bardActiveSong : null,
       reason: commandUnavailableReason(id),
     }])),
+    bardSong: commandHeroCount("rally") > 0 ? { active: state.bardActiveSong, power: activeBardSongPower() } : null,
     effects: {
       freeze: state.enemyFreezeMs,
       aegis: state.divineAegisMs,
-      rally: state.rallyMs,
       mark: state.markMs,
       hold: state.holdLineMs,
     },
@@ -1947,8 +1979,9 @@ window.render_game_to_text = () => {
           building: BUILDING_DEFINITIONS[BATTLE_COMMANDS[commandId].classType].name,
           heroClass: BATTLE_COMMANDS[commandId].classType,
           livingHeroes: count,
-          cost: BATTLE_COMMANDS[commandId].cost,
-          power: commandPower(commandId, count),
+          cost: battleCommandCost(commandId),
+          power: currentCommandPower(commandId, count),
+          nextSong: commandId === "rally" ? state.bardNextSong : null,
           usable: commandUnavailableReason(commandId) === null,
           unavailableReason: commandUnavailableReason(commandId),
         }];
@@ -1959,6 +1992,10 @@ window.render_game_to_text = () => {
         bloodlustCooldownMs: Math.round(state.bloodlustCooldownMs),
         divineAegisMs: Math.round(state.divineAegisMs),
         divineAegisTargetId: state.divineAegisTargetId,
+        bardActiveSong: commandHeroCount("rally") > 0 ? state.bardActiveSong : null,
+        bardNextSong: state.bardNextSong,
+        bardSongPower: activeBardSongPower(),
+        bardSongCooldownMs: state.bardSongCooldownMs,
         rallyMs: Math.round(state.rallyMs),
         rallySpeedBonus: state.rallySpeedBonus,
         markedEnemyId: state.markedEnemyId,
@@ -2043,7 +2080,7 @@ window.render_game_to_text = () => {
         }
       : null,
     message: state.message,
-    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect contracts; Hire below each offer for free. Click a hired hero to move between the active party and tavern reserves. If the destination is full, choose a highlighted hero there to swap. Dismissing a hero requires confirmation. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command at 0.12 points per damage, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Bloodlust deals 1.25× combined frontline damage and has a ten-second cooldown in combat time. Divine Aegis shields one selected hero for eight seconds. Mark Prey focuses a selected enemy and speeds up reachable attackers for ten seconds, ending early if the target dies. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second cooldown in combat time, paused with battle and scaled by battle speed. Press 8 to prepare or cancel a potion. Esc cancels targeting. Commands and potions work while paused. P pauses separately from speed. The combat-speed slider selects 0.5×, 1× or 2×; Space cycles those speeds. F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). When the company falls to two survivors, combat pauses once per expedition to offer Flee or Keep fighting. Keep fighting resumes combat; Escape dismisses the choice while staying paused. Mid-battle Flee asks for confirmation and costs half your gold, rounded up, including retreat from the survivor warning. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
+    controls: "Begin each day in town, then prepare the company. R rolls heroes: first daily roll free, then 1g, 2g, 3g. Offers use the Tavern level when rolled. Inspect contracts; Hire below each offer for free. Click a hired hero to move between the active party and tavern reserves. If the destination is full, choose a highlighted hero there to swap. Dismissing a hero requires confirmation. Hired heroes are safe from rerolls. T toggles Town. Each cleared floor pays the current day in gold. Clear floor 10 to end the invasion, review its chronicle and carry one legacy and two survivors to a new town. Four different invasions complete the journey. Hero caps rise from 5 to 8; hero-level attack speed stops growing at level 5. All seven battle commands are visible from the start; click one or press 1–7. Auto pause at 100 Command starts ON each expedition and can be toggled; choose an order, then Resume or press P. Damage fills Command at 0.12 points per damage, and matching living heroes determine command power. Time Freeze costs 100 Command and has a ten-second cooldown after freezing. Bloodlust deals 1.25× combined frontline damage and has a ten-second cooldown in combat time. Bards continuously play Rally (+10% speed), Defense (15% less damage) or Power (+20% damage/healing). Two living Bards make songs 50% stronger. Press 3 to switch for 20 Command, reduced by Chorus upgrades. Six-second cooldown includes the opening song; each floor starts with Rally. Divine Aegis shields one selected hero for eight seconds. Mark Prey focuses a selected enemy and speeds up reachable attackers for ten seconds, ending early if the target dies. Each cleared floor rolls Alchemist level × 10% potion recovery, plus 50 percentage points with the Undead potion legacy. Click any hero or enemy to pause and inspect their full portrait, combat stats, bonuses and effects. Close details leaves combat paused. Potion requires selecting a wounded hero and has a two-second cooldown in combat time, paused with battle and scaled by battle speed. Press 8 to prepare or cancel a potion. Esc cancels targeting. Commands and potions work while paused. P pauses separately from speed. The combat-speed slider selects 0.5×, 1× or 2×; Space cycles those speeds. F toggles fullscreen. Enter begins or continues an expedition or advances the day (focused buttons activate normally). When the company falls to two survivors, combat pauses once per expedition to offer Flee or Keep fighting. Keep fighting resumes combat; Escape dismisses the choice while staying paused. Mid-battle Flee asks for confirmation and costs half your gold, rounded up, including retreat from the survivor warning. Cancel keeps combat paused. Safe Flee is free between floors. Town buildings reset after the ten-day campaign.",
   });
 };
 

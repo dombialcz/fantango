@@ -1,3 +1,4 @@
+import { songPower } from "./bard-songs.js";
 export const COMMAND_MAX = 100;
 export const COMMAND_START = 50;
 export const COMMAND_GAIN_PER_DAMAGE = 0.12;
@@ -8,7 +9,7 @@ export const BLOODLUST_COOLDOWN_MS = 10000;
 export const BATTLE_COMMANDS = Object.freeze({
   hold: Object.freeze({ classType: "knight", label: "Hold the Line", shortLabel: "HOLD", cost: 50 }),
   pilfer: Object.freeze({ classType: "thief", label: "Pilfer", shortLabel: "PILFER", cost: 100 }),
-  rally: Object.freeze({ classType: "bard", label: "Rally", shortLabel: "RALLY", cost: 45 }),
+  rally: Object.freeze({ classType: "bard", label: "Bard Songs", shortLabel: "SONGS", cost: 20 }),
   aegis: Object.freeze({ classType: "cleric", label: "Divine Aegis", shortLabel: "AEGIS", cost: 70 }),
   bloodlust: Object.freeze({ classType: "barbarian", label: "Bloodlust", shortLabel: "BLOODLUST", cost: 60 }),
   mark: Object.freeze({ classType: "ranger", label: "Mark Prey", shortLabel: "MARK PREY", cost: 40 }),
@@ -29,7 +30,7 @@ export function commandPower(commandId, matchingHeroes) {
     case "aegis":
       return { durationMs: count ? 8000 : 0 };
     case "rally":
-      return { durationMs: count ? 6000 : 0, speedBonus: count * 0.15 };
+      return songPower("rally", count);
     case "mark":
       return { durationMs: count ? 10000 : 0, speedBonus: count * 0.2 };
     case "hold":

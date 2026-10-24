@@ -48,7 +48,7 @@ try {
   assert.equal(state.classBalance.selectionHistory.length,1);
   assert.equal(state.classBalance.selectionHistory[0].counts.knight,3); // Excludes fourth Knight on the bench.
   assert.equal(state.party[0].maxHp,80);assert.equal(state.party[0].crowdingPenaltyPercent,20);
-  assert.equal(state.party[3].maxHp,60);assert.equal(state.party[3].evasionChance,.1);
+  assert.equal(state.party[3].maxHp,70);assert.equal(state.party[3].evasionChance,.1);
   assert.equal(state.party[0].damageMultiplier,.8);
   assert.equal(await page.locator('[data-unit="hero-100"] .battle-unit__status').textContent(),'CROWDED −20%');
   const strike=await page.evaluate(()=>{

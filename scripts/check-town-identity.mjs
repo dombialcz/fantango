@@ -58,11 +58,12 @@ await page.evaluate(async () => {
     assert(party[0].critChance === effects.critChance, 'crit integration');
     assert(party[0].evasionChance === effects.evasionChance, 'dodge integration');
     assert(party[0].healRatio === effects.healRatio, 'heal integration');
-    assert(party[0].maxHp === Math.round(100 * ({ knight: 1, thief: .6, bard: .6, cleric: .8, barbarian: 1.2, ranger: .8, mage: .5 }[s.classType]) * effects.healthMultiplier), 'health integration');
+    assert(party[0].maxHp === Math.round(100 * ({ knight: 1, thief: .7, bard: .6, cleric: .8, barbarian: 1.2, ranger: .8, mage: .5 }[s.classType]) * effects.healthMultiplier), 'health integration');
   }
   t.state.town.settlement = SETTLEMENTS.find(s => s.name === 'Market');
   const buffed = t.buildParty([{ id: 1, type: 'bard', name: 'Bard', level: 1 }, { id: 2, type: 'knight', name: 'Knight', level: 1 }]);
-  assert(Math.abs(buffed[1].power - 120.6) < 1e-9, 'Market strengthens actual bard buff');
+  assert(buffed[1].power === 100, 'Bards no longer assign passive blessings');
+  assert(Math.abs(t.heroEffects('bard').bardSongStrength - 1.03) < 1e-9, 'Market strengthens bard songs');
   const target = { hp: 1000, side: 'hero', label: 'Test', row: 'back', damageReduction: 0 };
   t.state.party = []; // This synthetic target has no party guards; isolate the town trait.
   t.state.divineAegisMs = 0;

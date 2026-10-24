@@ -45,7 +45,7 @@ try {
     const {state,dealDamage}=window.defenseTest;const [knight,rogue]=state.party;
     const values=[.5,.2];Math.random=()=>values.shift()??.9;
     const damage=dealDamage(rogue,100,state.enemies[0]);return {damage,knight:knight.hp,rogue:rogue.hp};
-  }),{damage:25,knight:100,rogue:35});
+  }),{damage:25,knight:100,rogue:45});
 
   for(const roll of [.09999,.1]) {
     await stage();
@@ -54,7 +54,7 @@ try {
       const damage=dealDamage(state.party[1],100,state.enemies[0]);render();
       return {damage,hp:state.party[1].hp,meter:state.commandMeter,intercept:state.party[0].interceptFlash??0};
     },roll);
-    assert.equal(result.damage,roll<.1?0:25);assert.equal(result.hp,roll<.1?60:35);assert.equal(result.intercept,0);
+    assert.equal(result.damage,roll<.1?0:25);assert.equal(result.hp,roll<.1?70:45);assert.equal(result.intercept,0);
     if(roll<.1){assert.equal(result.meter,0);assert.equal(await page.locator('[data-unit-type="thief"] .battle-unit__status').textContent(),'EVADE');await page.screenshot({path:'output/hero-defenses/dodge.png'});}
   }
 
@@ -62,7 +62,7 @@ try {
   assert.deepEqual(await page.evaluate(()=>{
     const {state,dealDamage,makeEnemy,actEnemy}=window.defenseTest;Math.random=()=>.2;
     actEnemy(makeEnemy('infernalDragon',1));return state.party.map(hero=>hero.hp);
-  }),[87,44,80,50]);
+  }),[87,54,80,50]);
   await stage();
   assert.match(await page.evaluate(()=>{
     const {state,makeEnemy,actEnemy}=window.defenseTest;state.party[0].hp=0;Math.random=()=>0;
@@ -110,7 +110,7 @@ try {
     const {state,dealDamage}=window.defenseTest;state.party[0].hp=1;Math.random=()=>.1;
     dealDamage(state.party[1],100,state.enemies[0]);return {knight:state.party[0].hp,rogue:state.party[1].hp,meter:state.commandMeter,log:state.battleLog};
   });
-  assert.equal(fatal.knight,0);assert.equal(fatal.rogue,60);assert.equal(fatal.meter,.12);assert.ok(fatal.log.some(copy=>copy.includes('defeats Knight')));
+  assert.equal(fatal.knight,0);assert.equal(fatal.rogue,70);assert.equal(fatal.meter,.12);assert.ok(fatal.log.some(copy=>copy.includes('defeats Knight')));
 
   // Real build, town stacking and recruitment inspection all agree with combat stats.
   await stage();

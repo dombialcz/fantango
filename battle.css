@@ -313,3 +313,12 @@ body.battle-open > .back-link, body.battle-open > .sidegame-link { display: none
  .battle-unit-dialog__body { padding: 18px; }
  .battle-unit-dialog h2 { font-size: 24px; }
 }
+
+/* The illustration previews the next song, even while another song is playing. */
+.battle-command[data-song] { border-color: var(--song-color); }
+.battle-command[data-song="red"] { --song-color: #d77b72; --song-filter: sepia(1) saturate(3) hue-rotate(315deg); }
+.battle-command[data-song="blue"] { --song-color: #75b8e8; --song-filter: sepia(1) saturate(3) hue-rotate(160deg); }
+.battle-command[data-song="gold"] { --song-color: #e4be65; --song-filter: sepia(1) saturate(2); }
+.battle-command[data-song] .battle-command__art { background: color-mix(in srgb, var(--song-color) 18%, #0b121c); }
+.battle-command[data-song] .battle-command__art img { filter: var(--song-filter); }
+.battle-command[data-song] > strong { color: var(--song-color); }

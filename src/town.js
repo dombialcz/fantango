@@ -22,16 +22,16 @@ export const BUILDING_DEFINITIONS = {
   bard: {
     name: "Bard College",
     classLabel: "Bard",
-    commandLabel: "RALLY",
-    core: (level) => `ally buff +${20 + (level - 1) * 5}% power`,
+    commandLabel: "BARD SONGS",
+    core: (level) => `+${(level - 1) * 5}% song strength`,
     pathA: { label: "VIGOR", short: "+15% health" },
-    pathB: { label: "CHORUS", short: "+1 buff target" },
+    pathB: { label: "CHORUS", short: "−1 Command per song" },
   },
   cleric: {
     name: "Temple",
     classLabel: "Cleric",
     commandLabel: "DIVINE AEGIS",
-    core: (level) => `healing ${10 + (level - 1) * 3}% of power`,
+    core: (level) => `healing ${15 + (level - 1) * 3}% of power`,
     pathA: { label: "SANCTUARY", short: "+15% health" },
     pathB: { label: "DEVOTION", short: "+10% speed" },
   },
@@ -111,9 +111,12 @@ export function buildingEffects(type, building) {
     critChance: 0,
     evasionChance: 0,
     executeBonus: 0,
+    bardSongStrength: 1,
+    bardCommandDiscount: 0,
+    // Legacy blessing metadata is retained for old-save compatibility only.
     bardBuff: 0.2,
     bardTargets: 1,
-    healRatio: 0.1,
+    healRatio: 0.15,
     mageTargets: 1,
   };
 
@@ -126,11 +129,13 @@ export function buildingEffects(type, building) {
     effects.evasionChance = .1 + pathA * 0.05;
     effects.speedMultiplier += pathB * 0.1;
   } else if (type === "bard") {
+    effects.bardSongStrength = 1 + (level - 1) * .05;
+    effects.bardCommandDiscount = pathB;
     effects.bardBuff = 0.2 + (level - 1) * 0.05;
     effects.healthMultiplier += pathA * 0.15;
     effects.bardTargets += pathB;
   } else if (type === "cleric") {
-    effects.healRatio = 0.1 + (level - 1) * 0.03;
+    effects.healRatio = 0.15 + (level - 1) * 0.03;
     effects.healthMultiplier += pathA * 0.15;
     effects.speedMultiplier += pathB * 0.1;
   } else if (type === "barbarian") {

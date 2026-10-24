@@ -19,3 +19,9 @@ export function interceptingKnight(party, target, random = Math.random) {
 export function totalDamageReduction(base, armorBonus = 0, enemyDamageMultiplier = 1) {
   return cappedCombatPercent(1 - (1 - cappedCombatPercent(base + armorBonus)) * enemyDamageMultiplier);
 }
+
+// Stable ties preserve party order; dead and fully healed heroes are ineligible.
+export function mostWoundedAlly(party) {
+  return party.reduce((target, ally) => ally.hp > 0 && ally.hp < ally.maxHp
+    && (!target || ally.maxHp - ally.hp > target.maxHp - target.hp) ? ally : target, null);
+}

@@ -43,9 +43,9 @@ try {
   await stage();
   const before = await snapshot(); await cast();
   let after = await snapshot();
-  // L2 front: Barbarian 170*1.5*1.2 + Knight 170*.8 + Thief 170*.4 + Cleric 170*.2.
+  // L2 front: Barbarian 170*1.5*1.2 + Knight 170*.8 + Thief 170*.6 + Cleric 170*.2.
   // Multiply their combined attack by 1.25 and apply shared .25 combat scaling, then enemy defenses.
-  assert.deepEqual(after.enemyHp, [9830, 9864, 10000, 10000]);
+  assert.deepEqual(after.enemyHp, [9819, 9855, 10000, 10000]);
   assert.deepEqual(after.heroHp, before.heroHp); assert.equal(after.graves, 0); assert.equal(after.meter, 40);
   assert.match(after.log[0], /Bloodlust.*2 foes.*front row/);
   assert.match(await page.locator('#command-description').textContent(), /combined attack damage.*No health cost/);
@@ -65,12 +65,12 @@ try {
   // Active Hold the Line and both event damage modifiers contribute to the combined strike.
   await stage();
   await page.evaluate(() => { const t = window.bloodlustTest; t.state.holdLineMs = 6000; t.state.holdDamageBonus = .2; t.state.events.dayPower = 1.05; t.state.events.activeAttack = 1.1; t.render(); });
-  await cast(); assert.deepEqual((await snapshot()).enemyHp, [9764, 9812, 10000, 10000]);
+  await cast(); assert.deepEqual((await snapshot()).enemyHp, [9750, 9800, 10000, 10000]);
 
   // Dead frontliners and powerful rear heroes contribute no damage.
   await stage();
   await page.evaluate(() => { const t = window.bloodlustTest; t.state.party[1].hp = 0; t.state.party[4].power = t.state.party[5].power = 100000; t.render(); });
-  await cast(); assert.deepEqual((await snapshot()).enemyHp, [9872, 9898, 10000, 10000]);
+  await cast(); assert.deepEqual((await snapshot()).enemyHp, [9862, 9889, 10000, 10000]);
 
   // Empty and dead enemy fronts both fall back to every living rear enemy.
   for (const removeFront of [false, true]) {
@@ -80,7 +80,7 @@ try {
     const hp = (await snapshot()).heroHp;
     await page.keyboard.press('5');
     after = await snapshot();
-    assert.deepEqual(after.enemyHp, removeFront ? [9830, 9830] : [0, 0, 9830, 9830]);
+    assert.deepEqual(after.enemyHp, removeFront ? [9819, 9819] : [0, 0, 9819, 9819]);
     assert.deepEqual(after.heroHp, hp); assert.equal(after.meter, 40); assert.match(after.log[0], /back row/);
   }
 
@@ -119,12 +119,12 @@ try {
   await page.evaluate(() => { const t = window.bloodlustTest; t.state.enemies.slice(0, 2).forEach(enemy => enemy.hp = 1); t.render(); });
   await cast(); assert.deepEqual((await snapshot()).enemyHp, [0, 0, 10000, 10000]);
   await page.evaluate(() => { const t = window.bloodlustTest; t.state.commandMeter = 100; t.state.battlePaused = false; t.state.commandAutoPauseEnabled = false; advanceTime(10000); t.state.battlePaused = true; t.render(); });
-  await cast(); assert.deepEqual((await snapshot()).enemyHp, [0, 0, 9830, 9830]);
+  await cast(); assert.deepEqual((await snapshot()).enemyHp, [0, 0, 9819, 9819]);
 
   // Enemy armor and dodge retain the normal combat rules.
   await stage();
   await page.evaluate(() => { const t = window.bloodlustTest; t.state.enemies[0].evasionChance = 1; t.state.enemies[1].damageReduction = 1; Math.random = () => .1; t.render(); });
-  await cast(); assert.deepEqual((await snapshot()).enemyHp, [10000, 9983, 10000, 10000]);
+  await cast(); assert.deepEqual((await snapshot()).enemyHp, [10000, 9982, 10000, 10000]);
   await page.evaluate(() => { Math.random = () => .99; });
 
   // No valid targets or allied front means no charge, even through the direct handler.

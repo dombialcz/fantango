@@ -29,7 +29,7 @@ test("timed commands scale with living matching heroes and cap at four", () => {
   assert.deepEqual(commandPower("freeze", 4), { durationMs: 5000 });
   assert.deepEqual(commandPower("freeze", 8), { durationMs: 5000 });
   assert.deepEqual(commandPower("aegis", 3), { durationMs: 8000 });
-  assert.deepEqual(commandPower("rally", 2), { durationMs: 6000, speedBonus: 0.3 });
+  assert.deepEqual(commandPower("rally", 2), { song: "rally", speedBonus: 0.15000000000000002, reduction: 0, damageBonus: 0 });
   assert.deepEqual(commandPower("mark", 4), { durationMs: 10000, speedBonus: 0.8 });
   assert.deepEqual(commandPower("hold", 3), { durationMs: 6000, armorBonus: 0.3, damageBonus: 0.3 });
 });
