@@ -46,7 +46,7 @@
 }
 body.event-open { display: block; overflow: auto; }
 body.event-open main { display: block; min-height: 100svh; }
-body.event-open > .back-link, body.event-open > .sidegame-link { display: none; }
+body.event-open > .back-link { display: none; }
 .event-screen { position: relative; width: 100%; }
 .chronicle-trigger { position: static; box-shadow: none; flex-shrink: 0; padding: 9px 12px; }
 @media (max-width: 760px) {

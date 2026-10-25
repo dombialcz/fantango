@@ -1,5 +1,5 @@
 body.victory-open { background: #09131d; overflow-y: auto; }
-body.victory-open > .back-link, body.victory-open > .sidegame-link { display: none; }
+body.victory-open > .back-link { display: none; }
 .victory-screen { min-height: 100dvh; color: #ded8c8; background: linear-gradient(#09131d88, #09131df2 500px, #09131d), var(--victory-scene) center top / 100% auto no-repeat; font: 14px/1.7 Georgia, serif; }
 .victory-screen[hidden] { display: none; }
 .victory-wrap { max-width: 1040px; margin: auto; padding: 55px 30px 35px; }

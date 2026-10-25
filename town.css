@@ -16,8 +16,7 @@ body.town-open::before {
 }
 
 body.town-open main { display: block; min-height: 100dvh; }
-body.town-open > .back-link,
-body.town-open > .sidegame-link { display: none; }
+body.town-open > .back-link { display: none; }
 
 .town-screen {
   --town-ink: #101821;

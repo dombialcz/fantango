@@ -67,27 +67,6 @@ canvas:focus-visible {
   backdrop-filter: blur(8px);
 }
 
-.sidegame-link {
-  position: fixed;
-  z-index: 2;
-  top: max(0.7rem, env(safe-area-inset-top));
-  left: 50%;
-  padding: 0.5rem 0.75rem;
-  color: #e9e0ce;
-  font: 600 0.75rem/1 Georgia, serif;
-  text-decoration: none;
-  background: rgba(5, 13, 23, 0.88);
-  border: 1px solid rgba(157, 174, 185, 0.42);
-  border-radius: 999px;
-  backdrop-filter: blur(8px);
-}
-
-.sidegame-link:hover,
-.sidegame-link:focus-visible {
-  color: #fff1c9;
-  border-color: #d7ae5d;
-}
-
 .back-link:hover,
 .back-link:focus-visible {
   color: #fff1c9;
@@ -120,22 +99,11 @@ noscript {
   .back-link {
     opacity: 0.72;
   }
-
-  .sidegame-link {
-    opacity: 0.78;
-    font-size: 0.7rem;
-  }
 }
 
 @media (max-height: 600px) and (orientation: landscape) {
   .back-link {
     display: none;
-  }
-
-  .sidegame-link {
-    top: 0.45rem;
-    left: 50%;
-    transform: translateX(-50%);
   }
 }
 

@@ -1,7 +1,7 @@
 body.roster-open { display: block; overflow: auto; background: #0d1318 url("assets/vault-bg.jpg") center / cover fixed; }
 body.roster-open::before { content: ""; position: fixed; inset: 0; background: linear-gradient(110deg, #0d141aef, #151c23e8, #0d141af5); pointer-events: none; }
 body.roster-open main { display: block; min-height: 100dvh; }
-body.roster-open > .back-link, body.roster-open > .sidegame-link { display: none; }
+body.roster-open > .back-link { display: none; }
 .roster-screen { position: relative; width: 100%; padding: 0 32px; color: #eee3cc; font-family: Georgia, serif; }
 .roster-shell { max-width: 1416px; margin: auto; }
 .roster-screen button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
